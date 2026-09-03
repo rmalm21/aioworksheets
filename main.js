@@ -5145,26 +5145,28 @@ window.renderExecutiveDashboard = function() {
     });
 
     const calcPct = (curr, past) => past === 0 ? (curr > 0 ? 100 : 0) : ((curr - past) / past) * 100;
+    // Delta ditampilkan sebagai chip berwarna. isRevLogic membalik makna warna
+    // karena kenaikan jumlah revisi adalah sinyal buruk, bukan baik.
     const formatPct = (pct, isRevLogic = false) => {
-        if (pct > 0) return `<span style="color:${isRevLogic ? '#dc3545' : '#28a745'}; font-weight:bold;">▲ ${pct.toFixed(1)}%</span>`;
-        if (pct < 0) return `<span style="color:${isRevLogic ? '#28a745' : '#dc3545'}; font-weight:bold;">▼ ${Math.abs(pct).toFixed(1)}%</span>`;
-        return `<span style="color:#6c757d; font-weight:bold;">▪ 0%</span>`;
+        if (pct > 0) return `<span class="exec-delta ${isRevLogic ? 'is-bad' : 'is-good'}">▲ ${pct.toFixed(1)}%</span>`;
+        if (pct < 0) return `<span class="exec-delta ${isRevLogic ? 'is-good' : 'is-bad'}">▼ ${Math.abs(pct).toFixed(1)}%</span>`;
+        return `<span class="exec-delta is-flat">▪ 0%</span>`;
     };
 
-    // Tambahkan parameter isPct agar angka SLA otomatis mendapat imbuhan "%"
+    // isPct memberi imbuhan "%" untuk baris SLA yang bukan nilai mata uang.
     const buildRow = (label, c, p, cmtd, clm, cly, currencyCode, isRevLogic, isPct = false) => {
-        let format = (val) => currencyCode ? formatMoney(val, currencyCode) : (isPct ? `${val}%` : val.toLocaleString('id-ID'));
+        const format = (val) => currencyCode ? formatMoney(val, currencyCode) : (isPct ? `${val}%` : val.toLocaleString('id-ID'));
         return `
-        <tr style="border-bottom:1px solid #f1f5f9;">
-            <td style="padding:15px; font-weight:bold; color:#1e293b;">${label}</td>
-            <td style="padding:15px; text-align:right; font-weight:bold;">${format(c)}</td>
-            <td style="padding:15px; text-align:right; color:#64748b; font-size:12px;">${format(p)}</td>
-            <td style="padding:15px; text-align:right; background:#f8fbff;">${formatPct(calcPct(c, p), isRevLogic)}</td>
-            <td style="padding:15px; text-align:right; border-left: 2px solid #e2e8f0; font-weight:bold;">${format(cmtd)}</td>
-            <td style="padding:15px; text-align:right; color:#64748b; font-size:12px;">${format(clm)}</td>
-            <td style="padding:15px; text-align:right; background:#f8fbff;">${formatPct(calcPct(cmtd, clm), isRevLogic)}</td>
-            <td style="padding:15px; text-align:right; color:#64748b; font-size:12px;">${format(cly)}</td>
-            <td style="padding:15px; text-align:right; background:#f8fbff;">${formatPct(calcPct(cmtd, cly), isRevLogic)}</td>
+        <tr>
+            <th scope="row" class="exec-row-label">${label}</th>
+            <td class="exec-cell-primary">${format(c)}</td>
+            <td class="exec-cell-muted">${format(p)}</td>
+            <td class="exec-cell-delta">${formatPct(calcPct(c, p), isRevLogic)}</td>
+            <td class="exec-cell-primary exec-group-start">${format(cmtd)}</td>
+            <td class="exec-cell-muted">${format(clm)}</td>
+            <td class="exec-cell-delta">${formatPct(calcPct(cmtd, clm), isRevLogic)}</td>
+            <td class="exec-cell-muted exec-group-start">${format(cly)}</td>
+            <td class="exec-cell-delta">${formatPct(calcPct(cmtd, cly), isRevLogic)}</td>
         </tr>`;
     };
 
@@ -5241,11 +5243,18 @@ window.renderExecutiveDashboard = function() {
 
         <section class="exec-section-card exec-table-card">
             <div class="exec-section-head"><div><span class="exec-section-icon" aria-hidden="true">▤</span><div><h4>Ringkasan Tabel Perbandingan</h4><small>CP, PP, MTD, PMTD, dan periode sama tahun lalu</small></div></div><button class="btn exec-mini-export" onclick="exportExecutiveExcel()">↧ Unduh Excel</button></div>
+            <p class="exec-table-hint"><span aria-hidden="true">↔</span> Geser tabel ke samping untuk melihat kolom MTD dan tahun lalu.</p>
             <div class="table-responsive exec-table-wrap">
                 <table class="std-table exec-comparison-table">
                     <thead>
+                        <tr class="exec-group-row">
+                            <th scope="col" rowspan="2" class="exec-row-label-head">Komponen Analisis</th>
+                            <th scope="colgroup" colspan="3">Periode Berjalan</th>
+                            <th scope="colgroup" colspan="3" class="exec-group-start">Month to Date</th>
+                            <th scope="colgroup" colspan="2" class="exec-group-start">Tahun Lalu</th>
+                        </tr>
                         <tr>
-                            <th>Komponen Analisis</th><th>Periode Aktif (CP)</th><th>Periode Sebelumnya (PP)</th><th>Pertumbuhan vs PP</th><th>MTD (Bulan Ini)</th><th>MTD Sebelumnya (PMTD)</th><th>Pertumbuhan vs PMTD</th><th>Periode Sama Tahun Lalu</th><th>Pertumbuhan vs SPLY</th>
+                            <th scope="col">Periode Aktif (CP)</th><th scope="col">Periode Sebelumnya (PP)</th><th scope="col">Pertumbuhan vs PP</th><th scope="col" class="exec-group-start">MTD (Bulan Ini)</th><th scope="col">MTD Sebelumnya (PMTD)</th><th scope="col">Pertumbuhan vs PMTD</th><th scope="col" class="exec-group-start">Periode Sama Tahun Lalu</th><th scope="col">Pertumbuhan vs SPLY</th>
                         </tr>
                     </thead>
                     <tbody>

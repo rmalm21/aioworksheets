@@ -4208,7 +4208,39 @@ body.dark-mode .stats-employee-metric-revision strong { color: #ff99a8; }
 .exec-mini-export { min-height:34px !important; padding:7px 10px !important; border-color:#b8d8c9 !important; background:#eff9f4 !important; color:#147352 !important; font-size:10px !important; box-shadow:none !important; }
 .exec-table-wrap { overflow:auto; border:1px solid #e3edf3 !important; border-radius:13px; box-shadow:none !important; }
 .exec-comparison-table { min-width:1000px; margin:0; border-collapse:separate; border-spacing:0; font-size:12px; }
-.exec-comparison-table thead th { padding:12px 13px !important; background:#f1f7fa !important; color:#557083 !important; border-bottom:1px solid #dbe8ef !important; font-size:9px !important; letter-spacing:.035em; text-transform:uppercase; }.exec-comparison-table thead th:not(:first-child) { text-align:right; }.exec-comparison-table tbody td { border-color:#edf2f5; }
+.exec-comparison-table thead th { padding:11px 13px !important; background:#f1f7fa !important; color:#557083 !important; border-bottom:1px solid #dbe8ef !important; font-size:9px !important; letter-spacing:.035em; text-transform:uppercase; }
+.exec-comparison-table thead th:not(:first-child) { text-align:right; }
+.exec-comparison-table tbody td { border-color:#edf2f5; }
+
+/* Header dua tingkat: blok CP/PP, MTD/PMTD, dan tahun lalu dipisahkan
+   supaya sembilan kolom perbandingan tetap terbaca sebagai tiga kelompok. */
+.exec-comparison-table .exec-group-row th { padding-top:13px !important; color:#0d6f9f !important; font-size:10px !important; font-weight:900; letter-spacing:.12em; text-align:center !important; background:#e9f3f9 !important; }
+.exec-comparison-table .exec-group-row th.exec-row-label-head { text-align:left !important; background:#f1f7fa !important; color:#557083 !important; letter-spacing:.035em; vertical-align:bottom; }
+.exec-comparison-table .exec-group-start { border-left:2px solid #d5e5ef !important; }
+.exec-comparison-table tbody th.exec-row-label {
+    /* .std-table th sticky-nya untuk header kolom; row header hanya menempel
+       ke kiri agar label metrik tetap terlihat saat tabel digeser. */
+    position:sticky; top:auto !important; left:0; z-index:1;
+    padding:14px 15px !important;
+    background-color:#fff !important;
+    border-bottom:1px solid #edf2f5 !important;
+    color:#1e293b !important; font-size:var(--ws-font-sm) !important; font-weight:800; text-align:left; text-transform:none; letter-spacing:0;
+    box-shadow:1px 0 0 #edf2f5;
+}
+.exec-comparison-table tbody td { padding:14px 15px !important; text-align:right; vertical-align:middle; }
+.exec-comparison-table .exec-cell-primary { color:#173d55; font-weight:800; }
+.exec-comparison-table .exec-cell-muted { color:#6d8496; font-size:var(--ws-font-xs) !important; }
+.exec-comparison-table .exec-cell-delta { background:#f8fbff; }
+.exec-comparison-table tbody tr:hover td { background:#f4fafd; }
+.exec-comparison-table tbody tr:hover th.exec-row-label { background-color:#f4fafd !important; }
+.exec-comparison-table tbody tr:hover .exec-cell-delta { background:#eef7fd; }
+.exec-delta { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:999px; font-size:var(--ws-font-xs) !important; font-weight:800; white-space:nowrap; }
+.exec-delta.is-good { background:#e3f7ec; color:#1b7a4d; }
+.exec-delta.is-bad { background:#fdeaec; color:#b32536; }
+.exec-delta.is-flat { background:#eef2f5; color:#68798a; }
+.exec-table-hint { display:flex; align-items:center; gap:7px; margin:0 0 10px; color:#7b93a5; font-size:var(--ws-font-xs); }
+.exec-table-hint span { font-size:13px; }
+@media (min-width: 1500px) { .exec-table-hint { display:none; } }
 .exec-chart-card { margin-bottom:0; }
 .exec-chart-badge { padding:5px 9px; border-radius:999px; background:#edf7fb; color:#1478a9; font-size:9px; font-weight:900; letter-spacing:.05em; }
 .exec-chart-wrap { position:relative; height:330px; width:100%; }
@@ -4219,7 +4251,24 @@ body.dark-mode .exec-toolbar,body.dark-mode .exec-kpi-card,body.dark-mode .exec-
 body.dark-mode .exec-toolbar-title strong,body.dark-mode .exec-section-head h4,body.dark-mode .exec-kpi-value { color:#e5f1f8; }
 body.dark-mode .exec-period-strip { border-color:#355468; background:#1a3447; }.dark-mode .exec-period-strip strong { color:#9ed8f2; }.dark-mode .exec-period-strip div > span { color:#c3d3de; }.dark-mode .exec-period-previous { border-color:#3f596b; }
 body.dark-mode .exec-kpi-foot { border-color:#304b5d; }.dark-mode .exec-kpi-foot strong { color:#d4e1ea; }.dark-mode .exec-kpi-sub,.dark-mode .exec-kpi-trend > span:last-child { color:#9bb0bf; }
-body.dark-mode .exec-section-head { border-color:#345064; }.dark-mode .exec-table-wrap { border-color:#355064 !important; }.dark-mode .exec-comparison-table thead th { background:#203b4e !important; color:#b7ccda !important; border-color:#355064 !important; }
+body.dark-mode .exec-section-head { border-color:#345064; }
+.dark-mode .exec-table-wrap { border-color:#355064 !important; }
+.dark-mode .exec-comparison-table thead th { background:#203b4e !important; color:#b7ccda !important; border-color:#355064 !important; }
+.dark-mode .exec-comparison-table .exec-group-row th { background:#24455b !important; color:#7fd0f2 !important; }
+.dark-mode .exec-comparison-table .exec-group-row th.exec-row-label-head { background:#203b4e !important; color:#b7ccda !important; }
+.dark-mode .exec-comparison-table .exec-group-start { border-left-color:#3d5f76 !important; }
+.dark-mode .exec-comparison-table tbody th.exec-row-label { background-color:#1b2f3d !important; color:#dfeaf2 !important; border-bottom-color:#2c4557 !important; box-shadow:1px 0 0 #2c4557; }
+.dark-mode .exec-comparison-table tbody td { border-color:#2c4557; }
+.dark-mode .exec-comparison-table .exec-cell-primary { color:#e6f1f8; }
+.dark-mode .exec-comparison-table .exec-cell-muted { color:#9db3c3; }
+.dark-mode .exec-comparison-table .exec-cell-delta { background:#1d3546; }
+.dark-mode .exec-comparison-table tbody tr:hover td { background:#213a4b; }
+.dark-mode .exec-comparison-table tbody tr:hover th.exec-row-label { background-color:#213a4b !important; }
+.dark-mode .exec-comparison-table tbody tr:hover .exec-cell-delta { background:#254155; }
+.dark-mode .exec-delta.is-good { background:#123a29; color:#7fe0ab; }
+.dark-mode .exec-delta.is-bad { background:#3d1c23; color:#f7a3ae; }
+.dark-mode .exec-delta.is-flat { background:#263a48; color:#a3b6c4; }
+.dark-mode .exec-table-hint { color:#93a9ba; }
 body.dark-mode .exec-chart-badge { background:#21455d; color:#8bd8f7; }
 
 @media (max-width:1050px) {
