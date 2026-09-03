@@ -5000,6 +5000,10 @@ const WORKSHEET_P20_TRANSLATION_ROWS = [
 ];
 
 const WORKSHEET_P21_TRANSLATION_ROWS = [
+    ['Geser tabel ke samping untuk melihat kolom MTD dan tahun lalu.', 'Scroll the table sideways to see the MTD and last-year columns.', '表を横にスクロールするとMTDと前年の列が表示されます。'],
+    ['Periode Berjalan', 'Current Period', '当期'],
+    ['Tahun Lalu', 'Last Year', '前年'],
+    ['Month to Date', 'Month to Date', '月初来'],
     ['Login & Akun', 'Login & Account', 'ログインとアカウント'],
     ['Navigasi & Menu', 'Navigation & Menu', 'ナビゲーションとメニュー'],
     ['Klaim & Workflow', 'Claims & Workflow', '申請とワークフロー'],
