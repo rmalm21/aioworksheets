@@ -4639,3 +4639,114 @@ body.dark-mode .modal-overlay .modal-content,
 body.dark-mode #modal-note-detail .note-detail-body { scrollbar-color: #46647a transparent; }
 body.dark-mode .modal-overlay .modal-content::-webkit-scrollbar-thumb,
 body.dark-mode #modal-note-detail .note-detail-body::-webkit-scrollbar-thumb { background: #46647a; background-clip: content-box; }
+
+/* =========================================================
+   P21 — UBAH PASSWORD
+   ========================================================= */
+.password-modal {
+    display: flex;
+    flex-direction: column;
+    width: min(470px, calc(100vw - 28px)) !important;
+    max-height: min(90vh, 860px);
+    padding: 0 !important;
+    overflow: hidden;
+    border: 1px solid #dce9f2;
+    border-radius: 20px !important;
+    box-shadow: 0 28px 75px rgba(15,46,70,.28) !important;
+}
+.password-modal-hero {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    flex: 0 0 auto;
+    padding: 20px 22px;
+    border-bottom: 1px solid #e4edf4;
+    background: linear-gradient(135deg,#f8fcff,#edf7fc);
+}
+.password-modal-icon { display:grid; place-items:center; flex:0 0 42px; width:42px; height:42px; border-radius:13px; background:#dff2fb; font-size:20px; }
+.password-modal-eyebrow { display:block; margin-bottom:4px; color:#1581b3; font-size:var(--ws-font-xs); font-weight:900; letter-spacing:.14em; }
+.password-modal-hero h3 { margin:0; color:#153d59; font-size:19px !important; }
+.password-modal-hero p { margin:5px 0 0; color:#6e8292; font-size:var(--ws-font-xs); line-height:1.55; }
+.password-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 18px 22px 6px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.password-account-chip {
+    display: flex; align-items: center; gap: 11px;
+    margin-bottom: 16px; padding: 11px 13px;
+    border: 1px solid #d7e6f0; border-radius: 12px; background: #f7fbfe;
+}
+.password-account-avatar { display:grid; place-items:center; width:32px; height:32px; border-radius:10px; background:#e3f2fb; font-size:16px; }
+.password-account-chip small { display:block; color:#7b93a5; font-size:var(--ws-font-xs); font-weight:700; }
+.password-account-chip strong { display:block; margin-top:2px; color:#1b475f; font-size:var(--ws-font-md); }
+.password-field { margin-bottom: 14px; }
+.password-field label { display:block; margin-bottom:6px; color:#31536a; font-size:var(--ws-font-sm) !important; font-weight:800; }
+.password-input-wrap { position: relative; display: flex; align-items: center; }
+.password-input-wrap input {
+    width: 100%; min-height: 44px;
+    margin: 0 !important;
+    padding: 10px 46px 10px 14px !important;
+    border: 1px solid #c9dce8 !important; border-radius: 11px !important;
+    background: #fff !important; color: #24485f !important;
+    font-size: var(--ws-font-md) !important;
+    letter-spacing: .02em;
+}
+.password-input-wrap input:focus { border-color:#1184ba !important; box-shadow:0 0 0 3px rgba(17,132,186,.12) !important; outline:none; }
+.password-reveal {
+    position: absolute; right: 7px;
+    display: grid; place-items: center;
+    width: 32px; height: 32px; padding: 0;
+    border: 0; border-radius: 9px;
+    background: #eef5fa; color: #5c7d92;
+    font-size: 15px; cursor: pointer;
+    transition: background .16s ease, color .16s ease;
+}
+.password-reveal:hover { background:#e0eef7; color:#1a6f9c; }
+.password-reveal.is-visible { background:#d8effb; color:#0a6f9f; }
+.password-meter { margin-top: 9px; }
+.password-meter-track { height: 5px; border-radius: 999px; background: #e6eef4; overflow: hidden; }
+.password-meter-fill { display:block; width:0; height:100%; border-radius:999px; background:#cbd8e2; transition: width .22s ease, background .22s ease; }
+.password-meter-fill[data-level="1"] { width:25%; background:#e2707f; }
+.password-meter-fill[data-level="2"] { width:50%; background:#dfa63f; }
+.password-meter-fill[data-level="3"] { width:75%; background:#4aa36f; }
+.password-meter-fill[data-level="4"] { width:100%; background:#1c8a58; }
+.password-meter small { display:block; margin-top:6px; color:#7b93a5; font-size:var(--ws-font-xs); }
+.password-rules { margin: 4px 0 6px; padding: 0; list-style: none; display: grid; gap: 7px; }
+.password-rules li { display:flex; align-items:center; gap:9px; color:#7b93a5; font-size:var(--ws-font-xs); transition: color .16s ease; }
+.password-rule-mark { display:grid; place-items:center; width:17px; height:17px; border-radius:50%; background:#eef2f5; color:#93a7b8; font-size:10px; font-weight:900; }
+.password-rules li.is-passed { color:#1b7a4d; }
+.password-rules li.is-passed .password-rule-mark { background:#dcf3e6; color:#1b7a4d; }
+.password-modal-footer {
+    display: flex; justify-content: flex-end; gap: 10px;
+    flex: 0 0 auto;
+    padding: 14px 22px 18px;
+    border-top: 1px solid #e6eef4; background: #fff;
+}
+.password-modal-footer .btn { min-width: 120px; }
+.password-modal-footer .btn:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
+
+body.dark-mode .password-modal { border-color:#355064; background:#162936; }
+body.dark-mode .password-modal-hero { border-color:#355064; background:linear-gradient(135deg,#1a3344,#182d3a); }
+body.dark-mode .password-modal-icon { background:#25455a; }
+body.dark-mode .password-modal-hero h3 { color:#e4f0f7; }
+body.dark-mode .password-modal-hero p { color:#9db3c3; }
+body.dark-mode .password-account-chip { border-color:#355064; background:#132633; }
+body.dark-mode .password-account-avatar { background:#25455a; }
+body.dark-mode .password-account-chip strong { color:#dce9f1; }
+body.dark-mode .password-field label { color:#b7ccda !important; }
+body.dark-mode .password-input-wrap input { border-color:#3a5669 !important; background:#122530 !important; color:#dce9f1 !important; }
+body.dark-mode .password-reveal { background:#1e3a4b; color:#9dc0d4; }
+body.dark-mode .password-reveal:hover, body.dark-mode .password-reveal.is-visible { background:#27506a; color:#8fd6fa; }
+body.dark-mode .password-meter-track { background:#24404f; }
+body.dark-mode .password-rule-mark { background:#24404f; color:#93a7b8; }
+body.dark-mode .password-rules li.is-passed { color:#7fe0ab; }
+body.dark-mode .password-rules li.is-passed .password-rule-mark { background:#123a29; color:#7fe0ab; }
+body.dark-mode .password-modal-footer { border-top-color:#30495a; background:#162936; }
+
+@media (max-width: 520px) {
+    .password-modal-footer { flex-direction: column-reverse; }
+    .password-modal-footer .btn { width: 100%; }
+}

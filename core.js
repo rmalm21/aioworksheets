@@ -926,11 +926,85 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
 
         function openChangePasswordModal() {
             if(!currentFirebaseUser) return showToast('Sesi pengguna belum siap.', 'error');
-            ['change-password-current','change-password-new','change-password-confirm'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+            ['change-password-current','change-password-new','change-password-confirm'].forEach(id => {
+                const el = document.getElementById(id);
+                if(!el) return;
+                el.value = '';
+                el.type = 'password';
+            });
+            document.querySelectorAll('#modal-change-password .password-reveal').forEach(button => {
+                button.classList.remove('is-visible');
+                button.setAttribute('aria-pressed', 'false');
+                button.setAttribute('aria-label', translateUiText('Tampilkan password'));
+            });
+            const account = document.getElementById('change-password-account');
+            if(account) account.textContent = getShortUsername(currentFirebaseUser.email || sessionUser || '-');
+            updatePasswordFormState();
             document.getElementById('modal-change-password').style.display = 'flex';
             setTimeout(() => document.getElementById('change-password-current')?.focus(), 50);
         }
         window.openChangePasswordModal = openChangePasswordModal;
+
+        function togglePasswordField(inputId, button) {
+            const input = document.getElementById(inputId);
+            if(!input) return;
+            const reveal = input.type === 'password';
+            input.type = reveal ? 'text' : 'password';
+            if(button) {
+                button.classList.toggle('is-visible', reveal);
+                button.setAttribute('aria-pressed', reveal ? 'true' : 'false');
+                button.setAttribute('aria-label', translateUiText(reveal ? 'Sembunyikan password' : 'Tampilkan password'));
+            }
+            input.focus();
+        }
+        window.togglePasswordField = togglePasswordField;
+
+        // Kekuatan password dinilai dari panjang dan ragam karakter, bukan sekadar
+        // panjang, supaya "12345678" tidak terbaca sekuat "R4hasia!2026".
+        function scorePasswordStrength(value) {
+            const password = String(value || '');
+            if(!password) return { level: 0, label: 'Kekuatan password akan tampil di sini.' };
+            let score = 0;
+            if(password.length >= 8) score++;
+            if(password.length >= 12) score++;
+            if(/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+            if(/\d/.test(password)) score++;
+            if(/[^A-Za-z0-9]/.test(password)) score++;
+            if(password.length < 8) return { level: 1, label: 'Terlalu pendek — minimal 8 karakter.' };
+            if(score <= 2) return { level: 1, label: 'Lemah — tambahkan huruf besar, angka, atau simbol.' };
+            if(score === 3) return { level: 2, label: 'Cukup — masih bisa diperkuat.' };
+            if(score === 4) return { level: 3, label: 'Kuat.' };
+            return { level: 4, label: 'Sangat kuat.' };
+        }
+        window.scorePasswordStrength = scorePasswordStrength;
+
+        function updatePasswordFormState() {
+            const current = String(document.getElementById('change-password-current')?.value || '');
+            const next = String(document.getElementById('change-password-new')?.value || '');
+            const confirm = String(document.getElementById('change-password-confirm')?.value || '');
+            const rules = {
+                length: next.length >= 8,
+                different: next.length > 0 && next !== current,
+                match: confirm.length > 0 && confirm === next
+            };
+            Object.entries(rules).forEach(([rule, passed]) => {
+                const item = document.querySelector(`#password-rules li[data-rule="${rule}"]`);
+                if(!item) return;
+                item.classList.toggle('is-passed', passed);
+                const mark = item.querySelector('.password-rule-mark');
+                if(mark) mark.textContent = passed ? '✓' : '○';
+            });
+
+            const strength = scorePasswordStrength(next);
+            const fill = document.getElementById('password-meter-fill');
+            const label = document.getElementById('password-meter-label');
+            if(fill) fill.dataset.level = String(strength.level);
+            if(label) label.textContent = translateUiText(strength.label);
+
+            const button = document.getElementById('btn-change-password');
+            if(button && !button.dataset.busy) button.disabled = !(current.length > 0 && rules.length && rules.different && rules.match);
+        }
+        window.updatePasswordFormState = updatePasswordFormState;
 
         async function changeCurrentUserPassword() {
             if(!currentFirebaseUser || !window.fbUpdatePassword || !window.fbReauthenticateWithCredential || !window.fbEmailAuthProvider) return showToast('Fitur ubah password belum siap.', 'error');
@@ -942,7 +1016,7 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
             if(currentPassword === nextPassword) return showToast('Password baru harus berbeda dari password saat ini.', 'error');
             const button = document.getElementById('btn-change-password');
             const oldText = button ? button.innerText : '';
-            if(button) { button.disabled = true; button.innerText = 'Menyimpan...'; }
+            if(button) { button.dataset.busy = 'true'; button.disabled = true; button.innerText = translateUiText('Menyimpan...'); }
             try {
                 const credential = window.fbEmailAuthProvider.credential(currentFirebaseUser.email, currentPassword);
                 await window.fbReauthenticateWithCredential(currentFirebaseUser, credential);
@@ -956,7 +1030,7 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
                 if(code.includes('invalid-credential') || code.includes('wrong-password')) showToast('Password saat ini tidak sesuai.', 'error');
                 else if(code.includes('weak-password')) showToast('Password baru terlalu lemah.', 'error');
                 else showToast('Password gagal diubah. Silakan login ulang lalu coba kembali.', 'error');
-            } finally { if(button) { button.disabled=false; button.innerText=oldText || 'Simpan Password'; } }
+            } finally { if(button) { delete button.dataset.busy; button.innerText = oldText || translateUiText('Simpan Password'); } updatePasswordFormState(); }
         }
         window.changeCurrentUserPassword = changeCurrentUserPassword;
 
@@ -4926,6 +5000,20 @@ const WORKSHEET_P20_TRANSLATION_ROWS = [
 ];
 
 const WORKSHEET_P21_TRANSLATION_ROWS = [
+    ['Tampilkan password', 'Show password', 'パスワードを表示'],
+    ['Sembunyikan password', 'Hide password', 'パスワードを非表示'],
+    ['Akun yang sedang login', 'Signed-in account', 'ログイン中のアカウント'],
+    ['Kekuatan password akan tampil di sini.', 'Password strength will appear here.', 'パスワード強度がここに表示されます。'],
+    ['Terlalu pendek — minimal 8 karakter.', 'Too short — at least 8 characters.', '短すぎます — 8文字以上にしてください。'],
+    ['Lemah — tambahkan huruf besar, angka, atau simbol.', 'Weak — add uppercase letters, numbers, or symbols.', '弱い — 大文字・数字・記号を追加してください。'],
+    ['Cukup — masih bisa diperkuat.', 'Fair — it can still be stronger.', '普通 — さらに強化できます。'],
+    ['Kuat.', 'Strong.', '強い。'],
+    ['Sangat kuat.', 'Very strong.', '非常に強い。'],
+    ['Minimal 8 karakter', 'At least 8 characters', '8文字以上'],
+    ['Berbeda dari password saat ini', 'Different from the current password', '現在のパスワードと異なる'],
+    ['Konfirmasi sama dengan password baru', 'Confirmation matches the new password', '確認用が新しいパスワードと一致'],
+    ['ACCOUNT SECURITY', 'ACCOUNT SECURITY', 'アカウントセキュリティ'],
+    ['Masukkan password saat ini, lalu password baru. Perubahan langsung berlaku pada Firebase Authentication untuk akun yang sedang login.', 'Enter your current password, then the new one. The change applies immediately in Firebase Authentication for the signed-in account.', '現在のパスワードと新しいパスワードを入力してください。変更はログイン中のアカウントのFirebase Authenticationに即時反映されます。'],
     // Teks yang sebelumnya belum tersentuh: placeholder, title/tooltip, dan
     // label layar Executive, Master Kalender, Master User, dan Ganti Password.
     ['Masukkan GL', 'Enter GL', 'GLを入力'],

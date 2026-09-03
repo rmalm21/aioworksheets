@@ -332,13 +332,61 @@
 
     <!-- Modal Ubah Password Pengguna Aktif -->
     <div id="modal-change-password" class="modal-overlay" style="z-index:100010;">
-        <div class="modal-content" style="width:min(440px, calc(100vw - 28px));">
-            <h3 style="color:#0050A0; margin-bottom:8px;">🔑 Ubah Password</h3>
-            <p style="font-size:12px; color:#666; line-height:1.5; margin-bottom:16px;">Untuk keamanan, masukkan password saat ini lalu password baru. Perubahan berlaku langsung pada Firebase Authentication untuk akun yang sedang login.</p>
-            <div class="form-group"><label>Password Saat Ini</label><input type="password" id="change-password-current" autocomplete="current-password" placeholder="Password saat ini"></div>
-            <div class="form-group" style="margin-top:10px;"><label>Password Baru</label><input type="password" id="change-password-new" autocomplete="new-password" placeholder="Minimal 8 karakter"></div>
-            <div class="form-group" style="margin-top:10px;"><label>Konfirmasi Password Baru</label><input type="password" id="change-password-confirm" autocomplete="new-password" placeholder="Ulangi password baru"></div>
-            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:18px;"><button class="btn btn-secondary" onclick="closeModal('modal-change-password')">Batal</button><button class="btn btn-primary" id="btn-change-password" onclick="changeCurrentUserPassword()">Simpan Password</button></div>
+        <div class="modal-content password-modal">
+            <div class="password-modal-hero">
+                <div class="password-modal-icon" aria-hidden="true">🔑</div>
+                <div>
+                    <span class="password-modal-eyebrow">ACCOUNT SECURITY</span>
+                    <h3>Ubah Password</h3>
+                    <p>Masukkan password saat ini, lalu password baru. Perubahan langsung berlaku pada Firebase Authentication untuk akun yang sedang login.</p>
+                </div>
+            </div>
+
+            <div class="password-modal-body">
+                <div class="password-account-chip">
+                    <span class="password-account-avatar" aria-hidden="true">👤</span>
+                    <div><small>Akun yang sedang login</small><strong id="change-password-account">-</strong></div>
+                </div>
+
+                <div class="form-group password-field">
+                    <label for="change-password-current">Password Saat Ini</label>
+                    <div class="password-input-wrap">
+                        <input type="password" id="change-password-current" autocomplete="current-password" placeholder="Password saat ini" oninput="updatePasswordFormState()">
+                        <button type="button" class="password-reveal" onclick="togglePasswordField('change-password-current', this)" aria-label="Tampilkan password" aria-pressed="false">◉</button>
+                    </div>
+                </div>
+
+                <div class="form-group password-field">
+                    <label for="change-password-new">Password Baru</label>
+                    <div class="password-input-wrap">
+                        <input type="password" id="change-password-new" autocomplete="new-password" placeholder="Minimal 8 karakter" oninput="updatePasswordFormState()">
+                        <button type="button" class="password-reveal" onclick="togglePasswordField('change-password-new', this)" aria-label="Tampilkan password" aria-pressed="false">◉</button>
+                    </div>
+                    <div class="password-meter" role="img" aria-label="Kekuatan password">
+                        <div class="password-meter-track"><span id="password-meter-fill" class="password-meter-fill"></span></div>
+                        <small id="password-meter-label">Kekuatan password akan tampil di sini.</small>
+                    </div>
+                </div>
+
+                <div class="form-group password-field">
+                    <label for="change-password-confirm">Konfirmasi Password Baru</label>
+                    <div class="password-input-wrap">
+                        <input type="password" id="change-password-confirm" autocomplete="new-password" placeholder="Ulangi password baru" oninput="updatePasswordFormState()">
+                        <button type="button" class="password-reveal" onclick="togglePasswordField('change-password-confirm', this)" aria-label="Tampilkan password" aria-pressed="false">◉</button>
+                    </div>
+                </div>
+
+                <ul class="password-rules" id="password-rules" aria-live="polite">
+                    <li data-rule="length"><span class="password-rule-mark" aria-hidden="true">○</span>Minimal 8 karakter</li>
+                    <li data-rule="different"><span class="password-rule-mark" aria-hidden="true">○</span>Berbeda dari password saat ini</li>
+                    <li data-rule="match"><span class="password-rule-mark" aria-hidden="true">○</span>Konfirmasi sama dengan password baru</li>
+                </ul>
+            </div>
+
+            <div class="password-modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('modal-change-password')">Batal</button>
+                <button class="btn btn-primary" id="btn-change-password" onclick="changeCurrentUserPassword()">Simpan Password</button>
+            </div>
         </div>
     </div>
 
