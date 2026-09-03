@@ -2203,7 +2203,7 @@ window.renderCanceledTable = function() {
             if(rekapCurrentPage < 1) rekapCurrentPage = 1;
 
             const pageInfo = document.getElementById('rekap-page-info');
-            if(pageInfo) pageInfo.innerText = `${translateUiText('Halaman')} ${rekapCurrentPage} ${translateUiText('dari')} ${maxPage} (${totalRows} ${translateUiText('Data')})`;
+            if(pageInfo) pageInfo.innerText = `Halaman ${rekapCurrentPage} dari ${maxPage} (${totalRows} Data)`;
 
             const startIdx = (rekapCurrentPage - 1) * rekapRowsPerPage;
             const pagedData = filteredArr.slice(startIdx, startIdx + rekapRowsPerPage);

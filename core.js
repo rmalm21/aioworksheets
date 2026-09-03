@@ -4925,7 +4925,55 @@ const WORKSHEET_P20_TRANSLATION_ROWS = [
     ['Rincian belum dapat difinalisasi:', 'Details cannot be finalized yet:', '明細をまだFinalにできません：']
 ];
 
-const WORKSHEET_TRANSLATIONS = Object.freeze([...WORKSHEET_TRANSLATION_ROWS, ...WORKSHEET_ADDITIONAL_TRANSLATION_ROWS, ...WORKSHEET_P18_TRANSLATION_ROWS, ...WORKSHEET_P19_TRANSLATION_ROWS, ...WORKSHEET_P20_TRANSLATION_ROWS].reduce((catalog, row) => {
+const WORKSHEET_P21_TRANSLATION_ROWS = [
+    // Teks yang sebelumnya belum tersentuh: placeholder, title/tooltip, dan
+    // label layar Executive, Master Kalender, Master User, dan Ganti Password.
+    ['Masukkan GL', 'Enter GL', 'GLを入力'],
+    ['Catatan penyesuaian', 'Adjustment note', '調整メモ'],
+    ['Tarik ke bawah untuk menyalin sel', 'Drag down to copy the cell', '下へドラッグしてセルをコピー'],
+    ['Tambahkan catatan', 'Add a note', 'メモを追加'],
+    ['Buka Rincian Nota', 'Open Receipt Details', '領収書明細を開く'],
+    ['Final SLA (Kerja)', 'Final SLA (working days)', '最終SLA（営業日）'],
+    ['Buat Rincian Nota', 'Create Receipt Details', '領収書明細を作成'],
+    ['Lihat Rincian Nota', 'View Receipt Details', '領収書明細を表示'],
+    ['Lihat data', 'View data', 'データを表示'],
+    ['Ubah data', 'Edit data', 'データを編集'],
+    ['Detail kosong (Sudah Posted)', 'No details (already Posted)', '明細なし（Posted済み）'],
+    ['Tidak ada data rekapitulasi.', 'No recap data.', '集計データがありません。'],
+    ['Tidak ada data rekapitulasi pada periode ini.', 'No recap data for this period.', 'この期間の集計データはありません。'],
+    ['Bulan/Tahun Proses', 'Process Month/Year', '処理年月'],
+    ['Tanpa Tanggal Proses', 'No Process Date', '処理日なし'],
+    ['Item', 'Items', '件'],
+    ['Disesuaikan', 'Adjusted', '調整済み'],
+    ['Periode Analisis Saat Ini (CP)', 'Current Analysis Period (CP)', '当期分析期間（CP）'],
+    ['vs periode sebelumnya', 'vs previous period', '前期比'],
+    ['Tepat Waktu (CP)', 'On Time (CP)', '期限内（CP）'],
+    ['CP, PP, MTD, PMTD, dan periode sama tahun lalu', 'CP, PP, MTD, PMTD, and the same period last year', 'CP・PP・MTD・PMTD・前年同期'],
+    ['Perbandingan indikator utama antara CP dan PP', 'Key indicator comparison between CP and PP', 'CPとPPの主要指標比較'],
+    ['Mulai H+1; hijau sampai 3 hari; kuning sampai 7 hari; merah mulai 8 hari; target perusahaan 90%.', 'Starts at D+1; green up to 3 days; yellow up to 7 days; red from 8 days; company target 90%.', 'D+1から起算。3日までは緑、7日までは黄、8日以降は赤。全社目標は90%。'],
+    ['Contoh: Libur nasional / cuti bersama', 'Example: public holiday / collective leave', '例：祝日・一斉休暇'],
+    ['Hapus tanggal', 'Remove date', '日付を削除'],
+    ['Akses & Peran', 'Access & Roles', 'アクセスと権限'],
+    ['♻️ Pulihkan dan Gabungkan', '♻️ Restore and Merge', '♻️ 復元してマージ'],
+    ['Pulihkan dan Gabungkan', 'Restore and Merge', '復元してマージ'],
+    ['Password Saat Ini', 'Current Password', '現在のパスワード'],
+    ['Password Baru', 'New Password', '新しいパスワード'],
+    ['Konfirmasi Password Baru', 'Confirm New Password', '新しいパスワード（確認）'],
+    ['Password saat ini', 'Current password', '現在のパスワード'],
+    ['Password baru', 'New password', '新しいパスワード'],
+    ['Ulangi password baru', 'Repeat the new password', '新しいパスワードを再入力'],
+    ['Halaman', 'Page', 'ページ'],
+    ['dari', 'of', '/'],
+    ['Data', 'records', '件'],
+    ['Batas hijau harus bilangan bulat 0–99.', 'The green threshold must be an integer between 0 and 99.', '緑のしきい値は0〜99の整数で入力してください。'],
+    ['NIK tersebut telah tersedia.', 'That NIK already exists.', 'そのNIKは既に登録されています。'],
+    ['Seluruh filter telah dibersihkan.', 'All filters have been cleared.', 'すべてのフィルターを解除しました。'],
+    // Dipecah per baris karena translateUiText menerjemahkan tiap baris terpisah.
+    ['⚠️ Apakah Anda yakin ingin membatalkan seluruh penyesuaian sekaligus?', '⚠️ Are you sure you want to reverse all adjustments at once?', '⚠️ すべての調整を一括で取り消しますか？'],
+    ['Sistem akan membatalkannya satu per satu mulai dari transaksi terakhir.', 'The system will reverse them one by one starting from the latest transaction.', '最新の取引から1件ずつ取り消します。']
+];
+
+const WORKSHEET_TRANSLATIONS = Object.freeze([...WORKSHEET_TRANSLATION_ROWS, ...WORKSHEET_ADDITIONAL_TRANSLATION_ROWS, ...WORKSHEET_P18_TRANSLATION_ROWS, ...WORKSHEET_P19_TRANSLATION_ROWS, ...WORKSHEET_P20_TRANSLATION_ROWS, ...WORKSHEET_P21_TRANSLATION_ROWS].reduce((catalog, row) => {
     catalog[row[0]] = { en: row[1], ja: row[2] };
     return catalog;
 }, {}));
@@ -5023,7 +5071,20 @@ const WORKSHEET_DYNAMIC_TRANSLATIONS = [
     { re: /^Perlu Perhatian \((\d+)-(\d+) Hari\):$/i, en: m => `Needs Attention (${m[1]}-${m[2]} Days):`, ja: m => `要注意（${m[1]}～${m[2]}日）：` },
     { re: /^Terlambat \(>\s*(\d+) Hari\):$/i, en: m => `Late (> ${m[1]} Days):`, ja: m => `遅延（${m[1]}日超）：` },
     { re: /^Total Amount:\s*(.+)$/i, en: m => `Total Amount: ${m[1]}`, ja: m => `合計金額：${m[1]}` },
-    { re: /^Frekuensi Klaim\s*([↓↑⇅])$/i, en: m => `Claim Frequency ${m[1]}`, ja: m => `申請回数 ${m[1]}` }
+    { re: /^Frekuensi Klaim\s*([↓↑⇅])$/i, en: m => `Claim Frequency ${m[1]}`, ja: m => `申請回数 ${m[1]}` },
+
+    // P21 — label pagination dan catatan dinamis. Ditulis sebagai pola supaya
+    // seluruh modul memakai satu terjemahan tanpa perlu mengubah tiap render.
+    { re: /^Halaman (\d+) dari (\d+) \((\d+) Data\)$/i, en: m => `Page ${m[1]} of ${m[2]} (${m[3]} records)`, ja: m => `${m[1]} / ${m[2]} ページ（${m[3]}件）` },
+    { re: /^Halaman (\d+) \/ (\d+) \((\d+) Data\)$/i, en: m => `Page ${m[1]} / ${m[2]} (${m[3]} records)`, ja: m => `${m[1]} / ${m[2]} ページ（${m[3]}件）` },
+    { re: /^Halaman (\d+) dari (\d+) \((\d+) Karyawan\)$/i, en: m => `Page ${m[1]} of ${m[2]} (${m[3]} employees)`, ja: m => `${m[1]} / ${m[2]} ページ（従業員${m[3]}名）` },
+    { re: /^Halaman (\d+)\/(\d+) · (\d+) log$/i, en: m => `Page ${m[1]}/${m[2]} · ${m[3]} logs`, ja: m => `${m[1]}/${m[2]} ページ・ログ${m[3]}件` },
+    { re: /^Halaman (\d+) dari (\d+)$/i, en: m => `Page ${m[1]} of ${m[2]}`, ja: m => `${m[1]} / ${m[2]} ページ` },
+    { re: /^Halaman (\d+)\/(\d+)$/i, en: m => `Page ${m[1]}/${m[2]}`, ja: m => `${m[1]}/${m[2]} ページ` },
+    { re: /^Halaman (\d+) \/ (\d+)$/i, en: m => `Page ${m[1]} / ${m[2]}`, ja: m => `${m[1]} / ${m[2]} ページ` },
+    { re: /^Catatan:\s*(.+)$/i, en: m => `Note: ${m[1]}`, ja: m => `メモ：${m[1]}` },
+    { re: /^SLA \(Kerja\):\s*(\d+) Hari$/i, en: m => `SLA (working): ${m[1]} days`, ja: m => `SLA（営業日）：${m[1]}日` },
+    { re: /^Zona waktu: (.+) \| Terakhir diperbarui: (.+) \| Oleh: (.+)$/i, en: m => `Time zone: ${m[1]} | Last updated: ${m[2]} | By: ${m[3]}`, ja: m => `タイムゾーン：${m[1]}｜最終更新：${m[2]}｜更新者：${m[3]}` }
 ];
 
 const WORKSHEET_DATE_WORDS = {
