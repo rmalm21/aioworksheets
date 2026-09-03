@@ -1530,14 +1530,21 @@
 </div>
 
 <!-- MENU EXECUTIVE SUMMARY -->
-<div id="menu-executive" class="content-card">
-    <div class="header-panel" style="margin-bottom: 20px; border-bottom: 2px solid #0050A0; padding-bottom: 15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
-        <div>
-            <h3 style="color:#0050A0; margin:0; font-size:24px; display:flex; align-items:center; gap:8px;">👔 Ringkasan Data Manajemen</h3>
-            <p style="font-size:13px; color:#666; margin-top:5px;">Klik pada kartu indikator untuk melihat rincian datanya.</p>
+<div id="menu-executive" class="content-card stats-page exec-page">
+    <header class="stats-hero exec-hero">
+        <div class="stats-hero-icon" aria-hidden="true">◷</div>
+        <div class="stats-hero-copy">
+            <span class="stats-eyebrow">RINGKASAN EKSEKUTIF</span>
+            <h3>Ringkasan Data Manajemen</h3>
+            <p>Bandingkan kinerja periode berjalan dengan periode sebelumnya, MTD, dan tahun lalu. Klik kartu indikator untuk membuka rincian datanya.</p>
         </div>
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-            <select id="preset-exec" onchange="applyPresetExec(this.value)" style="padding:8px 12px; border-radius:8px; border:2px solid #0050A0; font-size:13px; color:#0050A0; font-weight:bold; cursor:pointer; background:#ffffff; outline:none; transition:0.3s;" onmouseover="this.style.background='#eef4fc'" onmouseout="this.style.background='#ffffff'">
+        <div class="stats-hero-mark" aria-hidden="true">👔</div>
+    </header>
+
+    <section class="stats-toolbar" aria-label="Filter Ringkasan Manajemen">
+        <div class="stats-toolbar-title"><span aria-hidden="true">◷</span><div><strong>Pilih Periode</strong><small>Sesuaikan data yang ditampilkan</small></div></div>
+        <div class="stats-toolbar-controls">
+            <select id="preset-exec" onchange="applyPresetExec(this.value)" aria-label="Preset periode Ringkasan Manajemen">
                 <option value="this_month">Bulan Ini</option>
                 <option value="last_month">Bulan Lalu</option>
                 <option value="last_30">30 Hari Terakhir</option>
@@ -1545,16 +1552,16 @@
                 <option value="this_year">Tahun Ini</option>
                 <option value="custom">📅 Pilih Periode Manual...</option>
             </select>
-            <input type="text" id="filter-date-exec" class="modern-flatpickr-input" placeholder="📅 Filter Rentang..." readonly style="width:230px !important; min-width:230px !important;">
-            <button class="btn btn-secondary" onclick="document.getElementById('preset-exec').value='this_month'; applyPresetExec('this_month');">✖ Atur Ulang</button>
-            <button class="btn" style="background:#217346; color:white; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);" onclick="exportExecutiveExcel()">📥 Ekspor Laporan</button>
+            <input type="text" id="filter-date-exec" class="stats-date-input" placeholder="📅 Filter Rentang Waktu..." readonly>
+            <button class="btn btn-secondary stats-reset-button" onclick="document.getElementById('preset-exec').value='this_month'; applyPresetExec('this_month');" title="Atur ulang periode">↺ <span>Atur Ulang</span></button>
+            <button class="btn stats-export-button" onclick="exportExecutiveExcel()"><span aria-hidden="true">↧</span> Ekspor Laporan</button>
         </div>
-    </div>
-    
+    </section>
+
     <div id="exec-dashboard-content">
-        <div style="text-align:center; padding:40px; color:#888;">
-            <div class="spinner" style="margin:0 auto 15px auto;"></div>
-           Memuat Data...
+        <div class="exec-loading">
+            <div class="spinner"></div>
+            <span>Memuat Data...</span>
         </div>
     </div>
 </div>

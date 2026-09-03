@@ -617,7 +617,8 @@
 { display: none !important; }
 
 /* Mengunci Rasio Grafik agar tidak membesar saat di-zoom */
-#menu-statistik .dashboard-grid > div {
+#menu-statistik .dashboard-grid > div,
+#menu-executive .dashboard-grid > div {
     min-width: 0 !important; 
     min-height: 0 !important;
 }
@@ -3925,7 +3926,8 @@ body.dark-mode .status-transition-icon { background: #29485d; color: #8ed8fa; }
 /* =========================================================
    P15 — STATISTIK & ANALITIK MODERN
    ========================================================= */
-#menu-statistik.stats-page {
+#menu-statistik.stats-page,
+#menu-executive.exec-page {
     --stats-blue: #087fbd;
     --stats-blue-dark: #075f9e;
     --stats-green: #15966b;
@@ -4156,7 +4158,8 @@ body.dark-mode .status-transition-icon { background: #29485d; color: #8ed8fa; }
 .stats-employee-metric-revision strong { color: #c43d51; }
 .stats-employee-metric-ratio > b { position: absolute; top: -8px; right: -5px; font-size: 15px; }
 
-body.dark-mode #menu-statistik.stats-page { --stats-border: #355064; --stats-muted: #9bb0bf; --stats-surface: #1b3042; border-color: #314a5e; background: linear-gradient(180deg,#172b3b,#142635); }
+body.dark-mode #menu-statistik.stats-page,
+body.dark-mode #menu-executive.exec-page { --stats-border: #355064; --stats-muted: #9bb0bf; --stats-surface: #1b3042; border-color: #314a5e; background: linear-gradient(180deg,#172b3b,#142635); }
 body.dark-mode .stats-hero { border-color: #2a7199; background: radial-gradient(circle at 84% -20%,rgba(60,186,210,.22),transparent 35%),linear-gradient(135deg,#0b3152,#075d88 58%,#08768d); }
 body.dark-mode .stats-toolbar { border-color: var(--stats-border); background: #1b3042; }
 body.dark-mode .stats-toolbar-title strong, body.dark-mode .stats-panel-title h4 { color: #e5f1f8; }
@@ -4208,7 +4211,7 @@ body.dark-mode .stats-employee-metric-revision strong { color: #ff99a8; }
 }
 
 @media (max-width: 850px) {
-    #menu-statistik.stats-page { padding: 12px; }
+    #menu-statistik.stats-page, #menu-executive.exec-page { padding: 12px; }
     .stats-hero { grid-template-columns: 42px minmax(0,1fr); min-height: 112px; padding: 19px 17px; border-radius: 16px; }
     .stats-hero-icon { width: 42px; height: 42px; border-radius: 13px; font-size: 22px; }
     .stats-hero-copy h3 { font-size: 21px; }
@@ -4238,4 +4241,161 @@ body.dark-mode .stats-employee-metric-revision strong { color: #ff99a8; }
     .stats-hero-icon { width: 38px; height: 38px; }
     .stats-panel-title { align-items: flex-start; }
     .stats-employee-metrics { grid-template-columns: 1fr; }
+}
+
+/* =========================================================
+   P16 — RINGKASAN MANAJEMEN MODERN
+   ---------------------------------------------------------
+   Memakai token dan komponen yang sama dengan modul Statistik
+   (stats-hero, stats-toolbar, stats-panel) supaya kedua modul
+   analitik terasa sebagai satu sistem.
+   ========================================================= */
+.exec-hero { background: radial-gradient(circle at 86% -22%,rgba(120,214,198,.34),transparent 36%), linear-gradient(135deg,#06325e 0%,#0a5f8f 56%,#0b7f8e 100%); }
+.exec-loading { display: grid; place-items: center; gap: 12px; padding: 48px 20px; color: var(--stats-muted); font-size: 12px; font-weight: 700; }
+.exec-loading .spinner { margin: 0; }
+
+.exec-context { display: grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap: 10px; margin-bottom: 14px; }
+.exec-context-item { padding: 11px 14px; border: 1px solid var(--stats-border); border-left: 3px solid #cfe0ec; border-radius: 12px; background: var(--stats-surface); }
+.exec-context-item small { display: block; margin-bottom: 4px; color: var(--stats-muted); font-size: 9px; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
+.exec-context-item strong { color: #24475f; font-size: 12px; font-weight: 800; }
+.exec-context-current { border-left-color: var(--stats-blue); }
+
+/* --- Kartu indikator --- */
+.exec-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 12px; margin-bottom: 14px; }
+.exec-kpi {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    min-width: 0;
+    padding: 17px 18px 15px;
+    overflow: hidden;
+    border: 1px solid var(--stats-border);
+    border-radius: 17px;
+    background: var(--stats-surface);
+    box-shadow: 0 8px 22px rgba(19,63,92,.065);
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+.exec-kpi::before { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 3px; background: var(--exec-tone,var(--stats-blue)); }
+.exec-kpi::after { content: ''; position: absolute; top: -32px; right: -30px; width: 94px; height: 94px; border-radius: 50%; background: var(--exec-tone-soft,rgba(8,127,189,.055)); }
+.exec-kpi:hover { border-color: #afd2e6; box-shadow: 0 14px 29px rgba(10,77,120,.12); transform: translateY(-2px); }
+.exec-kpi:focus-visible { outline: 2px solid var(--stats-blue); outline-offset: 2px; }
+.exec-kpi-volume { --exec-tone: var(--stats-blue); --exec-tone-soft: rgba(8,127,189,.055); }
+.exec-kpi-amount { --exec-tone: var(--stats-green); --exec-tone-soft: rgba(21,150,107,.055); }
+.exec-kpi-posted { --exec-tone: var(--stats-cyan); --exec-tone-soft: rgba(24,141,168,.06); }
+.exec-kpi-head { position: relative; z-index: 1; display: flex; align-items: center; gap: 9px; }
+.exec-kpi-icon { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; border-radius: 11px; background: var(--exec-tone-soft,#e8f4fb); color: var(--exec-tone,var(--stats-blue)); font-size: 16px; font-weight: 900; }
+.exec-kpi-label { min-width: 0; color: #687f91; font-size: 10px; font-weight: 900; letter-spacing: .045em; text-transform: uppercase; }
+.exec-kpi-value { position: relative; z-index: 1; overflow-wrap: anywhere; color: var(--stats-blue-dark); font-size: clamp(24px,2.5vw,31px); font-weight: 900; line-height: 1.12; letter-spacing: -.035em; }
+.exec-kpi-value em { color: var(--stats-muted); font-size: 14px; font-style: normal; font-weight: 800; letter-spacing: 0; }
+.exec-kpi-value-compact { font-size: clamp(15px,1.5vw,19px); line-height: 1.45; }
+.exec-kpi-amount .exec-kpi-value { color: #0d8159; }
+.exec-kpi-posted .exec-kpi-value { color: #137d97; }
+.exec-kpi-foot { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 5px 8px; margin-top: auto; }
+.exec-kpi-foot small { color: var(--stats-muted); font-size: 10px; font-weight: 700; }
+.exec-kpi-hint { position: relative; z-index: 1; color: #7890a1; font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; opacity: .75; transition: opacity .2s ease; }
+.exec-kpi:hover .exec-kpi-hint { color: var(--stats-blue); opacity: 1; }
+
+/* Chip pertumbuhan dipakai kartu maupun tabel. */
+.exec-delta { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 900; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.exec-delta.is-good { background: rgba(20,169,123,.13); color: #0f8560; }
+.exec-delta.is-bad { background: rgba(217,83,106,.13); color: #c1445a; }
+.exec-delta.is-flat { background: rgba(113,134,154,.14); color: #6b8296; }
+
+/* --- Kartu sorotan --- */
+.exec-highlight-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(320px,1fr)); gap: 12px; margin-bottom: 14px; }
+.exec-highlight {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    padding: 20px 21px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 18px;
+    background: radial-gradient(circle at 92% -30%,rgba(88,196,229,.30),transparent 42%), linear-gradient(135deg,#0d2e4b,#123c5d);
+    color: #e6f1f8;
+    box-shadow: 0 14px 30px rgba(7,42,68,.20);
+}
+.exec-highlight-revision { background: radial-gradient(circle at 92% -30%,rgba(233,132,150,.28),transparent 42%), linear-gradient(135deg,#4a1b28,#6d2233); }
+.exec-highlight-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.exec-highlight-title { color: #a9cbe1; font-size: 10px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
+.exec-highlight-revision .exec-highlight-title { color: #f2b6c0; }
+.exec-highlight-action { flex: 0 0 auto; padding: 5px 11px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; background: rgba(255,255,255,.10); color: #fff; cursor: pointer; font: inherit; font-size: 10px; font-weight: 800; white-space: nowrap; transition: background .18s ease, border-color .18s ease; }
+.exec-highlight-action:hover { border-color: rgba(255,255,255,.4); background: rgba(255,255,255,.22); }
+.exec-highlight-value { color: #6ee7b7; font-size: clamp(38px,4vw,50px); font-weight: 900; line-height: 1; letter-spacing: -.04em; }
+.exec-highlight-value span { margin-left: 2px; font-size: .45em; font-weight: 800; }
+.exec-highlight-sla.is-below .exec-highlight-value { color: #fca5a5; }
+.exec-highlight-revision .exec-highlight-value { color: #fca5a5; }
+/* Baris target berdiri sendiri di bawah angka besar. */
+.exec-highlight-target { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 9px; width: 100%; color: #b7cfe0; font-size: 11px; font-weight: 700; }
+.exec-highlight-revision .exec-highlight-target { color: #f0c4cc; font-style: italic; }
+.exec-highlight-status { padding: 2px 9px; border-radius: 999px; background: rgba(110,231,183,.16); color: #6ee7b7; font-size: 10px; font-weight: 800; font-style: normal; }
+.exec-highlight-sla.is-below .exec-highlight-status { background: rgba(252,165,165,.16); color: #fca5a5; }
+.exec-meter { position: relative; height: 7px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.13); }
+.exec-meter > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg,#34d399,#6ee7b7); transition: width .5s cubic-bezier(.25,.8,.35,1); }
+.exec-meter > b { position: absolute; top: -3px; width: 2px; height: 13px; border-radius: 2px; background: rgba(255,255,255,.75); transform: translateX(-1px); }
+.exec-meter-warn > i { background: linear-gradient(90deg,#f87171,#fca5a5); }
+.exec-highlight-sla.is-below .exec-meter > i { background: linear-gradient(90deg,#f87171,#fca5a5); }
+.exec-highlight-facts { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 8px; margin: 2px 0 0; padding: 11px 12px; border-radius: 12px; background: rgba(255,255,255,.08); }
+.exec-highlight-facts dt { color: #a9c3d5; font-size: 10px; font-weight: 700; }
+.exec-highlight-revision .exec-highlight-facts dt { color: #eec1c8; }
+.exec-highlight-facts dd { margin: 3px 0 0; color: #fff; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* --- Panel grafik dan tabel --- */
+.exec-panel { margin-bottom: 14px; padding: 18px; }
+.exec-panel:last-child { margin-bottom: 0; }
+.exec-panel .stats-panel-header > .stats-export-button { flex: 0 0 auto; }
+.exec-chart-wrapper { height: 320px !important; }
+.exec-table-wrap { max-height: none; overflow-x: auto; overflow-y: auto; border: 1px solid #e3edf3 !important; border-radius: 12px; box-shadow: none !important; }
+.exec-table { margin: 0; min-width: 1140px; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+.exec-table thead th { padding: 11px 13px; border-bottom: 1px solid #dbe7ef !important; background: #f4f8fb; color: #587184; font-size: 9px; font-weight: 900; letter-spacing: .05em; text-align: right; text-transform: uppercase; white-space: nowrap; }
+.exec-table thead th.exec-table-corner { text-align: left; }
+.exec-table thead th.exec-th-muted { color: #8399aa; }
+.exec-table thead th.exec-th-delta { background: #edf4f9; color: var(--stats-blue-dark); }
+.exec-table tbody tr:hover td, .exec-table tbody tr:hover th { background: #f7fbfd; }
+.exec-table tbody th, .exec-table tbody td { padding: 11px 13px; border-bottom: 1px solid #eef3f7 !important; background: var(--stats-surface); transition: background .15s ease; }
+.exec-table tbody tr:last-child th, .exec-table tbody tr:last-child td { border-bottom: 0 !important; }
+.exec-table-label { color: #26485f; font-size: 12px; font-weight: 800; text-align: left; white-space: nowrap; }
+.exec-num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.exec-num-strong { color: #1d3f56; font-weight: 800; }
+.exec-num-muted { color: var(--stats-muted); font-size: 11px; }
+.exec-cell-delta { background: #f8fbfd; }
+.exec-table thead th.exec-band-start, .exec-table tbody td.exec-band-start { border-left: 2px solid #e2ecf3; }
+
+/* --- Mode gelap --- */
+body.dark-mode .exec-context-item { border-color: #355064; border-left-color: #3d6c8c; background: #1b3042; }
+body.dark-mode .exec-context-item strong { color: #dfeaf3; }
+body.dark-mode .exec-kpi { border-color: #355064; background: #1b3042; box-shadow: 0 8px 22px rgba(0,0,0,.35); }
+body.dark-mode .exec-kpi:hover { border-color: #4a7ea3; }
+body.dark-mode .exec-kpi-label { color: #9db4c5; }
+body.dark-mode .exec-kpi-value { color: #7cc6f2; }
+body.dark-mode .exec-kpi-amount .exec-kpi-value { color: #6fdcb2; }
+body.dark-mode .exec-kpi-posted .exec-kpi-value { color: #6fd0e2; }
+body.dark-mode .exec-kpi-value em, body.dark-mode .exec-kpi-foot small { color: #9db4c5; }
+body.dark-mode .exec-delta.is-good { background: rgba(20,169,123,.20); color: #7ee0b8; }
+body.dark-mode .exec-delta.is-bad { background: rgba(217,83,106,.20); color: #f9a3b0; }
+body.dark-mode .exec-delta.is-flat { background: rgba(150,180,203,.18); color: #a9c2d4; }
+body.dark-mode .exec-table-wrap { border-color: #355064 !important; }
+body.dark-mode .exec-table thead th { border-bottom-color: #3a586e !important; background: #17293a; color: #a3bbcc; }
+body.dark-mode .exec-table thead th.exec-th-delta { background: #14344b; color: #8ccdf0; }
+body.dark-mode .exec-table tbody th, body.dark-mode .exec-table tbody td { border-bottom-color: #2c4457 !important; background: #1b3042; }
+body.dark-mode .exec-table tbody tr:hover th, body.dark-mode .exec-table tbody tr:hover td { background: #21394c; }
+body.dark-mode .exec-table-label { color: #dfeaf3; }
+body.dark-mode .exec-num-strong { color: #e7f0f7; }
+body.dark-mode .exec-cell-delta { background: #1e364a; }
+body.dark-mode .exec-table thead th.exec-band-start, body.dark-mode .exec-table tbody td.exec-band-start { border-left-color: #3a586e; }
+
+@media (max-width: 850px) {
+    .exec-highlight-grid { grid-template-columns: 1fr; }
+    .exec-highlight { padding: 17px; border-radius: 16px; }
+    .exec-highlight-head { align-items: stretch; flex-direction: column; gap: 9px; }
+    .exec-highlight-action { align-self: flex-start; }
+    .exec-panel { padding: 14px; }
+    .exec-chart-wrapper { height: 300px !important; }
+    .exec-table-wrap { max-width: calc(100vw - 54px); }
 }

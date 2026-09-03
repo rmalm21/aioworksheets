@@ -4992,26 +4992,29 @@ window.renderExecutiveDashboard = function() {
     });
 
     const calcPct = (curr, past) => past === 0 ? (curr > 0 ? 100 : 0) : ((curr - past) / past) * 100;
+    // Chip pertumbuhan: untuk metrik revisi, naik berarti memburuk.
     const formatPct = (pct, isRevLogic = false) => {
-        if (pct > 0) return `<span style="color:${isRevLogic ? '#dc3545' : '#28a745'}; font-weight:bold;">▲ ${pct.toFixed(1)}%</span>`;
-        if (pct < 0) return `<span style="color:${isRevLogic ? '#28a745' : '#dc3545'}; font-weight:bold;">▼ ${Math.abs(pct).toFixed(1)}%</span>`;
-        return `<span style="color:#6c757d; font-weight:bold;">▪ 0%</span>`;
+        if(!isFinite(pct)) pct = 0;
+        const rising = pct > 0, falling = pct < 0;
+        const tone = (!rising && !falling) ? 'flat' : ((rising !== isRevLogic) ? 'good' : 'bad');
+        const arrow = rising ? '▲' : falling ? '▼' : '▪';
+        return `<span class="exec-delta is-${tone}">${arrow} ${Math.abs(pct).toFixed(1)}%</span>`;
     };
 
     // Tambahkan parameter isPct agar angka SLA otomatis mendapat imbuhan "%"
     const buildRow = (label, c, p, cmtd, clm, cly, currencyCode, isRevLogic, isPct = false) => {
         let format = (val) => currencyCode ? formatMoney(val, currencyCode) : (isPct ? `${val}%` : val.toLocaleString('id-ID'));
         return `
-        <tr style="border-bottom:1px solid #f1f5f9;">
-            <td style="padding:15px; font-weight:bold; color:#1e293b;">${label}</td>
-            <td style="padding:15px; text-align:right; font-weight:bold;">${format(c)}</td>
-            <td style="padding:15px; text-align:right; color:#64748b; font-size:12px;">${format(p)}</td>
-            <td style="padding:15px; text-align:right; background:#f8fbff;">${formatPct(calcPct(c, p), isRevLogic)}</td>
-            <td style="padding:15px; text-align:right; border-left: 2px solid #e2e8f0; font-weight:bold;">${format(cmtd)}</td>
-            <td style="padding:15px; text-align:right; color:#64748b; font-size:12px;">${format(clm)}</td>
-            <td style="padding:15px; text-align:right; background:#f8fbff;">${formatPct(calcPct(cmtd, clm), isRevLogic)}</td>
-            <td style="padding:15px; text-align:right; color:#64748b; font-size:12px;">${format(cly)}</td>
-            <td style="padding:15px; text-align:right; background:#f8fbff;">${formatPct(calcPct(cmtd, cly), isRevLogic)}</td>
+        <tr>
+            <th scope="row" class="exec-table-label">${label}</th>
+            <td class="exec-num exec-num-strong">${format(c)}</td>
+            <td class="exec-num exec-num-muted">${format(p)}</td>
+            <td class="exec-num exec-cell-delta">${formatPct(calcPct(c, p), isRevLogic)}</td>
+            <td class="exec-num exec-num-strong exec-band-start">${format(cmtd)}</td>
+            <td class="exec-num exec-num-muted">${format(clm)}</td>
+            <td class="exec-num exec-cell-delta">${formatPct(calcPct(cmtd, clm), isRevLogic)}</td>
+            <td class="exec-num exec-num-muted exec-band-start">${format(cly)}</td>
+            <td class="exec-num exec-cell-delta">${formatPct(calcPct(cmtd, cly), isRevLogic)}</td>
         </tr>`;
     };
 
@@ -5026,128 +5029,144 @@ window.renderExecutiveDashboard = function() {
     let slaMtd = mtd.slaDenum > 0 ? Math.round((mtd.slaNum / mtd.slaDenum) * 100) : 0;
     let slaLm = lm.slaDenum > 0 ? Math.round((lm.slaNum / lm.slaDenum) * 100) : 0;
     let slaLy = ly.slaDenum > 0 ? Math.round((ly.slaNum / ly.slaDenum) * 100) : 0;
-    
+
     const companyTarget = Number(window.slaSettings.achievementTargetPercent) || 90;
-    let slaColor = slaCp >= companyTarget ? '#34d399' : '#f87171';
-    let revRatioCp = cp.qty > 0 ? ((cp.rev / cp.qty) * 100).toFixed(1) : 0;
-    let revRatioPp = pp.qty > 0 ? ((pp.rev / pp.qty) * 100).toFixed(1) : 0;
+    const slaOnTarget = slaCp >= companyTarget;
+    let revRatioCp = cp.qty > 0 ? ((cp.rev / cp.qty) * 100).toFixed(1) : '0.0';
+    let revRatioPp = pp.qty > 0 ? ((pp.rev / pp.qty) * 100).toFixed(1) : '0.0';
+
+    // Kartu indikator ringkas dengan chip pertumbuhan dan nilai pembanding.
+    const buildKpiCard = (config) => `
+        <button type="button" class="exec-kpi exec-kpi-${config.tone}" onclick="${config.action}" title="Klik untuk membuka data pendukung">
+            <span class="exec-kpi-head">
+                <span class="exec-kpi-icon" aria-hidden="true">${config.icon}</span>
+                <span class="exec-kpi-label">${config.label}</span>
+            </span>
+            <span class="exec-kpi-value${config.compact ? ' exec-kpi-value-compact' : ''}">${config.value}</span>
+            <span class="exec-kpi-foot">
+                ${config.delta || ''}
+                <small>${config.note}</small>
+            </span>
+            <span class="exec-kpi-hint">Buka data pendukung →</span>
+        </button>`;
 
     container.innerHTML = `
-        <div style="margin-bottom:15px; font-size:13px; color:#0050A0; background:#eef4fc; padding:10px 15px; border-radius:8px; border-left:4px solid #0050A0; display:flex; align-items:center;">
-            📊 <b>Periode Analisis Saat Ini (CP):</b>&nbsp; ${cpStart.toLocaleDateString('id-ID')} <span>s/d</span> ${cpEnd.toLocaleDateString('id-ID')} 
-            <span style="color:#64748b; margin-left:10px; border-left:1px solid #ccc; padding-left:10px;"><b>Periode Sebelumnya (PP):</b> ${ppLabel}</span>
-        </div>
-
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:20px; margin-bottom:30px;">
-            <div onclick="executeDrillDown('claim-rekap', [])" style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; cursor:pointer; transition:all 0.3s; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 12px 20px -3px rgba(0,80,160,0.15)'; this.style.borderColor='#0050A0';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.05)'; this.style.borderColor='#e2e8f0';">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                    <div style="font-size:12px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Total Pengajuan</div>
-                    <div style="background:#f1f5f9; padding:4px; border-radius:4px; font-size:12px;" title="Klik untuk lihat data">🔍</div>
-                </div>
-                <div style="font-size:26px; font-weight:900; color:#0f172a; margin-bottom:8px;">${cp.qty.toLocaleString('id-ID')} Dok</div>
-                <div style="display:flex; flex-direction:column; gap:4px;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        ${formatPct(calcPct(cp.qty, pp.qty), false)}
-                        <span style="font-size:11px; color:#94a3b8;">dibandingkan periode sebelumnya</span>
-                    </div>
-                    <div style="font-size:11px; color:#64748b; margin-top:2px;">Sebelumnya: <strong style="color:#333;">${pp.qty.toLocaleString('id-ID')} Dok</strong></div>
-                </div>
+        <section class="exec-context" aria-label="Periode analisis">
+            <div class="exec-context-item exec-context-current">
+                <small>Periode Analisis (CP)</small>
+                <strong>${cpStart.toLocaleDateString('id-ID')} – ${cpEnd.toLocaleDateString('id-ID')}</strong>
             </div>
-
-            <div onclick="executeDrillDown('claim-rekap', [])" style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; cursor:pointer; transition:all 0.3s; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 12px 20px -3px rgba(0,80,160,0.15)'; this.style.borderColor='#0050A0';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.05)'; this.style.borderColor='#e2e8f0';">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                    <div style="font-size:12px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Nilai Pengajuan</div>
-                    <div style="background:#f1f5f9; padding:4px; border-radius:4px; font-size:12px;" title="Klik untuk lihat data">🔍</div>
-                </div>
-                <div style="font-size:18px; font-weight:900; color:#0f172a; margin-bottom:8px; line-height:1.5;">${formatCurrencyTotals(cp.amounts, true)}</div>
-                <div style="display:flex; flex-direction:column; gap:4px;">
-                    <div style="font-size:11px; color:#64748b;">Tidak dijumlahkan lintas mata uang.</div>
-                    <div style="font-size:11px; color:#64748b; margin-top:2px;">Sebelumnya:<br><strong style="color:#333;">${formatCurrencyTotals(pp.amounts, true)}</strong></div>
-                </div>
+            <div class="exec-context-item">
+                <small>Periode Sebelumnya (PP)</small>
+                <strong>${ppLabel}</strong>
             </div>
-
-            <div onclick="executeDrillDown('history', [])" style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; cursor:pointer; transition:all 0.3s; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 12px 20px -3px rgba(0,80,160,0.15)'; this.style.borderColor='#0050A0';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.05)'; this.style.borderColor='#e2e8f0';">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                    <div style="font-size:12px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Dokumen Selesai (Posted)</div>
-                    <div style="background:#f1f5f9; padding:4px; border-radius:4px; font-size:12px;" title="Klik untuk lihat data">🔍</div>
-                </div>
-                <div style="font-size:26px; font-weight:900; color:#0f172a; margin-bottom:8px;">${cp.posted.toLocaleString('id-ID')} Dok</div>
-                <div style="display:flex; flex-direction:column; gap:4px;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        ${formatPct(calcPct(cp.posted, pp.posted), false)}
-                        <span style="font-size:11px; color:#94a3b8;">dibandingkan periode sebelumnya</span>
-                    </div>
-                    <div style="font-size:11px; color:#64748b; margin-top:2px;">Sebelumnya: <strong style="color:#333;">${pp.posted.toLocaleString('id-ID')} Dok</strong></div>
-                </div>
+            <div class="exec-context-item">
+                <small>Total Dokumen Dibandingkan</small>
+                <strong>${(cp.qty + pp.qty).toLocaleString('id-ID')} Dokumen</strong>
             </div>
-        </div>
+        </section>
 
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:20px; margin-bottom:40px;">
-            <div style="background:linear-gradient(135deg, #0f172a, #1e293b); border-radius:16px; padding:25px; color:white; position:relative; overflow:hidden; box-shadow:0 10px 15px rgba(0,0,0,0.1);">
-                <div style="position:absolute; right:-20px; top:-20px; font-size:100px; opacity:0.1;">⏱️</div>
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <div style="font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; margin-bottom:10px;">Pencapaian SLA (≤ ${window.slaSettings.warningMaxDays} Hari)</div>
-                    <div style="font-size:12px; font-weight:bold; background:rgba(255,255,255,0.15); padding:6px 12px; border-radius:6px; cursor:pointer; transition:0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'" onclick="openExecSlaDetail(${cp.slaH}, ${cp.slaK}, ${cp.slaM}, ${cp.slaDenum})">🔍 Buka Detail Analitik</div>
+        <section class="exec-kpi-grid" aria-label="Indikator utama">
+            ${buildKpiCard({
+                tone: 'volume', icon: '▤', label: 'Total Pengajuan',
+                value: `${cp.qty.toLocaleString('id-ID')} <em>Dok</em>`,
+                delta: formatPct(calcPct(cp.qty, pp.qty), false),
+                note: `Sebelumnya ${pp.qty.toLocaleString('id-ID')} Dok`,
+                action: "executeDrillDown('claim-rekap', [])"
+            })}
+            ${buildKpiCard({
+                tone: 'amount', icon: '◇', label: 'Nilai Pengajuan', compact: true,
+                value: formatCurrencyTotals(cp.amounts, true),
+                note: 'Tidak dijumlahkan lintas mata uang.',
+                action: "executeDrillDown('claim-rekap', [])"
+            })}
+            ${buildKpiCard({
+                tone: 'posted', icon: '✓', label: 'Dokumen Selesai (Posted)',
+                value: `${cp.posted.toLocaleString('id-ID')} <em>Dok</em>`,
+                delta: formatPct(calcPct(cp.posted, pp.posted), false),
+                note: `Sebelumnya ${pp.posted.toLocaleString('id-ID')} Dok`,
+                action: "executeDrillDown('history', [])"
+            })}
+        </section>
+
+        <section class="exec-highlight-grid" aria-label="Sorotan kinerja">
+            <article class="exec-highlight exec-highlight-sla${slaOnTarget ? '' : ' is-below'}">
+                <div class="exec-highlight-head">
+                    <span class="exec-highlight-title">Pencapaian SLA (≤ ${window.slaSettings.warningMaxDays} Hari)</span>
+                    <button type="button" class="exec-highlight-action" onclick="openExecSlaDetail(${cp.slaH}, ${cp.slaK}, ${cp.slaM}, ${cp.slaDenum})">Buka Detail Analitik →</button>
                 </div>
-                <div style="font-size:48px; font-weight:900; margin-bottom:5px; color:${slaColor}; line-height:1;">${slaCp}%</div>
-                <div style="font-size:13px; color:#cbd5e1; margin-bottom:15px; display:flex; align-items:center; gap:5px;">
-                    Target Perusahaan: ≥ <strong style="color:white;">${companyTarget}%</strong>
+                <div class="exec-highlight-value">${slaCp}<span>%</span></div>
+                <!-- Target perusahaan berdiri sebagai barisnya sendiri. -->
+                <div class="exec-highlight-target">
+                    <span>Target perusahaan ${companyTarget}%</span>
+                    <span class="exec-highlight-status">${slaOnTarget ? 'Target tercapai' : 'Target belum tercapai'}</span>
                 </div>
-                <div style="background:rgba(255,255,255,0.1); padding:12px; border-radius:8px; font-size:12px;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Periode Sebelumnya (PP):</span> <strong style="color:#e2e8f0;">${slaPp}%</strong></div>
-                    <div style="display:flex; justify-content:space-between;"><span>Total Dokumen Tepat Waktu (CP):</span> <strong>${cp.slaNum} dari ${cp.slaDenum} dokumen</strong></div>
+                <div class="exec-meter" role="img" aria-label="Pencapaian ${slaCp} persen dari target ${companyTarget} persen">
+                    <i style="width:${Math.min(100, slaCp)}%;"></i>
+                    <b style="left:${Math.min(100, companyTarget)}%;"></b>
                 </div>
+                <dl class="exec-highlight-facts">
+                    <div><dt>Periode Sebelumnya (PP)</dt><dd>${slaPp}%</dd></div>
+                    <div><dt>Tepat Waktu (CP)</dt><dd>${cp.slaNum.toLocaleString('id-ID')} / ${cp.slaDenum.toLocaleString('id-ID')} Dokumen</dd></div>
+                </dl>
+            </article>
+
+            <article class="exec-highlight exec-highlight-revision">
+                <div class="exec-highlight-head">
+                    <span class="exec-highlight-title">Rasio Dokumen Bermasalah (Revisi)</span>
+                    <button type="button" class="exec-highlight-action" onclick="openExecRevDetail(${cp.rev}, ${cp.qty})">Buka Detail Analitik →</button>
+                </div>
+                <div class="exec-highlight-value">${revRatioCp}<span>%</span></div>
+                <div class="exec-highlight-target">
+                    <span>Semakin kecil nilainya, semakin baik.</span>
+                </div>
+                <div class="exec-meter exec-meter-warn">
+                    <i style="width:${Math.min(100, Number(revRatioCp))}%;"></i>
+                </div>
+                <dl class="exec-highlight-facts">
+                    <div><dt>Periode Sebelumnya (PP)</dt><dd>${revRatioPp}%</dd></div>
+                    <div><dt>Kasus Revisi (CP)</dt><dd>${cp.rev.toLocaleString('id-ID')} / ${cp.qty.toLocaleString('id-ID')} Dokumen</dd></div>
+                </dl>
+            </article>
+        </section>
+
+        <section class="stats-panel exec-panel" aria-label="Analisis perbandingan tren">
+            <div class="stats-panel-header">
+                <div class="stats-panel-title"><span class="stats-panel-icon" aria-hidden="true">↗</span><div><h4>Analisis Perbandingan Tren</h4><small>Periode aktif dibandingkan periode sebelumnya</small></div></div>
             </div>
+            <div class="chart-wrapper-locked exec-chart-wrapper"><canvas id="exec-modern-chart"></canvas></div>
+        </section>
 
-            <div style="background:linear-gradient(135deg, #7f1d1d, #991b1b); border-radius:16px; padding:25px; color:white; position:relative; overflow:hidden; box-shadow:0 10px 15px rgba(153,27,27,0.2);">
-                <div style="position:absolute; right:-20px; top:-20px; font-size:100px; opacity:0.1;">⚠️</div>
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <div style="font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#fca5a5; margin-bottom:10px;">Rasio Dokumen Bermasalah (Revisi)</div>
-                    <div style="font-size:12px; font-weight:bold; background:rgba(255,255,255,0.15); padding:6px 12px; border-radius:6px; cursor:pointer; transition:0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'" onclick="openExecRevDetail(${cp.rev}, ${cp.qty})">🔍 Buka Detail Analitik</div>
-                </div>
-                <div style="font-size:48px; font-weight:900; margin-bottom:5px; color:#f87171; line-height:1;">${revRatioCp}%</div>
-                <div style="font-size:13px; color:#fecaca; margin-bottom:23px;"><i>Semakin kecil nilainya, semakin baik.</i></div>
-                <div style="background:rgba(255,255,255,0.1); padding:12px; border-radius:8px; font-size:12px;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Periode Sebelumnya (PP):</span> <strong style="color:#fee2e2;">${revRatioPp}%</strong></div>
-                    <div style="display:flex; justify-content:space-between;"><span>Total Kasus Revisi (CP):</span> <strong>${cp.rev} dari ${cp.qty} Dok</strong></div>
-                </div>
+        <section class="stats-panel exec-panel" aria-label="Ringkasan tabel perbandingan">
+            <div class="stats-panel-header">
+                <div class="stats-panel-title"><span class="stats-panel-icon" aria-hidden="true">▤</span><div><h4>Ringkasan Tabel Perbandingan</h4><small>CP, MTD, dan periode sama tahun lalu</small></div></div>
+                <button class="btn stats-export-button" onclick="exportExecutiveExcel()"><span aria-hidden="true">↧</span> Unduh Excel</button>
             </div>
-        </div>
-
-        <h4 style="margin-bottom:15px; color:#334155; font-size:16px; display:flex; align-items:center; gap:8px;">
-            📊 Ringkasan Tabel Perbandingan
-            <button class="btn btn-success" style="padding:4px 8px; font-size:11px; box-shadow: 0 2px 4px rgba(40,167,69,0.3);" onclick="exportExecutiveExcel()">📥 Unduh Excel</button>
-        </h4>
-        <div class="table-responsive" style="border:none; box-shadow:0 6px 15px rgba(0,0,0,0.08); border-radius:10px; overflow-x:auto;">
-            <table class="std-table" style="margin:0; min-width:1000px; font-size:13px; border-collapse: separate; border-spacing: 0;">
-                <thead>
-                    <tr style="font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">
-                        <th style="padding:15px; background: #0050A0; color: white; border-bottom: none;">Komponen Analisis</th>
-                        <th style="text-align:right; padding:15px; background: #0050A0; color: white; border-bottom: none;">Periode Aktif (CP)</th>
-                        <th style="text-align:right; padding:15px; background: #0050A0; color: #cbd5e1; border-bottom: none;">Periode Sebelumnya (PP)</th>
-                        <th style="text-align:right; padding:15px; background: #003d7a; color: #ffc107; border-bottom: none; font-weight: 900;">Pertumbuhan vs PP</th>
-                        <th style="text-align:right; padding:15px; background: #0050A0; border-left: 2px solid rgba(255,255,255,0.2); color: white; border-bottom: none;">MTD (Bulan Ini)</th>
-                        <th style="text-align:right; padding:15px; background: #0050A0; color: #cbd5e1; border-bottom: none;">MTD Sebelumnya (PMTD)</th>
-                        <th style="text-align:right; padding:15px; background: #003d7a; color: #ffc107; border-bottom: none; font-weight: 900;">Pertumbuhan vs PMTD</th>
-                        <th style="text-align:right; padding:15px; background: #0050A0; color: #cbd5e1; border-bottom: none;">Periode Sama Tahun Lalu</th>
-                        <th style="text-align:right; padding:15px; background: #003d7a; color: #ffc107; border-bottom: none; font-weight: 900;">Pertumbuhan vs SPLY</th>
-                    </tr>
-                </thead>
-                <tbody style="background:white;">
-                    ${buildRow('Total Volume Pengajuan (Dok)', cp.qty, pp.qty, mtd.qty, lm.qty, ly.qty, null, false)}
-                    ${currencyRowsHtml}
-                    ${buildRow('Total Dokumen Posted (Selesai)', cp.posted, pp.posted, mtd.posted, lm.posted, ly.posted, null, false)}
-                    ${buildRow('Total Dokumen Direvisi', cp.rev, pp.rev, mtd.rev, lm.rev, ly.rev, null, true)}
-                    <!-- Baris pencapaian SLA -->
-                    ${buildRow(`Pencapaian SLA (%) · Target ${companyTarget}%`, slaCp, slaPp, slaMtd, slaLm, slaLy, null, false, true)}
-                </tbody>
-            </table>
-        </div>
-        
-        <div style="background:white; border-radius:16px; padding:20px; margin-bottom:30px; margin-top:30px; box-shadow:0 10px 15px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
-            <div style="font-size:16px; font-weight:800; color:#0f172a; margin-bottom:15px; display:flex; align-items:center; gap:8px;">📈 Analisis Perbandingan Tren (CP dan PP)</div>
-            <div class="chart-wrapper-locked" style="height: 280px; position: relative;"><canvas id="exec-modern-chart"></canvas></div>
-        </div>
+            <div class="table-responsive exec-table-wrap">
+                <table class="std-table exec-table">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="exec-table-corner">Komponen Analisis</th>
+                            <th scope="col">Periode Aktif (CP)</th>
+                            <th scope="col" class="exec-th-muted">Periode Sebelumnya (PP)</th>
+                            <th scope="col" class="exec-th-delta">Pertumbuhan vs PP</th>
+                            <th scope="col" class="exec-band-start">MTD (Bulan Ini)</th>
+                            <th scope="col" class="exec-th-muted">MTD Sebelumnya (PMTD)</th>
+                            <th scope="col" class="exec-th-delta">Pertumbuhan vs PMTD</th>
+                            <th scope="col" class="exec-th-muted exec-band-start">Periode Sama Tahun Lalu</th>
+                            <th scope="col" class="exec-th-delta">Pertumbuhan vs SPLY</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${buildRow('Total Volume Pengajuan (Dok)', cp.qty, pp.qty, mtd.qty, lm.qty, ly.qty, null, false)}
+                        ${currencyRowsHtml}
+                        ${buildRow('Total Dokumen Posted (Selesai)', cp.posted, pp.posted, mtd.posted, lm.posted, ly.posted, null, false)}
+                        ${buildRow('Total Dokumen Direvisi', cp.rev, pp.rev, mtd.rev, lm.rev, ly.rev, null, true)}
+                        ${buildRow(`Pencapaian SLA (%) · Target ${companyTarget}%`, slaCp, slaPp, slaMtd, slaLm, slaLy, null, false, true)}
+                    </tbody>
+                </table>
+            </div>
+        </section>
     `;
 
     if(typeof window.applyWorksheetTranslations === 'function') window.applyWorksheetTranslations(container);
@@ -5156,78 +5175,112 @@ window.renderExecutiveDashboard = function() {
         let ctx = document.getElementById('exec-modern-chart');
         if (ctx) {
             const uiText = window.translateUiText || (value => value);
+            const theme = window.getChartTheme();
             if (window.execModernChart) window.execModernChart.destroy();
             let gQty = pp.qty === 0 ? (cp.qty > 0 ? 100 : 0) : ((cp.qty - pp.qty) / pp.qty * 100);
             let gPosted = pp.posted === 0 ? (cp.posted > 0 ? 100 : 0) : ((cp.posted - pp.posted) / pp.posted * 100);
             let gRev = pp.rev === 0 ? (cp.rev > 0 ? 100 : 0) : ((cp.rev - pp.rev) / pp.rev * 100);
             let gSla = slaPp === 0 ? (slaCp > 0 ? 100 : 0) : ((slaCp - slaPp) / slaPp * 100); // Tambahan growth SLA
             let growths = [gQty, gPosted, gRev, gSla];
+            const chartFont = () => (window.Chart && Chart.defaults.font.family) || 'sans-serif';
 
             window.execModernChart = new Chart(ctx, {
                 data: {
                     labels: ['Volume Pengajuan (Dok)', 'Dokumen Selesai (Posted)', 'Dokumen Direvisi', 'Pencapaian SLA (%)'].map(uiText),
                     datasets: [
-                        { type: 'bar', label: uiText('Periode Aktif (CP)'), data: [cp.qty, cp.posted, cp.rev, slaCp], backgroundColor: '#0050A0', borderRadius: 6, barPercentage: 0.7 },
-                        { type: 'bar', label: uiText('Periode Sebelumnya (PP)'), data: [pp.qty, pp.posted, pp.rev, slaPp], backgroundColor: '#94a3b8', borderRadius: 6, barPercentage: 0.7 }
+                        {
+                            type: 'bar', label: uiText('Periode Aktif (CP)'), data: [cp.qty, cp.posted, cp.rev, slaCp],
+                            backgroundColor: context => window.buildChartGradient(context, theme.blue, theme.blueSoft),
+                            hoverBackgroundColor: context => window.buildChartGradient(context, theme.blueDeep, theme.blue),
+                            borderWidth: 0, borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 2, bottomRight: 2 },
+                            borderSkipped: false, maxBarThickness: 54, barPercentage: 0.74, categoryPercentage: 0.66
+                        },
+                        {
+                            type: 'bar', label: uiText('Periode Sebelumnya (PP)'), data: [pp.qty, pp.posted, pp.rev, slaPp],
+                            backgroundColor: context => window.buildChartGradient(context, theme.slate, theme.slateSoft),
+                            hoverBackgroundColor: theme.slate,
+                            borderWidth: 0, borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 2, bottomRight: 2 },
+                            borderSkipped: false, maxBarThickness: 54, barPercentage: 0.74, categoryPercentage: 0.66
+                        }
                     ]
                 },
                 plugins: [{
                     id: 'customDataLabels',
                     afterDatasetsDraw(chart) {
                         const { ctx } = chart;
+                        const family = chartFont();
+                        ctx.save();
                         ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
                         const metaCP = chart.getDatasetMeta(0); const metaPP = chart.getDatasetMeta(1);
 
-                        metaCP.data.forEach((element, index) => {
-                            let val = chart.data.datasets[0].data[index];
-                            if(val > 0) { 
-                                ctx.font = 'bold 11px sans-serif'; 
-                                ctx.fillStyle = '#0050A0'; 
-                                let textVal = index === 3 ? val + '%' : val; // Tambahkan % khusus untuk kolom SLA
-                                ctx.fillText(textVal, element.x, element.y - 5); 
-                            }
-                        });
-                        metaPP.data.forEach((element, index) => {
-                            let val = chart.data.datasets[1].data[index];
-                            if(val > 0) { 
-                                ctx.font = 'bold 11px sans-serif'; 
-                                ctx.fillStyle = '#64748b'; 
-                                let textVal = index === 3 ? val + '%' : val; // Tambahkan % khusus untuk kolom SLA
-                                ctx.fillText(textVal, element.x, element.y - 5); 
-                            }
-                        });
+                        const drawValue = (meta, datasetIndex, color) => {
+                            meta.data.forEach((element, index) => {
+                                let val = chart.data.datasets[datasetIndex].data[index];
+                                if(val > 0) {
+                                    ctx.font = `800 10px ${family}`;
+                                    ctx.fillStyle = color;
+                                    let textVal = index === 3 ? val + '%' : val; // Tambahkan % khusus untuk kolom SLA
+                                    ctx.fillText(textVal, element.x, element.y - 6);
+                                }
+                            });
+                        };
+                        drawValue(metaCP, 0, theme.dark ? '#7cc6f2' : theme.blueDeep);
+                        drawValue(metaPP, 1, theme.text);
+
                         metaCP.data.forEach((elCP, index) => {
                             const elPP = metaPP.data[index]; let pct = growths[index];
-                            let text = (pct > 0 ? '▲ +' : (pct < 0 ? '▼ ' : '▪ ')) + pct.toFixed(1) + '%';
-                            
+                            if(!isFinite(pct)) pct = 0;
+                            // Arah sudah diwakili panah, jadi angkanya ditulis tanpa tanda minus.
+                            let text = (pct > 0 ? '▲ ' : (pct < 0 ? '▼ ' : '▪ ')) + Math.abs(pct).toFixed(1) + '%';
+
                             // Logika Warna (Index 2 adalah Dokumen Direvisi -> Semakin kecil semakin baik)
-                            let isRevLogic = index === 2; let color = '#64748b'; 
-                            if (pct > 0) color = isRevLogic ? '#dc3545' : '#28a745'; 
-                            else if (pct < 0) color = isRevLogic ? '#28a745' : '#dc3545'; 
-                            
-                            let centerX = (elCP.x + elPP.x) / 2; let topY = Math.min(elCP.y, elPP.y) - 25; 
-                            if (topY < 20) topY = 20;
-                            ctx.fillStyle = color; ctx.font = 'bold 13px sans-serif'; ctx.fillText(text, centerX, topY);
+                            let isRevLogic = index === 2; let color = theme.text;
+                            if (pct > 0) color = isRevLogic ? theme.red : theme.green;
+                            else if (pct < 0) color = isRevLogic ? theme.green : theme.red;
+
+                            let centerX = (elCP.x + elPP.x) / 2; let topY = Math.min(elCP.y, elPP.y) - 26;
+                            if (topY < 22) topY = 22;
+                            // Pil latar agar label pertumbuhan tetap terbaca di atas batang.
+                            ctx.font = `900 12px ${family}`;
+                            const padX = 8, width = ctx.measureText(text).width + padX * 2, height = 21;
+                            ctx.fillStyle = theme.dark ? 'rgba(255,255,255,.07)' : 'rgba(20,84,130,.06)';
+                            ctx.beginPath();
+                            ctx.roundRect(centerX - width / 2, topY - height + 5, width, height, 999);
+                            ctx.fill();
+                            ctx.fillStyle = color;
+                            ctx.fillText(text, centerX, topY);
                         });
+                        ctx.restore();
                     }
                 }],
-                options: { 
-                    responsive: true, maintainAspectRatio: false, layout: { padding: { top: 45 } },
-                    plugins: { 
-                        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 10, font: { weight: 'bold' } } }, 
-                        tooltip: { 
-                            callbacks: { 
-                                label: function(context) { 
+                options: {
+                    responsive: true, maintainAspectRatio: false, layout: { padding: { top: 46 } },
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: window.buildChartLegend(theme),
+                        tooltip: window.buildChartTooltip(theme, {
+                            callbacks: {
+                                label: function(context) {
                                     // Bikin tooltip cerdas, kalau index 3 kasih %, selain itu kasih 'Dokumen'
-                                    if (context.dataIndex === 3) return context.dataset.label + ': ' + context.parsed.y + '%';
-                                    return context.dataset.label + ': ' + uiText(context.parsed.y + ' Dokumen'); 
-                                } 
-                            } 
-                        } 
+                                    if (context.dataIndex === 3) return ' ' + context.dataset.label + ': ' + context.parsed.y + '%';
+                                    return ' ' + context.dataset.label + ': ' + uiText(context.parsed.y + ' Dokumen');
+                                }
+                            }
+                        })
                     },
-                    scales: { 
-                        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, title: { display: true, text: uiText('Nilai / Volume'), color: '#64748b', font: {size: 11} } }, 
-                        x: { grid: { display: false } } 
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            border: { display: false },
+                            grid: { color: theme.grid, drawTicks: false },
+                            ticks: { color: theme.text, padding: 10, precision: 0, font: { size: 10, weight: '700' } },
+                            title: { display: true, text: uiText('Nilai / Volume'), color: theme.text, font: { size: 10, weight: '800' } }
+                        },
+                        x: {
+                            border: { display: false },
+                            grid: { display: false },
+                            ticks: { color: theme.text, padding: 8, font: { size: 10, weight: '700' } }
+                        }
                     }
                 }
             });
