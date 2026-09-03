@@ -1075,80 +1075,6 @@ body.dark-mode .modern-stat-card {
     padding: 0 !important;
 }
 
-/* Card Atas: Efek Kaca (Glassmorphism) & Gradient Elegan */
-.sf-modern-card {
-    position: relative;
-    z-index: 20;
-    overflow: visible;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.4));
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-radius: 16px;
-    padding: 24px 30px;
-    box-shadow: 0 10px 30px rgba(0, 80, 160, 0.05), inset 0 1px 2px rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    margin-bottom: 25px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-/* Rata & Presisi */
-.sf-header-title {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 24px;
-    width: 100%;
-}
-
-.sf-icon-box {
-    width: 50px;
-    height: 50px;
-    background: linear-gradient(135deg, rgba(0, 180, 219, 0.15), rgba(0, 80, 160, 0.05));
-    border: 1px solid rgba(0, 180, 219, 0.2);
-    color: #0050A0;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    box-shadow: inset 0 2px 5px rgba(255,255,255,0.5);
-}
-
-/* Teks Gradient Elegan */
-.sf-header-title h3 {
-    margin: 0 0 4px 0;
-    font-size: 19px;
-    font-weight: 800;
-    background: linear-gradient(135deg, #0050A0, #00b4db);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.sf-header-title p {
-    margin: 0;
-    color: #475569;
-    font-size: var(--ws-font-md);
-    font-weight: 500;
-}
-
-.sf-search-box {
-    background: transparent;
-    border: none;
-    padding: 0;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.sf-search-label {
-    font-size: var(--ws-font-md);
-    font-weight: 700;
-    color: #334155;
-    margin-bottom: 10px;
-    display: block;
-    text-transform: none; /* Anti kapital semua */
-}
-
 /* Alignment Presisi Antara Input & Tombol */
 .sf-input-row {
     display: flex;
@@ -1343,56 +1269,6 @@ body.dark-mode .modern-stat-card {
     0% { transform: translateY(0px); }
     50% { transform: translateY(-12px); }
     100% { transform: translateY(0px); }
-}
-
-/* =========================================
-   CUSTOM DROPDOWN & FILTER SUPER FIND
-   ========================================= */
-
-/* Custom Dropdown Trigger */
-.sf-dropdown-modern {
-    background-color: #ffffff;
-    padding: 8px 12px 8px 16px;
-    border-radius: 8px;
-    border: 2px solid rgba(0, 180, 219, 0.3);
-    font-size: 12.5px;
-    font-weight: 800;
-    color: #0050A0;
-    cursor: pointer;
-    box-shadow: 0 4px 10px rgba(0, 80, 160, 0.05);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    min-width: 165px;
-    letter-spacing: 0.2px;
-    font-family: var(--app-font-family);
-}
-.sf-dropdown-modern:hover {
-    border-color: #00b4db;
-    box-shadow: 0 6px 15px rgba(0, 180, 219, 0.2);
-    transform: translateY(-1px);
-}
-
-/* Custom Dropdown List Item */
-.sf-preset-item {
-    padding: 12px 16px;
-    font-size: 12.5px;
-    font-weight: 700;
-    color: #334155;
-    cursor: pointer;
-    border-bottom: 1px solid #f1f5f9;
-    transition: all 0.2s ease;
-    background: #ffffff;
-    font-family: var(--app-font-family);
-}
-.sf-preset-item:last-child {
-    border-bottom: none;
-}
-.sf-preset-item:hover {
-    background: linear-gradient(135deg, #f8fbff, #e0f2fe);
-    color: #0050A0;
-    padding-left: 24px; /* Efek geser mulus ke kanan pas di-hover */
 }
 
 /* Input Tanggal Modern */
@@ -1985,18 +1861,11 @@ body.dark-mode .std-table th[style*="background: #003d7a"] {
 /* -----------------------------------------
    4. FIX SUPER FIND / CARI CLAIM FULL PAGE
    ----------------------------------------- */
-body.dark-mode .sf-modern-card,
 body.dark-mode .sf-table-container {
     background: #1e293b !important;
     border-color: #334155 !important;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
 }
-body.dark-mode .sf-header-title h3 {
-    background: none !important;
-    color: #38bdf8 !important;
-    -webkit-text-fill-color: #38bdf8 !important;
-}
-body.dark-mode .sf-search-label,
 body.dark-mode .sf-state-title { color: #f8fafc !important; }
 body.dark-mode .sf-input-field {
     background: #0f172a !important;
@@ -2016,25 +1885,10 @@ body.dark-mode #sf-table td {
 }
 body.dark-mode #sf-table tbody tr:hover td { background: #2c3e50 !important; }
 
-body.dark-mode .sf-dropdown-modern,
 body.dark-mode .sf-date-modern {
     background: #0f172a !important;
     color: #38bdf8 !important;
     border-color: #334155 !important;
-}
-body.dark-mode .sf-preset-item {
-    background: #1e293b !important;
-    color: #e2e8f0 !important;
-    border-color: #334155 !important;
-}
-body.dark-mode .sf-preset-item:hover {
-    background: #334155 !important;
-    color: #38bdf8 !important;
-}
-body.dark-mode .sf-icon-box {
-    background: #0f172a !important;
-    border-color: #334155 !important;
-    color: #38bdf8 !important;
 }
 
 /* -----------------------------------------
@@ -2088,8 +1942,7 @@ body.dark-mode .modern-dash-card:hover,
 body.dark-mode #result-rapor-individu > div:hover,
 body.dark-mode .custom-select-trigger:hover,
 body.dark-mode .sla-option:hover,
-body.dark-mode #modal-custom-time:hover,
-body.dark-mode .sf-dropdown-modern:hover {
+body.dark-mode #modal-custom-time:hover {
     background-color: #2c3e50 !important;
     border-color: #38bdf8 !important;
     box-shadow: 0 10px 20px rgba(0,0,0,0.5) !important;
@@ -2459,8 +2312,7 @@ body.dark-mode #sim-grand-total {
 }
 
 /* 4. FIX WARNA FONT LABEL SUB MENU PENGATURAN BIAR BENERAN JELAS */
-body.dark-mode .form-group label,
-body.dark-mode .sf-search-label {
+body.dark-mode .form-group label {
     color: #e2e8f0 !important; /* Ubah ke putih/abu sangat terang biar super kontras */
     font-weight: 800 !important;
     letter-spacing: 0.5px !important;
@@ -2839,7 +2691,6 @@ body.dark-mode .finance-queue-card strong { color: #e3f0fb; }
 
 @media (max-width: 800px) {
     .finance-queue-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .sf-modern-card { z-index: 30; }
 }
 
 .sla-calendar-page {
@@ -3465,7 +3316,7 @@ body.dark-mode #sla-options-list { border-color: #34505f !important; }
     #live-clock-container { display: none !important; }
     .content-area { width: 100%; min-width: 0; padding: 10px; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
     .content-card { width: 100%; min-width: 0; padding: 15px; border-radius: 15px; }
-    .header-panel, .header-actions, .modern-header, .sf-header-title { align-items: stretch !important; }
+    .header-panel, .header-actions, .modern-header { align-items: stretch !important; }
     .header-panel h1, .header-panel h2, .header-panel h3, .modern-header h2 { font-size: 20px !important; line-height: 1.25; }
     .dashboard-grid, #menu-statistik .dashboard-grid, #stat-summary-cards { grid-template-columns: 1fr !important; gap: 11px !important; }
     .dash-card { padding: 18px 14px; }
@@ -4126,7 +3977,6 @@ body.dark-mode .stats-employee-metric-revision strong { color: #ff99a8; }
     .stats-employee-metrics { grid-template-columns: 1fr; }
 }
 
-
 /* =========================================================
    P16 — VISUAL REFRESH: STATISTIK + MANAGEMENT SUMMARY
    ========================================================= */
@@ -4295,7 +4145,6 @@ body.dark-mode .exec-chart-badge { background:#21455d; color:#8bd8f7; }
     .exec-section-head { align-items:flex-start; flex-direction:column; }.exec-mini-export { width:100%; justify-content:center; }
     .stats-chart-panel { min-height:390px; }.stats-chart-panel .chart-wrapper-locked{height:270px !important}.stats-chart-sla .chart-wrapper-locked{height:235px !important}
 }
-
 
 /* P16 — Canceled Claim, password, dan status baru */
 .status-canceled { background:#f1f5f9 !important; color:#7f1d1d !important; border:1px solid #fecaca !important; }
