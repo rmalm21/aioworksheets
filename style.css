@@ -3438,10 +3438,12 @@ body.dark-mode .ws-select-option:hover, body.dark-mode .ws-select-option:focus-v
 body.mobile-sidebar-open .sidebar-backdrop { opacity: 1; visibility: visible; pointer-events: auto; }
 
 /* Dropdown khusus lama tetap mengikuti bahasa visual baru. */
-#custom-sla-select .custom-select-trigger,
-.sf-dropdown-modern { border: 1px solid #bcd7e9 !important; border-radius: 11px !important; background: linear-gradient(180deg,#fff,#f4f9fd) !important; color: #164c75 !important; box-shadow: 0 3px 9px rgba(14,77,124,.08) !important; }
-#sla-options-list,
-#sf-preset-options { border: 1px solid #c5ddeb !important; border-radius: 13px !important; box-shadow: 0 18px 42px rgba(8,50,82,.2) !important; }
+#custom-sla-select .custom-select-trigger { border: 1px solid #bcd7e9 !important; border-radius: 11px !important; background: linear-gradient(180deg,#fff,#f4f9fd) !important; color: #164c75 !important; box-shadow: 0 3px 9px rgba(14,77,124,.08) !important; }
+/* Selector di atas memakai id, jadi varian gelapnya harus ikut memakai id
+   agar tidak kalah spesifisitas dan tetap terbaca. */
+body.dark-mode #custom-sla-select .custom-select-trigger { border-color: #34505f !important; background: linear-gradient(180deg,#16293b,#12232f) !important; color: #a9d3ec !important; box-shadow: none !important; }
+#sla-options-list { border: 1px solid #c5ddeb !important; border-radius: 13px !important; box-shadow: 0 18px 42px rgba(8,50,82,.2) !important; }
+body.dark-mode #sla-options-list { border-color: #34505f !important; }
 
 /* Tampilan handphone menyeluruh. */
 @media (max-width: 850px) {
@@ -4894,3 +4896,91 @@ button, input, select, textarea, optgroup { font-size: inherit; }
 small { font-size: var(--ws-font-xs); }
 .analytics-sla-line, .analytics-sla-achievement-main { font-size: var(--ws-font-md); }
 .sf-state-desc { font-size: var(--ws-font-md); }
+
+/* =========================================================
+   P21 — PENYEMPURNAAN MODE GELAP
+   Audit kontras di seluruh layar menemukan elemen yang tetap memakai
+   latar terang mode siang sementara warna teksnya sudah dipaksa terang,
+   sehingga rasio kontrasnya turun sampai 1.1:1.
+   ========================================================= */
+
+/* Badge status: empat status ini belum punya varian gelap, jadi masih
+   memakai pastel terang di atas tabel gelap. */
+body.dark-mode .status-paid { background-color: rgba(56, 189, 248, .16) !important; color: #67d5f2 !important; border: 1px solid rgba(56, 189, 248, .42) !important; }
+body.dark-mode .status-hold { background-color: rgba(250, 204, 21, .16) !important; color: #f6cf5a !important; border: 1px solid rgba(250, 204, 21, .42) !important; }
+body.dark-mode .status-returned { background-color: rgba(248, 113, 133, .16) !important; color: #f7a3ae !important; border: 1px solid rgba(248, 113, 133, .42) !important; }
+body.dark-mode .status-canceled { background: rgba(148, 163, 184, .16) !important; color: #cbd5e1 !important; border: 1px solid rgba(148, 163, 184, .42) !important; }
+
+/* Chip dan ikon berlatar pastel di layar Executive, Master Kalender,
+   dan Log Aktivitas. */
+body.dark-mode .exec-period-icon { background: #24455b !important; color: #7fd0f2 !important; }
+body.dark-mode .summary-icon { background: #24455b !important; color: #7fd0f2 !important; }
+body.dark-mode .activity-category-badge { background: #16354a !important; color: #7fc7f5 !important; }
+body.dark-mode .activity-sync-badge.synced { background: #123a29 !important; color: #7fe0ab !important; }
+body.dark-mode .activity-sync-badge.pending { background: #3d3117 !important; color: #f0cd77 !important; }
+
+/* Teks sekunder yang terlalu redup di atas panel gelap. */
+body.dark-mode .quick-workflow-label { color: #93b0c6 !important; }
+body.dark-mode .sla-calendar-meta { color: #93a7b8 !important; }
+body.dark-mode .sla-calendar-warning-icon,
+body.dark-mode .sla-calendar-warning { color: #f0cd77 !important; }
+body.dark-mode .finance-queue-card small { color: #93a7b8 !important; }
+
+/* Kotak ikon dashboard: latar sudah digelapkan, tetapi warna ikonnya masih
+   memakai hue pekat mode siang sehingga rasionya hanya 1.9-2.9:1. */
+body.dark-mode .card-input .dash-icon-box { color: #7ea9f5 !important; }
+body.dark-mode .card-revise .dash-icon-box { color: #f0c765 !important; }
+body.dark-mode .card-rekap .dash-icon-box { color: #6fce92 !important; }
+body.dark-mode .card-history .dash-icon-box { color: #63c6dc !important; }
+body.dark-mode .card-executive .dash-icon-box { color: #c199ee !important; }
+body.dark-mode .card-master .dash-icon-box { color: #a7bacd !important; }
+body.dark-mode .card-user .dash-icon-box { color: #e08fe4 !important; }
+body.dark-mode .card-stat .dash-icon-box { color: #f2879c !important; }
+
+/* Badge SLA memakai latar solid; teksnya harus tetap putih, bukan ikut
+   warna teks terang global yang justru menurunkan kontras. */
+body.dark-mode .badge[style*="background:#28a745"],
+body.dark-mode .badge[style*="background: #28a745"],
+body.dark-mode .badge[style*="background:#dc3545"],
+body.dark-mode .badge[style*="background: #dc3545"],
+body.dark-mode .badge.balanced,
+body.dark-mode .badge.unbalanced { color: #fff !important; }
+
+/* Ikon hapus merah pekat di atas baris tabel gelap. */
+body.dark-mode .btn-icon[style*="color:#dc3545"],
+body.dark-mode .btn-icon[style*="color: #dc3545"] { color: #f7909d !important; }
+
+/* Panel antrean Finance dan kotak informasi berlatar pastel inline. */
+body.dark-mode .finance-queue-card span { color: #93a7b8 !important; }
+body.dark-mode [style*="background:#d4edda"],
+body.dark-mode [style*="background: #d4edda"] { background: #16341f !important; color: #9fe0b6 !important; border-color: #2f6b48 !important; }
+body.dark-mode [style*="background:#e9f3ff"],
+body.dark-mode [style*="background: #e9f3ff"] { background: #16354a !important; color: #cfe3f2 !important; }
+
+/* Kotak pilihan akhir pekan pada pengaturan mesin SLA. */
+body.dark-mode .sla-weekend-group > div { border-color: #34505f !important; background: #142633 !important; }
+body.dark-mode .sla-weekend-group label { color: #cfe0eb !important; }
+
+/* Kalender SLA: header hari dan sel tanggal masih memakai kertas putih. */
+body.dark-mode .sla-weekday-row span { color: #9db3c3 !important; }
+body.dark-mode .sla-calendar-summary-card { background: #172b39 !important; border-color: #2f4c60 !important; }
+body.dark-mode .sla-calendar-summary-card strong { color: #e4f0f7 !important; }
+body.dark-mode .sla-calendar-summary-card small { color: #93a7b8 !important; }
+body.dark-mode .sla-day-label { color: #f0a5a5 !important; }
+
+/* Kalender SLA: sisa elemen yang masih memakai kertas terang mode siang. */
+body.dark-mode .sla-upcoming-date { background: #16354a !important; color: #8fc7f0 !important; }
+body.dark-mode .sla-upcoming-date strong { color: #e4f0f7 !important; }
+body.dark-mode .sla-month-nav { border-color: #34505f !important; background: #142633 !important; color: #8fc7f0 !important; }
+body.dark-mode .sla-month-nav:hover { background: #1d3546 !important; color: #a9d9f7 !important; }
+body.dark-mode .sla-editor-header span { color: #7fc0ef !important; }
+
+/* Sisa elemen chrome dan modal yang belum punya varian gelap. */
+body.dark-mode .system-dialog-secondary kbd { border-color: #3a5669 !important; background: #12232f !important; color: #cfe0eb !important; }
+body.dark-mode #modal-status .status-time-label { color: #a9c8db !important; }
+body.dark-mode .sidebar .ws-select-trigger { color: #cfe0eb !important; }
+
+/* Spanduk peringatan kalender: latar krem terang terlalu menyilaukan di
+   atas halaman gelap; diganti tint amber gelap dengan teks amber terang. */
+body.dark-mode .sla-calendar-warning { border-color: #6b5320 !important; background: linear-gradient(90deg,#33280f,#2b2210) !important; color: #f0cd77 !important; }
+body.dark-mode .sla-calendar-warning strong { color: #f7dd9c !important; }
