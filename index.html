@@ -1065,30 +1065,45 @@
     </div>
 </div>
             <!-- MENU 1.9: REVISE / CONFIRM -->
-            <div id="menu-claim-revise" class="content-card">
-                <div class="header-panel" style="margin-bottom: 20px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:15px;">
-                    <div>
-                        <h3>⚠️ Pemantauan Revisi</h3>
-                        <p style="font-size:12px; color:#666;">Menampilkan seluruh histori revisi lintas periode. Gunakan pagination untuk membuka data lama.</p>
+            <div id="menu-claim-revise" class="content-card list-page" data-accent="amber">
+                <header class="list-hero">
+                    <div class="list-hero-icon" aria-hidden="true">⚠️</div>
+                    <div class="list-hero-copy">
+                        <span class="list-eyebrow">CLAIM DATA</span>
+                        <h3>Pemantauan Revisi</h3>
+                        <p>Menampilkan seluruh histori revisi lintas periode. Gunakan pagination untuk membuka data lama.</p>
                     </div>
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items:center;">
-                        <input type="text" id="search-revise" class="minimal-search-box" placeholder="Cari No. pengajuan, NIK, nama, tipe..." oninput="executeGlobalSearch('revise')" onkeydown="if(event.key==='Enter') executeGlobalSearch('revise')" style="min-width:250px;">
-                        <button class="btn btn-secondary" id="btn-rev-list" onclick="toggleReviseView('list')" style="background:#0050A0; color:white;">Tampilan Daftar</button>
-                        <button class="btn btn-secondary" id="btn-rev-folder" onclick="toggleReviseView('folder')">Tampilan Folder</button>
-                        
-                        <button id="btn-bulk-posted-revise" class="btn btn-success" onclick="bulkPosted('revise')">☑️ Ubah Pilihan ke Posted</button>
-			<button class="btn btn-danger" onclick="bulkDeleteRevise()">🗑️ Hapus Pilihan</button>
-                        <button class="btn btn-danger" onclick="deleteAllDataFromView('revise')">🛑 Hapus Semua Data Aktif</button>
-                        
-                        <button class="btn btn-success" onclick="exportDataXLSX('summary', 'revise')">📥 Ekspor Ringkasan</button>
-                        <button class="btn btn-primary" onclick="exportDataXLSX('detail', 'revise')">📥 Ekspor Detail</button>
+                    <div class="list-hero-mark" aria-hidden="true">🔁</div>
+                </header>
+
+                <section class="header-panel list-toolbar" aria-label="Filter Pemantauan Revisi">
+                    <div class="list-toolbar-title"><span aria-hidden="true">⌕</span><div><strong>Cari Revisi</strong><small>No. pengajuan, NIK, nama, atau tipe</small></div></div>
+                    <div class="list-toolbar-controls">
+                        <input type="text" id="search-revise" class="list-search-box" placeholder="Cari No. pengajuan, NIK, nama, tipe..." oninput="executeGlobalSearch('revise')" onkeydown="if(event.key==='Enter') executeGlobalSearch('revise')" style="width:min(320px,100%);">
+                        <div class="list-view-switch" role="group" aria-label="Mode tampilan Revisi">
+                            <button class="btn is-active" id="btn-rev-list" onclick="toggleReviseView('list')">Daftar</button>
+                            <button class="btn" id="btn-rev-folder" onclick="toggleReviseView('folder')">Folder</button>
+                        </div>
                     </div>
-                </div>
+                </section>
+
+                <section class="list-panel" style="margin-bottom:16px;">
+                    <div class="list-panel-head">
+                        <div class="list-panel-title"><span class="list-panel-icon" aria-hidden="true">⚑</span><div><h4>Tindakan Massal</h4><small>Berlaku untuk baris yang dicentang pada tabel di bawah</small></div></div>
+                        <div class="list-actions">
+                            <button id="btn-bulk-posted-revise" class="btn btn-success accounting-only-action" onclick="bulkPosted('revise')">☑️ Ubah ke Posted</button>
+                            <button class="btn btn-danger admin-only-action" onclick="bulkDeleteRevise()">🗑️ Hapus Pilihan</button>
+                            <button class="btn btn-danger admin-only-action" onclick="deleteAllDataFromView('revise')">🛑 Hapus Semua Data Aktif</button>
+                            <button class="btn btn-success" onclick="exportDataXLSX('summary', 'revise')">📥 Ekspor Ringkasan</button>
+                            <button class="btn btn-primary" onclick="exportDataXLSX('detail', 'revise')">📥 Ekspor Detail</button>
+                        </div>
+                    </div>
+                </section>
 
                 <div id="revise-active-container" style="margin-bottom: 20px;">
-                    <div style="background:#eef4fc; padding:12px 15px; border-radius:6px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; border: 1px solid #cce0f5;" onclick="toggleSection('active-content-main', this)">
-                        <h4 style="color:#0050A0; margin:0;">🔴 Pemantauan Aktif</h4>
-                        <span class="toggle-icon" style="font-size:12px; color:#0050A0; font-weight:bold;">▼ Minimize</span>
+                    <div class="list-section-toggle" onclick="toggleSection('active-content-main', this)">
+                        <div class="list-section-copy"><span class="list-section-icon" aria-hidden="true">🔴</span><div><h4>Pemantauan Aktif</h4><small>Claim yang masih berstatus Revisi</small></div></div>
+                        <span class="toggle-icon">▼ Minimize</span>
                     </div>
                     
                     <div id="active-content-main" style="display:block; margin-top:10px;">
@@ -1130,9 +1145,9 @@
                 </div>
                 
                 <div id="revise-arsip-container">
-                    <div style="background:#e9ecef; padding:12px 15px; border-radius:6px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; border: 1px solid #ccc;" onclick="toggleSection('arsip-content-main', this)">
-                        <h4 style="color:#6c757d; margin:0;">📦 Arsip Monitoring</h4>
-                        <span class="toggle-icon" style="font-size:12px; color:#555; font-weight:bold;">▶ Perluas</span>
+                    <div class="list-section-toggle is-muted" onclick="toggleSection('arsip-content-main', this)">
+                        <div class="list-section-copy"><span class="list-section-icon" aria-hidden="true">📦</span><div><h4>Arsip Monitoring</h4><small>Revisi yang sudah selesai atau berstatus final</small></div></div>
+                        <span class="toggle-icon">▶ Perluas</span>
                     </div>
                     
                     <div id="arsip-content-main" style="display:none; margin-top:10px;">
@@ -1173,13 +1188,20 @@
                 </div>
             </div>
             <!-- MENU 2: REKAPITULASI -->
-            <div id="menu-claim-rekap" class="content-card">
-                <div class="header-panel" style="margin-bottom: 10px; display:flex; flex-direction:column; gap:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                        <h3>📊 Rekapitulasi Data</h3>
-                        <input type="text" id="search-rekap" class="minimal-search-box" placeholder="🔍 Pencarian cepat" onkeyup="executeGlobalSearch('rekap')">
+            <div id="menu-claim-rekap" class="content-card list-page" data-accent="blue">
+                <header class="list-hero">
+                    <div class="list-hero-icon" aria-hidden="true">📊</div>
+                    <div class="list-hero-copy">
+                        <span class="list-eyebrow">CLAIM DATA</span>
+                        <h3>Rekapitulasi Data</h3>
+                        <p>Seluruh claim Accounting dan Finance dalam satu tabel, lengkap dengan SLA dan status terkini.</p>
                     </div>
-                    <div style="display:flex; align-items:center; gap:5px;">
+                    <div class="list-hero-mark" aria-hidden="true">🗃️</div>
+                </header>
+
+                <section class="header-panel list-toolbar" aria-label="Filter Rekapitulasi">
+                    <div class="list-toolbar-title"><span aria-hidden="true">◷</span><div><strong>Periode Tgl Proses</strong><small>Atur rentang data yang ditampilkan</small></div></div>
+                    <div class="list-toolbar-controls">
                         <select id="preset-period-rekap" class="compact-period-select" onchange="applyClaimPeriodPreset('rekap', this.value)" aria-label="Preset periode Rekapitulasi">
                             <option value="this_month" selected>Bulan Ini</option>
                             <option value="last_month">Bulan Lalu</option>
@@ -1187,19 +1209,27 @@
                             <option value="all_time">Semua Waktu</option>
                             <option value="custom">Pilih Periode Manual</option>
                         </select>
-                        <input type="text" id="filter-date-rekap" placeholder="📅 Filter Tgl Proses..." style="padding:6px 10px; border-radius:6px; border:1px solid #ccc; font-size:12px; width:220px; text-align:center; cursor:pointer;" readonly> 
-                        <button class="btn btn-secondary" onclick="applyClaimPeriodPreset('rekap', 'all_time')" style="padding:6px; font-size:11px;" title="Atur ulang filter">✖ Atur Ulang Waktu</button>
+                        <input type="text" id="filter-date-rekap" class="list-date-input" placeholder="📅 Filter Tgl Proses..." readonly>
+                        <button class="btn btn-secondary list-reset-button" onclick="applyClaimPeriodPreset('rekap', 'all_time')" title="Atur ulang filter">✖ Atur Ulang</button>
+                        <input type="text" id="search-rekap" class="list-search-box" placeholder="🔍 Pencarian cepat" onkeyup="executeGlobalSearch('rekap')">
                     </div>
-                </div>
-                <div style="display: flex; gap: 10px; flex-wrap:wrap; align-items:center; margin-bottom: 15px;">
-                    <button class="btn btn-secondary" id="btn-rekap-list" onclick="toggleRekapView('list')" style="background:#0050A0; color:white;">Tampilan Daftar</button>
-                    <button class="btn btn-secondary" id="btn-rekap-folder" onclick="toggleRekapView('folder')">Tampilan Folder</button>
-                    <button class="btn btn-success accounting-only-action" onclick="bulkPosted('rekap')">☑️ Ubah Pilihan ke Posted</button>
-                    <button class="btn btn-danger admin-only-action" onclick="bulkDelete('rekap')">🗑️ Hapus Pilihan</button>
-                    <button class="btn btn-danger admin-only-action" onclick="deleteAllDataFromView('rekap')" style="background:#8b0000;">🛑 Hapus Seluruh Tampilan</button>
-                    <button class="btn btn-success" onclick="exportDataXLSX('summary', 'rekap')">📥 Ekspor Ringkasan</button>
-                    <button class="btn btn-primary" onclick="exportDataXLSX('detail', 'rekap')">📥 Ekspor Detail</button>
-                </div>
+                </section>
+
+                <section class="list-panel">
+                    <div class="list-panel-head">
+                        <div class="list-panel-title"><span class="list-panel-icon" aria-hidden="true">▤</span><div><h4>Daftar Rekapitulasi</h4><small>Pilih baris untuk tindakan massal</small></div></div>
+                        <div class="list-actions">
+                            <div class="list-view-switch" role="group" aria-label="Mode tampilan Rekapitulasi">
+                                <button class="btn is-active" id="btn-rekap-list" onclick="toggleRekapView('list')">Daftar</button>
+                                <button class="btn" id="btn-rekap-folder" onclick="toggleRekapView('folder')">Folder</button>
+                            </div>
+                            <button class="btn btn-success accounting-only-action" onclick="bulkPosted('rekap')">☑️ Ubah ke Posted</button>
+                            <button class="btn btn-danger admin-only-action" onclick="bulkDelete('rekap')">🗑️ Hapus Pilihan</button>
+                            <button class="btn btn-danger admin-only-action" onclick="deleteAllDataFromView('rekap')" style="background:#8b0000;">🛑 Hapus Tampilan</button>
+                            <button class="btn btn-success" onclick="exportDataXLSX('summary', 'rekap')">📥 Ekspor Ringkasan</button>
+                            <button class="btn btn-primary" onclick="exportDataXLSX('detail', 'rekap')">📥 Ekspor Detail</button>
+                        </div>
+                    </div>
 
                 <div id="rekap-list-view">
                     <div class="table-responsive" style="border:none;">
@@ -1249,24 +1279,40 @@
                 <div id="rekap-folder-view" style="display:none; margin-top:20px;">
                     <!-- Diisi lewat JS -->
                 </div>
+                </section>
             </div>
 
             <!-- CLAIM DATA: IN PROCESS -->
-            <div id="menu-in-process" class="content-card">
-                <div class="header-panel" style="margin-bottom:10px; display:flex; flex-direction:column; gap:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px; flex-wrap:wrap;">
-                        <div><h1 style="margin:0;">▶️ In Process</h1><p style="font-size:12px; color:#666; margin:2px 0 0;">Claim aktif yang masih diproses Accounting, termasuk data yang dikembalikan oleh Finance.</p></div>
-                        <input type="text" id="search-in-process" class="minimal-search-box" placeholder="🔍 Pencarian cepat" oninput="executeGlobalSearch('in-process')">
+            <div id="menu-in-process" class="content-card list-page" data-accent="cyan">
+                <header class="list-hero">
+                    <div class="list-hero-icon" aria-hidden="true">▶️</div>
+                    <div class="list-hero-copy">
+                        <span class="list-eyebrow">CLAIM DATA</span>
+                        <h1>In Process</h1>
+                        <p>Claim aktif yang masih diproses Accounting, termasuk data yang dikembalikan oleh Finance.</p>
                     </div>
-                    <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                    <div class="list-hero-mark" aria-hidden="true">⚙️</div>
+                </header>
+
+                <section class="header-panel list-toolbar" aria-label="Filter In Process">
+                    <div class="list-toolbar-title"><span aria-hidden="true">◷</span><div><strong>Periode Tgl Proses</strong><small>Atur rentang data yang ditampilkan</small></div></div>
+                    <div class="list-toolbar-controls">
                         <select id="preset-period-in-process" class="compact-period-select" onchange="applyClaimPeriodPreset('in-process', this.value)" aria-label="Pilihan periode In Process">
                             <option value="this_month" selected>Bulan Ini</option><option value="last_month">Bulan Lalu</option><option value="last_3_months">3 Bulan Terakhir</option><option value="all_time">Semua Waktu</option><option value="custom">Pilih Periode Manual</option>
                         </select>
-                        <input type="text" id="filter-date-in-process" placeholder="📅 Filter Tgl Proses..." style="padding:6px 10px; border-radius:6px; border:1px solid #ccc; font-size:12px; width:220px; text-align:center; cursor:pointer;" readonly>
-                        <button class="btn btn-secondary" onclick="applyClaimPeriodPreset('in-process','all_time')" style="padding:6px; font-size:11px;">✖ Atur Ulang Waktu</button>
-                        <button class="btn btn-success" onclick="exportDataXLSX('summary','in-process')">📥 Ekspor Ringkasan</button>
+                        <input type="text" id="filter-date-in-process" class="list-date-input" placeholder="📅 Filter Tgl Proses..." readonly>
+                        <button class="btn btn-secondary list-reset-button" onclick="applyClaimPeriodPreset('in-process','all_time')" title="Atur ulang filter">✖ Atur Ulang</button>
+                        <input type="text" id="search-in-process" class="list-search-box" placeholder="🔍 Pencarian cepat" oninput="executeGlobalSearch('in-process')">
                     </div>
-                </div>
+                </section>
+
+                <section class="list-panel">
+                    <div class="list-panel-head">
+                        <div class="list-panel-title"><span class="list-panel-icon" aria-hidden="true">▤</span><div><h4>Daftar Claim Aktif</h4><small>Claim berstatus In Process dan Returned by Finance</small></div></div>
+                        <div class="list-actions">
+                            <button class="btn btn-success" onclick="exportDataXLSX('summary','in-process')">📥 Ekspor Ringkasan</button>
+                        </div>
+                    </div>
                 <div class="table-responsive" style="border:none;">
                     <table class="std-table">
                         <thead><tr><th>No. <span class="th-filter-icon" onclick="openExcelFilter(event,'noPR_extNo','in-process')">▼</span></th><th>Tgl Proses <span class="th-filter-icon" onclick="openExcelFilter(event,'tglProses','in-process')">▼</span></th><th>Tgl Submit <span class="th-filter-icon" onclick="openExcelFilter(event,'tglSubmit','in-process')">▼</span></th><th>NIK <span class="th-filter-icon" onclick="openExcelFilter(event,'nik','in-process')">▼</span></th><th>Karyawan <span class="th-filter-icon" onclick="openExcelFilter(event,'nama','in-process')">▼</span></th><th>Entitas <span class="th-filter-icon" onclick="openExcelFilter(event,'entitas','in-process')">▼</span></th><th>Tipe <span class="th-filter-icon" onclick="openExcelFilter(event,'tipe','in-process')">▼</span></th><th>Total Amount <span class="th-filter-icon" onclick="openExcelFilter(event,'totalHeader','in-process')">▼</span></th><th>Status <span class="th-filter-icon" onclick="openExcelFilter(event,'statusClaim','in-process')">▼</span></th></tr></thead>
@@ -1274,24 +1320,40 @@
                     </table>
                 </div>
                 <div class="pagination-container"><div>Tampilkan <select id="in-process-rows" onchange="window.inProcessRowsPerPage=parseInt(this.value); window.inProcessCurrentPage=1; renderInProcessTable();"><option value="10">10 baris</option><option value="20" selected>20 baris</option><option value="50">50 baris</option><option value="100">100 baris</option></select></div><div class="pagination-controls"><button class="btn btn-secondary" onclick="if(window.inProcessCurrentPage>1){window.inProcessCurrentPage--;renderInProcessTable();}">◀ Sebelumnya</button><span id="in-process-page-info" style="font-weight:bold; font-size:13px; color:#0050A0;">Halaman 1 / 1</span><button class="btn btn-secondary" onclick="window.inProcessCurrentPage++;renderInProcessTable();">Berikutnya ▶</button></div></div>
+                </section>
             </div>
 
             <!-- CLAIM DATA: CANCELED -->
-            <div id="menu-canceled" class="content-card">
-                <div class="header-panel" style="margin-bottom:10px; display:flex; flex-direction:column; gap:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px; flex-wrap:wrap;">
-                        <div><h1 style="margin:0;">⛔ Canceled Claim</h1><p style="font-size:12px; color:#666; margin:2px 0 0;">Claim inactive. Nominal tetap tercatat di Rekapitulasi tetapi dikeluarkan dari Statistik dan Management Summary.</p></div>
-                        <input type="text" id="search-canceled" class="minimal-search-box" placeholder="🔍 Pencarian cepat" oninput="executeGlobalSearch('canceled')">
+            <div id="menu-canceled" class="content-card list-page" data-accent="slate">
+                <header class="list-hero">
+                    <div class="list-hero-icon" aria-hidden="true">⛔</div>
+                    <div class="list-hero-copy">
+                        <span class="list-eyebrow">CLAIM DATA</span>
+                        <h1>Canceled Claim</h1>
+                        <p>Claim inactive. Nominal tetap tercatat di Rekapitulasi tetapi dikeluarkan dari Statistik dan Management Summary.</p>
                     </div>
-                    <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                    <div class="list-hero-mark" aria-hidden="true">🗄️</div>
+                </header>
+
+                <section class="header-panel list-toolbar" aria-label="Filter Canceled Claim">
+                    <div class="list-toolbar-title"><span aria-hidden="true">◷</span><div><strong>Periode Tgl Cancel</strong><small>Atur rentang data yang ditampilkan</small></div></div>
+                    <div class="list-toolbar-controls">
                         <select id="preset-period-canceled" class="compact-period-select" onchange="applyClaimPeriodPreset('canceled', this.value)" aria-label="Pilihan periode Canceled Claim">
                             <option value="this_month" selected>Bulan Ini</option><option value="last_month">Bulan Lalu</option><option value="last_3_months">3 Bulan Terakhir</option><option value="all_time">Semua Waktu</option><option value="custom">Pilih Periode Manual</option>
                         </select>
-                        <input type="text" id="filter-date-canceled" placeholder="📅 Filter Tgl Cancel..." style="padding:6px 10px; border-radius:6px; border:1px solid #ccc; font-size:12px; width:220px; text-align:center; cursor:pointer;" readonly>
-                        <button class="btn btn-secondary" onclick="applyClaimPeriodPreset('canceled','all_time')" style="padding:6px; font-size:11px;">✖ Atur Ulang Waktu</button>
-                        <button class="btn btn-success" onclick="exportDataXLSX('summary','canceled')">📥 Ekspor Ringkasan</button>
+                        <input type="text" id="filter-date-canceled" class="list-date-input" placeholder="📅 Filter Tgl Cancel..." readonly>
+                        <button class="btn btn-secondary list-reset-button" onclick="applyClaimPeriodPreset('canceled','all_time')" title="Atur ulang filter">✖ Atur Ulang</button>
+                        <input type="text" id="search-canceled" class="list-search-box" placeholder="🔍 Pencarian cepat" oninput="executeGlobalSearch('canceled')">
                     </div>
-                </div>
+                </section>
+
+                <section class="list-panel">
+                    <div class="list-panel-head">
+                        <div class="list-panel-title"><span class="list-panel-icon" aria-hidden="true">▤</span><div><h4>Daftar Claim Dibatalkan</h4><small>Beserta alasan dan PIC yang membatalkan</small></div></div>
+                        <div class="list-actions">
+                            <button class="btn btn-success" onclick="exportDataXLSX('summary','canceled')">📥 Ekspor Ringkasan</button>
+                        </div>
+                    </div>
                 <div class="table-responsive" style="border:none;">
                     <table class="std-table">
                         <thead><tr><th>No. <span class="th-filter-icon" onclick="openExcelFilter(event,'noPR_extNo','canceled')">▼</span></th><th>Tgl Cancel <span class="th-filter-icon" onclick="openExcelFilter(event,'canceledAtDate','canceled')">▼</span></th><th>PIC Cancel <span class="th-filter-icon" onclick="openExcelFilter(event,'canceledBy','canceled')">▼</span></th><th>Tgl Submit <span class="th-filter-icon" onclick="openExcelFilter(event,'tglSubmit','canceled')">▼</span></th><th>NIK <span class="th-filter-icon" onclick="openExcelFilter(event,'nik','canceled')">▼</span></th><th>Karyawan <span class="th-filter-icon" onclick="openExcelFilter(event,'nama','canceled')">▼</span></th><th>Entitas <span class="th-filter-icon" onclick="openExcelFilter(event,'entitas','canceled')">▼</span></th><th>Tipe <span class="th-filter-icon" onclick="openExcelFilter(event,'tipe','canceled')">▼</span></th><th>Amount <span class="th-filter-icon" onclick="openExcelFilter(event,'totalHeader','canceled')">▼</span></th><th>Status & Keterangan <span class="th-filter-icon" onclick="openExcelFilter(event,'statusClaim','canceled')">▼</span></th></tr></thead>
@@ -1299,16 +1361,24 @@
                     </table>
                 </div>
                 <div class="pagination-container"><div>Tampilkan <select id="canceled-rows" onchange="window.canceledRowsPerPage=parseInt(this.value); window.canceledCurrentPage=1; renderCanceledTable();"><option value="10">10 baris</option><option value="20" selected>20 baris</option><option value="50">50 baris</option><option value="100">100 baris</option></select></div><div class="pagination-controls"><button class="btn btn-secondary" onclick="if(window.canceledCurrentPage>1){window.canceledCurrentPage--;renderCanceledTable();}">◀ Sebelumnya</button><span id="canceled-page-info" style="font-weight:bold; font-size:13px; color:#0050A0;">Halaman 1 / 1</span><button class="btn btn-secondary" onclick="window.canceledCurrentPage++;renderCanceledTable();">Berikutnya ▶</button></div></div>
+                </section>
             </div>
 
             <!-- MENU 3: HISTORY CLAIM -->
-            <div id="menu-history" class="content-card">
-                <div class="header-panel" style="margin-bottom: 10px; display:flex; flex-direction:column; gap:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                        <div><h1 style="margin:0;">✔️ Riwayat Klaim</h1><p style="font-size:12px; color:#666; margin:2px 0 0;">Klaim yang saat ini telah mencapai RTP: Posted, Paid, atau Hold.</p></div>
-                        <input type="text" id="search-history" class="minimal-search-box" placeholder="🔍 Pencarian cepat" onkeyup="executeGlobalSearch('history')">
+            <div id="menu-history" class="content-card list-page" data-accent="green">
+                <header class="list-hero">
+                    <div class="list-hero-icon" aria-hidden="true">✔️</div>
+                    <div class="list-hero-copy">
+                        <span class="list-eyebrow">CLAIM DATA</span>
+                        <h1>Riwayat Klaim</h1>
+                        <p>Klaim yang saat ini telah mencapai RTP: Posted, Paid, atau Hold.</p>
                     </div>
-                    <div style="display:flex; align-items:center; gap:5px;">
+                    <div class="list-hero-mark" aria-hidden="true">📚</div>
+                </header>
+
+                <section class="header-panel list-toolbar" aria-label="Filter Riwayat Klaim">
+                    <div class="list-toolbar-title"><span aria-hidden="true">◷</span><div><strong>Periode Tgl RTP</strong><small>Atur rentang data yang ditampilkan</small></div></div>
+                    <div class="list-toolbar-controls">
                         <select id="preset-period-history" class="compact-period-select" onchange="applyClaimPeriodPreset('history', this.value)" aria-label="Pilihan periode Riwayat Klaim">
                             <option value="this_month" selected>Bulan Ini</option>
                             <option value="last_month">Bulan Lalu</option>
@@ -1316,25 +1386,33 @@
                             <option value="all_time">Semua Waktu</option>
                             <option value="custom">Pilih Periode Manual</option>
                         </select>
-                        <input type="text" id="filter-date-history" placeholder="📅 Filter Tgl RTP..." style="padding:6px 10px; border-radius:6px; border:1px solid #ccc; font-size:12px; width:220px; text-align:center; cursor:pointer;" readonly> 
-                        <button class="btn btn-secondary" onclick="applyClaimPeriodPreset('history', 'all_time')" style="padding:6px; font-size:11px;" title="Atur ulang filter">✖ Atur Ulang Waktu</button>
+                        <input type="text" id="filter-date-history" class="list-date-input" placeholder="📅 Filter Tgl RTP..." readonly>
+                        <button class="btn btn-secondary list-reset-button" onclick="applyClaimPeriodPreset('history', 'all_time')" title="Atur ulang filter">✖ Atur Ulang</button>
+                        <input type="text" id="search-history" class="list-search-box" placeholder="🔍 Pencarian cepat" onkeyup="executeGlobalSearch('history')">
                     </div>
-                </div>
+                </section>
+
                 <div id="finance-queue-summary-history" class="finance-queue-summary" data-finance-queue-summary style="display:none;" aria-label="Ringkasan antrean Finance sesuai periode Riwayat Klaim">
                     <div class="finance-queue-card ready"><span>Siap Diproses</span><strong data-queue-count="ready">0</strong><small>Status Posted</small></div>
                     <div class="finance-queue-card hold"><span>Dalam Status Hold</span><strong data-queue-count="hold">0</strong><small>Memerlukan tindak lanjut</small></div>
                     <div class="finance-queue-card paid"><span>Dibayar Hari Ini (Paid)</span><strong data-queue-count="paid-today">0</strong><small>Tercatat pada worksheet</small></div>
                 </div>
-                
-                <div style="display: flex; gap: 10px; flex-wrap:wrap; align-items:center; margin-bottom: 15px;">
-                    <button class="btn btn-secondary" id="btn-view-list" onclick="toggleHistoryView('list')" style="background:#0050A0; color:white;">Tampilan Daftar</button>
-                    <button class="btn btn-secondary" id="btn-view-folder" onclick="toggleHistoryView('folder')">Tampilan Folder</button>
-                    <button class="btn btn-warning admin-only-action" onclick="bulkReverse()">↩ Batalkan Status Posted Pilihan</button>
-                    <button class="btn btn-danger admin-only-action" onclick="bulkDelete('history')">🗑️ Hapus Pilihan</button>
-                    <button class="btn btn-danger admin-only-action" onclick="deleteAllDataFromView('history')" style="background:#8b0000;">🛑 Hapus Seluruh Tampilan</button>
-                    <button class="btn btn-success" onclick="exportDataXLSX('summary', 'history')">📥 Ekspor Ringkasan</button>
-                    <button class="btn btn-primary" onclick="exportDataXLSX('detail', 'history')">📥 Ekspor Detail</button>
-                </div>
+
+                <section class="list-panel">
+                    <div class="list-panel-head">
+                        <div class="list-panel-title"><span class="list-panel-icon" aria-hidden="true">▤</span><div><h4>Daftar Riwayat</h4><small>Jejak RTP, pembayaran, dan status akhir claim</small></div></div>
+                        <div class="list-actions">
+                            <div class="list-view-switch" role="group" aria-label="Mode tampilan Riwayat Klaim">
+                                <button class="btn is-active" id="btn-view-list" onclick="toggleHistoryView('list')">Daftar</button>
+                                <button class="btn" id="btn-view-folder" onclick="toggleHistoryView('folder')">Folder</button>
+                            </div>
+                            <button class="btn btn-warning admin-only-action" onclick="bulkReverse()">↩ Batalkan Posted</button>
+                            <button class="btn btn-danger admin-only-action" onclick="bulkDelete('history')">🗑️ Hapus Pilihan</button>
+                            <button class="btn btn-danger admin-only-action" onclick="deleteAllDataFromView('history')" style="background:#8b0000;">🛑 Hapus Tampilan</button>
+                            <button class="btn btn-success" onclick="exportDataXLSX('summary', 'history')">📥 Ekspor Ringkasan</button>
+                            <button class="btn btn-primary" onclick="exportDataXLSX('detail', 'history')">📥 Ekspor Detail</button>
+                        </div>
+                    </div>
 
                 <!-- TAMPILAN LIST VIEW -->
                 <div id="history-list-view">
@@ -1390,32 +1468,46 @@
                 <div id="history-folder-view" style="display:none; margin-top:20px;">
                     <!-- Diisi lewat JS -->
                 </div>
+                </section>
             </div>
 
             <!-- MENU WAITING APPROVAL -->
-            <div id="menu-waiting-approval" class="content-card">
-                <div class="header-panel" style="margin-bottom: 10px; display:flex; flex-direction:column; gap:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                        <div><h3 style="color:#ff9800; margin:0;">⏳ Menunggu Persetujuan</h3><p style="font-size:12px; color:#666; margin:0;">Dokumen siap diproses ke RTP dan menunggu persetujuan atau posting dari atasan.</p></div>
-                        <input type="text" id="search-waiting" class="minimal-search-box" placeholder="🔍 Pencarian cepat" onkeyup="executeGlobalSearch('waiting')">
+            <div id="menu-waiting-approval" class="content-card list-page" data-accent="orange">
+                <header class="list-hero">
+                    <div class="list-hero-icon" aria-hidden="true">⏳</div>
+                    <div class="list-hero-copy">
+                        <span class="list-eyebrow">CLAIM DATA</span>
+                        <h3>Menunggu Persetujuan</h3>
+                        <p>Dokumen siap diproses ke RTP dan menunggu persetujuan atau posting dari atasan.</p>
                     </div>
-                    <div style="display:flex; align-items:center; gap:5px;">
+                    <div class="list-hero-mark" aria-hidden="true">🗳️</div>
+                </header>
+
+                <section class="header-panel list-toolbar" aria-label="Filter Waiting Approval">
+                    <div class="list-toolbar-title"><span aria-hidden="true">◷</span><div><strong>Periode Tgl Proses</strong><small>Atur rentang data yang ditampilkan</small></div></div>
+                    <div class="list-toolbar-controls">
                         <select id="preset-period-waiting" class="compact-period-select" onchange="applyClaimPeriodPreset('waiting', this.value)" aria-label="Preset periode Waiting Approval">
                             <option value="this_month" selected>Bulan Ini</option>
                             <option value="last_month">Bulan Lalu</option>
                             <option value="all_time">Semua Waktu</option>
                             <option value="custom">Pilih Periode Manual</option>
                         </select>
-                        <input type="text" id="filter-date-waiting" placeholder="📅 Filter Tgl Proses..." style="padding:6px 10px; border-radius:6px; border:1px solid #ccc; font-size:12px; width:220px; text-align:center; cursor:pointer;" readonly> 
-                        <button class="btn btn-secondary" onclick="applyClaimPeriodPreset('waiting', 'all_time')" style="padding:6px; font-size:11px;" title="Atur ulang filter">✖ Atur Ulang Waktu</button>
+                        <input type="text" id="filter-date-waiting" class="list-date-input" placeholder="📅 Filter Tgl Proses..." readonly>
+                        <button class="btn btn-secondary list-reset-button" onclick="applyClaimPeriodPreset('waiting', 'all_time')" title="Atur ulang filter">✖ Atur Ulang</button>
+                        <input type="text" id="search-waiting" class="list-search-box" placeholder="🔍 Pencarian cepat" onkeyup="executeGlobalSearch('waiting')">
                     </div>
-                </div>
-                <div style="display: flex; gap: 10px; flex-wrap:wrap; margin-bottom:15px;">
-                    <button class="btn btn-success accounting-only-action" onclick="bulkPosted('waiting')">☑️ Ubah Pilihan ke Posted</button>
-                    <button class="btn btn-danger admin-only-action" onclick="bulkDelete('waiting')">🗑️ Hapus Pilihan</button>
-                    <button class="btn btn-success" onclick="exportDataXLSX('summary', 'waiting')">📥 Ekspor Ringkasan</button>
-                    <button class="btn btn-primary" onclick="exportDataXLSX('detail', 'waiting')">📥 Ekspor Detail</button>
-                </div>
+                </section>
+
+                <section class="list-panel">
+                    <div class="list-panel-head">
+                        <div class="list-panel-title"><span class="list-panel-icon" aria-hidden="true">▤</span><div><h4>Antrean Persetujuan</h4><small>Pilih baris untuk diproses secara massal</small></div></div>
+                        <div class="list-actions">
+                            <button class="btn btn-success accounting-only-action" onclick="bulkPosted('waiting')">☑️ Ubah Pilihan ke Posted</button>
+                            <button class="btn btn-danger admin-only-action" onclick="bulkDelete('waiting')">🗑️ Hapus Pilihan</button>
+                            <button class="btn btn-success" onclick="exportDataXLSX('summary', 'waiting')">📥 Ekspor Ringkasan</button>
+                            <button class="btn btn-primary" onclick="exportDataXLSX('detail', 'waiting')">📥 Ekspor Detail</button>
+                        </div>
+                    </div>
                 <div id="waiting-list-view">
                     <div class="table-responsive" style="border:none;">
                         <table class="std-table" id="main-waiting-table">
@@ -1447,6 +1539,7 @@
                         </div>
                     </div>
                 </div>
+                </section>
             </div>
 
             <!-- MENU 4: MASTER GL ACCOUNT -->

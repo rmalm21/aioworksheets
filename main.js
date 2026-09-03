@@ -1718,21 +1718,29 @@ let adjNoteInput = document.getElementById('qk-adj-note');
         function nextHistPage() { histCurrentPage++; renderHistoryTable(); }
         function prevHistPage() { if(histCurrentPage > 1) { histCurrentPage--; renderHistoryTable(); } }
 
+        // Tombol daftar/folder kini satu segmented control, jadi status aktif
+        // ditandai lewat class .is-active, bukan dengan menukar warna tombol.
+        function setListViewSwitch(activeId, inactiveId) {
+            const active = document.getElementById(activeId);
+            const inactive = document.getElementById(inactiveId);
+            if(active) active.classList.add('is-active');
+            if(inactive) inactive.classList.remove('is-active');
+        }
+        window.setListViewSwitch = setListViewSwitch;
+
         function toggleHistoryView(mode) {
-            if(mode === 'list') {
-                document.getElementById('history-list-view').style.display = 'block';
-                document.getElementById('history-folder-view').style.display = 'none';
-                document.getElementById('btn-view-list').className = 'btn btn-primary';
-                document.getElementById('btn-view-folder').className = 'btn btn-secondary';
-            } else {
-                document.getElementById('history-list-view').style.display = 'none';
-                document.getElementById('history-folder-view').style.display = 'block';
-                document.getElementById('btn-view-folder').className = 'btn btn-primary';
-                document.getElementById('btn-view-list').className = 'btn btn-secondary';
+            const useFolder = mode === 'folder';
+            const listView = document.getElementById('history-list-view');
+            const folderView = document.getElementById('history-folder-view');
+            if(listView) listView.style.display = useFolder ? 'none' : 'block';
+            if(folderView) folderView.style.display = useFolder ? 'block' : 'none';
+            setListViewSwitch(useFolder ? 'btn-view-folder' : 'btn-view-list', useFolder ? 'btn-view-list' : 'btn-view-folder');
+            if(useFolder) {
                 const baseData = dbRekap.filter(item => isCurrentHistoryClaim(item));
                 renderHistoryFolder(getFilteredAndSortedData('history', baseData));
             }
         }
+        window.toggleHistoryView = toggleHistoryView;
 
         function buildFinanceWorkflowButton(item, compact = false) {
             if(!canManageFinanceWorkflow() || getAllowedStatusTransitions(item).length === 0) return '';
@@ -2105,8 +2113,8 @@ window.renderCanceledTable = function() {
             const useFolder = mode === 'folder';
             listView.style.display = useFolder ? 'none' : 'block';
             folderView.style.display = useFolder ? 'block' : 'none';
-            if(listBtn) listBtn.className = useFolder ? 'btn btn-secondary' : 'btn btn-primary';
-            if(folderBtn) folderBtn.className = useFolder ? 'btn btn-primary' : 'btn btn-secondary';
+            if(listBtn) listBtn.classList.toggle('is-active', !useFolder);
+            if(folderBtn) folderBtn.classList.toggle('is-active', useFolder);
             if(useFolder) renderRekapFolder(getFilteredAndSortedData('rekap', dbRekap));
         }
         window.toggleRekapView = toggleRekapView;
@@ -2309,8 +2317,7 @@ window.renderCanceledTable = function() {
             document.getElementById('revise-arsip-list-view').style.display = mode === 'list' ? 'block' : 'none';
             document.getElementById('revise-arsip-folder-view').style.display = mode === 'folder' ? 'block' : 'none';
             
-            document.getElementById('btn-rev-list').className = mode === 'list' ? 'btn btn-primary' : 'btn btn-secondary';
-            document.getElementById('btn-rev-folder').className = mode === 'folder' ? 'btn btn-primary' : 'btn btn-secondary';
+            setListViewSwitch(mode === 'list' ? 'btn-rev-list' : 'btn-rev-folder', mode === 'list' ? 'btn-rev-folder' : 'btn-rev-list');
             renderReviseConfirm();
         }
 

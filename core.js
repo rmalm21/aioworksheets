@@ -1660,7 +1660,8 @@ function updateFilterIconHighlight(module) {
         if (activeKeys.length > 0) {
             let colLabels = activeKeys.map(k => getFilterColumnLabel(module, k)).join(', ');
             if (!existingBanner) {
-                let headerPanel = menuEl.querySelector('.header-panel');
+                // Spanduk filter menempel setelah toolbar periode halaman.
+                let headerPanel = menuEl.querySelector('.list-toolbar, .header-panel');
                 if (headerPanel) {
                     headerPanel.insertAdjacentHTML('afterend', `<div id="${bannerId}" style="background: rgba(255, 243, 205, 0.85); color: #856404; padding: 10px 15px; border-radius: 6px; border: 1px dashed #ffeeba; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); animation: fadeIn 0.3s ease;"><div style="font-size: 13px;"><strong>🔍 Menampilkan Hasil Filter:</strong> Berdasarkan kolom <span id="${bannerId}-text" style="font-weight:bold; color:#d39e00;">${colLabels}</span></div><button class="btn btn-danger" style="padding: 4px 10px; font-size: 11px; font-weight: bold; background: #dc3545; color: white; border:none; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);" onclick="clearAllFilters('${module}')">✖ Hapus Semua</button></div>`);
                 }
@@ -4999,6 +5000,50 @@ const WORKSHEET_P20_TRANSLATION_ROWS = [
     ['Rincian belum dapat difinalisasi:', 'Details cannot be finalized yet:', '明細をまだFinalにできません：']
 ];
 
+const WORKSHEET_P22_TRANSLATION_ROWS = [
+    ['CLAIM DATA', 'CLAIM DATA', '申請データ'],
+    ['Seluruh claim Accounting dan Finance dalam satu tabel, lengkap dengan SLA dan status terkini.', 'Every Accounting and Finance claim in one table, with SLA and current status.', 'AccountingとFinanceの全申請を、SLAと最新ステータス付きで一覧表示します。'],
+    ['Periode Tgl Proses', 'Process Date Period', '処理日の期間'],
+    ['Periode Tgl RTP', 'RTP Date Period', 'RTP日の期間'],
+    ['Periode Tgl Cancel', 'Cancel Date Period', '取消日の期間'],
+    ['Atur rentang data yang ditampilkan', 'Set the range of data shown', '表示するデータの範囲を設定'],
+    ['Daftar Rekapitulasi', 'Recap List', '集計一覧'],
+    ['Pilih baris untuk tindakan massal', 'Select rows for bulk actions', '一括操作する行を選択'],
+    ['Daftar Claim Aktif', 'Active Claim List', 'アクティブ申請一覧'],
+    ['Claim berstatus In Process dan Returned by Finance', 'Claims with status In Process and Returned by Finance', 'In ProcessとReturned by Financeの申請'],
+    ['Daftar Claim Dibatalkan', 'Canceled Claim List', '取消申請一覧'],
+    ['Beserta alasan dan PIC yang membatalkan', 'Including the reason and who canceled it', '取消理由と担当者を含む'],
+    ['Antrean Persetujuan', 'Approval Queue', '承認待ちキュー'],
+    ['Pilih baris untuk diproses secara massal', 'Select rows to process in bulk', '一括処理する行を選択'],
+    ['Daftar Riwayat', 'History List', '履歴一覧'],
+    ['Jejak RTP, pembayaran, dan status akhir claim', 'RTP, payment, and final claim status trail', 'RTP・支払い・最終ステータスの記録'],
+    ['Cari Revisi', 'Search Revisions', '修正を検索'],
+    ['No. pengajuan, NIK, nama, atau tipe', 'Claim no., NIK, name, or type', '申請番号・NIK・氏名・種別'],
+    ['Tindakan Massal', 'Bulk Actions', '一括操作'],
+    ['Berlaku untuk baris yang dicentang pada tabel di bawah', 'Applies to the rows ticked in the table below', '下の表でチェックした行に適用されます'],
+    ['Pemantauan Aktif', 'Active Monitoring', 'アクティブ監視'],
+    ['Claim yang masih berstatus Revisi', 'Claims still in Revisi status', 'まだRevisiステータスの申請'],
+    ['Arsip Monitoring', 'Monitoring Archive', '監視アーカイブ'],
+    ['Revisi yang sudah selesai atau berstatus final', 'Revisions that are done or in a final status', '完了済みまたは最終ステータスの修正'],
+    ['Daftar', 'List', '一覧'],
+    ['Folder', 'Folder', 'フォルダ'],
+    ['☑️ Ubah ke Posted', '☑️ Change to Posted', '☑️ Postedに変更'],
+    ['Ubah ke Posted', 'Change to Posted', 'Postedに変更'],
+    ['🛑 Hapus Tampilan', '🛑 Delete This View', '🛑 表示中を削除'],
+    ['Hapus Tampilan', 'Delete This View', '表示中を削除'],
+    ['↩ Batalkan Posted', '↩ Reverse Posted', '↩ Postedを取消'],
+    ['Batalkan Posted', 'Reverse Posted', 'Postedを取消'],
+    ['Filter In Process', 'In Process filter', 'In Processフィルター'],
+    ['Filter Canceled Claim', 'Canceled Claim filter', '取消申請フィルター'],
+    ['Filter Waiting Approval', 'Waiting Approval filter', '承認待ちフィルター'],
+    ['Filter Riwayat Klaim', 'Claim History filter', '申請履歴フィルター'],
+    ['Filter Rekapitulasi', 'Recapitulation filter', '集計フィルター'],
+    ['Filter Pemantauan Revisi', 'Revision Monitoring filter', '修正監視フィルター'],
+    ['Mode tampilan Rekapitulasi', 'Recapitulation view mode', '集計の表示モード'],
+    ['Mode tampilan Riwayat Klaim', 'Claim History view mode', '申請履歴の表示モード'],
+    ['Mode tampilan Revisi', 'Revision view mode', '修正の表示モード']
+];
+
 const WORKSHEET_P21_TRANSLATION_ROWS = [
     ['Geser tabel ke samping untuk melihat kolom MTD dan tahun lalu.', 'Scroll the table sideways to see the MTD and last-year columns.', '表を横にスクロールするとMTDと前年の列が表示されます。'],
     ['Periode Berjalan', 'Current Period', '当期'],
@@ -5086,7 +5131,7 @@ const WORKSHEET_P21_TRANSLATION_ROWS = [
     ['Sistem akan membatalkannya satu per satu mulai dari transaksi terakhir.', 'The system will reverse them one by one starting from the latest transaction.', '最新の取引から1件ずつ取り消します。']
 ];
 
-const WORKSHEET_TRANSLATIONS = Object.freeze([...WORKSHEET_TRANSLATION_ROWS, ...WORKSHEET_ADDITIONAL_TRANSLATION_ROWS, ...WORKSHEET_P18_TRANSLATION_ROWS, ...WORKSHEET_P19_TRANSLATION_ROWS, ...WORKSHEET_P20_TRANSLATION_ROWS, ...WORKSHEET_P21_TRANSLATION_ROWS].reduce((catalog, row) => {
+const WORKSHEET_TRANSLATIONS = Object.freeze([...WORKSHEET_TRANSLATION_ROWS, ...WORKSHEET_ADDITIONAL_TRANSLATION_ROWS, ...WORKSHEET_P18_TRANSLATION_ROWS, ...WORKSHEET_P19_TRANSLATION_ROWS, ...WORKSHEET_P20_TRANSLATION_ROWS, ...WORKSHEET_P21_TRANSLATION_ROWS, ...WORKSHEET_P22_TRANSLATION_ROWS].reduce((catalog, row) => {
     catalog[row[0]] = { en: row[1], ja: row[2] };
     return catalog;
 }, {}));
