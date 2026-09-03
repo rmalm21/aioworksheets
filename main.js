@@ -2133,12 +2133,6 @@ window.renderCanceledTable = function() {
             return `${editBtn} ${deleteBtn} ${detailBtn}`;
         }
 
-        function buildRekapTypeCell(item) {
-            const type = escapeTimelineText(item.tipe || '-');
-            if(!item.extNo) return type;
-            return `${type}<br><span class="rekap-ext-badge">🔢 ${translateUiText('No')}: ${escapeTimelineText(item.extNo)}</span>`;
-        }
-
         function renderRekapFolder(filteredData) {
             const container = document.getElementById('rekap-folder-view');
             if(!container) return;
@@ -2172,7 +2166,7 @@ window.renderCanceledTable = function() {
                         <td>${escapeTimelineText(item.nik || '-')}</td>
                         <td><strong>${escapeTimelineText(item.nama || '-')}</strong></td>
                         <td><span class="badge status-revise">${escapeTimelineText(item.entitas || '-')}</span></td>
-                        <td>${buildRekapTypeCell(item)}</td>
+                        <td>${escapeTimelineText(item.tipe || '-')}</td>
                         <td>${escapeTimelineText(item.tglProses || '-')}</td>
                         <td>${escapeTimelineText(item.tglSubmit || '-')}</td>
                         <td style="text-align:center;">${renderSLABadge(item)}</td>
@@ -2224,7 +2218,7 @@ window.renderCanceledTable = function() {
                     <td>${escapeTimelineText(item.nik || '-')}</td>
                     <td><strong>${escapeTimelineText(item.nama || '-')}</strong></td>
                     <td><span class="badge status-revise">${escapeTimelineText(item.entitas || '-')}</span></td>
-                    <td>${buildRekapTypeCell(item)}</td>
+                    <td>${escapeTimelineText(item.tipe || '-')}</td>
                     <td>${escapeTimelineText(item.tglProses || '-')}</td>
                     <td>${escapeTimelineText(item.tglSubmit || '-')}</td>
                     <td style="text-align:center;">${renderSLABadge(item)}</td>
