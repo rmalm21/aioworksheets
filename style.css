@@ -1,7 +1,42 @@
-        html[data-app-font="google-sans"] { --app-font-family: "Google Sans", Inter, "Segoe UI", Arial, sans-serif; }
-        html[data-app-font="inter"] { --app-font-family: Inter, "Segoe UI", Arial, sans-serif; }
-        html[data-app-font="arial"] { --app-font-family: Arial, Helvetica, sans-serif; }
-        html[data-app-font="segoe-ui"] { --app-font-family: "Segoe UI", Tahoma, Arial, sans-serif; }
+        /* =========================================================
+           PAKET EMOJI WINDOWS 11 (SEGOE UI EMOJI / FLUENT)
+           ---------------------------------------------------------
+           Keluarga font ini sengaja dibatasi dengan unicode-range ke
+           blok emoji saja, sehingga huruf, angka, dan ikon geometris
+           (▼ ▶ → ● ◇) tetap memakai font antarmuka dan tampilannya
+           tidak berubah.
+
+           Sumber pertama adalah local(): di Windows emoji langsung
+           diambil dari Segoe UI Emoji bawaan sistem, tanpa unduhan.
+           Sumber url() dipakai perangkat non-Windows dan hanya aktif
+           bila berkas fontnya disediakan sendiri di assets/fonts
+           (lihat assets/fonts/README.md).
+           ========================================================= */
+        @font-face {
+            font-family: "Windows 11 Emoji";
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+            src: local("Segoe UI Emoji"),
+                 local("Segoe UI Emoji Regular"),
+                 local("SegoeUIEmoji"),
+                 local("Seguiemj");
+            unicode-range: U+2139, U+20E3, U+2300-23FF, U+2600-27BF, U+2B00-2BFF,
+                           U+FE0E-FE0F, U+1F000-1FAFF;
+        }
+
+        html {
+            /* Ditaruh paling depan pada setiap tumpukan font: karena
+               unicode-range-nya sempit, keluarga ini hanya "mengambil
+               alih" karakter emoji dan selebihnya jatuh ke font teks. */
+            --app-emoji-family: "Windows 11 Emoji";
+            --app-emoji-fallback: "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji";
+        }
+
+        html[data-app-font="google-sans"] { --app-font-family: var(--app-emoji-family), "Google Sans", Inter, "Segoe UI", Arial, var(--app-emoji-fallback), sans-serif; }
+        html[data-app-font="inter"] { --app-font-family: var(--app-emoji-family), Inter, "Segoe UI", Arial, var(--app-emoji-fallback), sans-serif; }
+        html[data-app-font="arial"] { --app-font-family: var(--app-emoji-family), Arial, Helvetica, var(--app-emoji-fallback), sans-serif; }
+        html[data-app-font="segoe-ui"] { --app-font-family: var(--app-emoji-family), "Segoe UI", Tahoma, Arial, var(--app-emoji-fallback), sans-serif; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--app-font-family); }
         html { width: 100%; height: 100%; min-width: 0; }
         body { position: relative; width: 100%; min-width: 0; max-width: none; min-height: 100vh; min-height: 100dvh; background-color: var(--bg-body, #f4f7f9); display: flex; height: 100vh; height: 100dvh; color: var(--text-main, #333); overflow: hidden; }
@@ -107,10 +142,6 @@
         @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
 
         /* RTP Animation Overlay */
-        #rtp-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:100002; display:none; justify-content:center; align-items:center; transition: 0.5s; opacity:0; }
-        .rtp-box { background: white; padding: 40px; border-radius: 12px; text-align:center; transform: scale(0.8); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .rtp-box.active { animation: bounceIn 0.5s forwards; }
-        @keyframes bounceIn { 0% { transform: scale(0.5); opacity: 0; } 60% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
 
         /* Modals */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100000; justify-content: center; align-items: center; }
@@ -614,7 +645,7 @@
 
 /* --- DARK MODE VARIABLES --- */
 :root {
-    --app-font-family: "Google Sans", Inter, "Segoe UI", Arial, sans-serif;
+    --app-font-family: var(--app-emoji-family, "Windows 11 Emoji"), "Google Sans", Inter, "Segoe UI", Arial, "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif;
     --bg-body: #f4f7f9;
     --bg-card: #ffffff;
     --text-main: #333333;
@@ -3360,6 +3391,16 @@ body.dark-mode .system-dialog-secondary { background: #294356; color: #e0ebf4; }
 .toast.success .toast-icon { background: #e7f8f0; color: #10835a; }
 .toast.error .toast-icon { background: #fff0f2; color: #c92e43; }
 .toast-copy { min-width: 0; overflow-wrap: anywhere; white-space: pre-line; }
+.toast-rich .toast-copy { display: flex; flex-direction: column; gap: 3px; white-space: normal; }
+.toast-title { color: #12354f; font-size: 13px; font-weight: 900; letter-spacing: -.01em; line-height: 1.3; }
+.toast-rich .toast-message { color: #33556f; font-size: 12px; font-weight: 700; line-height: 1.4; }
+.toast-rich .toast-detail { color: #6d8798; font-size: 11px; font-weight: 600; line-height: 1.45; }
+.toast-rich .toast-icon { align-self: start; margin-top: 1px; }
+.toast-rich.success .toast-title { color: #0c6f4d; }
+body.dark-mode .toast-title { color: #f1f7fb; }
+body.dark-mode .toast-rich .toast-message { color: #d3e2ec; }
+body.dark-mode .toast-rich .toast-detail { color: #9fb6c6; }
+body.dark-mode .toast-rich.success .toast-title { color: #92e9c2; }
 .toast-close { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #8496a5; cursor: pointer; font-size: 18px; }
 .toast-close:hover { background: #edf3f7; color: #314b61; }
 .toast-progress { position: absolute; right: 0; bottom: 0; left: 5px; height: 3px; background: linear-gradient(90deg,#1c8dcc,#61c9de); transform-origin: left; animation: toastCountdown 5s linear both; }

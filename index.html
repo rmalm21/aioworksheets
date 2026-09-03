@@ -225,14 +225,6 @@
     <div id="loader-overlay"><div class="spinner"></div><div id="loader-text">Memuat...</div></div>
 
     <!-- RTP Animation Screen -->
-    <div id="rtp-overlay">
-        <div class="rtp-box" id="rtp-box-inner">
-            <div style="font-size: 60px; margin-bottom: 10px;">🎉📄</div>
-            <h2 style="color: #0050A0; margin-bottom: 10px;">Data Berhasil Diubah menjadi Posted</h2>
-            <p style="color: #555; font-size: 14px;">Silakan cetak voucher dan serahkan dokumen RTP kepada Finance.</p>
-        </div>
-    </div>
-
     <!-- Modal Status Update & Timeline -->
     <div id="modal-status" class="modal-overlay">
         <div class="modal-content">
@@ -283,7 +275,7 @@
                 </div>
                 <div id="modal-finance-options" class="finance-action-panel" style="display:none; margin-top:12px;">
                     <div id="modal-payment-reference-group" class="form-group" style="display:none;">
-                        <label style="color:#00677f;">Referensi Pembayaran <span style="color:#dc3545;">*</span></label>
+                        <label style="color:#00677f;">Ref Pymnt <span style="color:#dc3545;">*</span></label>
                         <input id="modal-payment-reference" type="text" maxlength="120" autocomplete="off" placeholder="Contoh: nomor transfer, batch pembayaran, atau voucher">
                         <small>Hanya referensi pencatatan worksheet; sistem ini tidak mengirim pembayaran ke bank.</small>
                     </div>
@@ -951,7 +943,7 @@
                     <th style="text-align:center;">SLA <span class="th-filter-icon" onclick="openExcelFilter(event, 'slaDays', 'catatan-detail')">▼</span></th> <!-- Poin 3 -->
                     <th>Amount <span class="th-filter-icon" onclick="openExcelFilter(event, 'totalHeader', 'catatan-detail')">▼</span></th>
                     <th>PIC Penginput<span class="th-filter-icon" onclick="openExcelFilter(event, 'picDetail', 'catatan-detail')">▼</span></th> <!-- Poin 1 -->
-                    <th>Tanggal Pembayaran <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentAtDate', 'catatan-detail')">▼</span></th>
+                    <th>Tgl Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentAtDate', 'catatan-detail')">▼</span></th>
                     <th>Status Pengajuan <span class="th-filter-icon" onclick="openExcelFilter(event, 'statusClaim', 'catatan-detail')">▼</span></th>
                     <th style="background:#e0f2fe;">Status Detail <span class="th-filter-icon" onclick="openExcelFilter(event, 'statusDetail', 'catatan-detail')">▼</span></th>
                 </tr>
@@ -1020,7 +1012,7 @@
                                             <th>Entitas <span class="th-filter-icon" onclick="openExcelFilter(event, 'entitas', 'revise')">▼</span></th>
                                             <th>Tipe <span class="th-filter-icon" onclick="openExcelFilter(event, 'tipe', 'revise')">▼</span></th>
                                             <th>Amount <span class="th-filter-icon" onclick="openExcelFilter(event, 'totalHeader', 'revise')">▼</span></th>
-                                            <th>Tanggal Pembayaran <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentAtDate', 'revise')">▼</span></th>
+                                            <th>Tgl Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentAtDate', 'revise')">▼</span></th>
                                             <th>Target Tindak Lanjut</th>
                                             <th>Status & Keterangan <span class="th-filter-icon" onclick="openExcelFilter(event, 'statusClaim', 'revise')">▼</span></th>
                                         </tr>
@@ -1063,7 +1055,7 @@
                                             <th>Entitas</th>
                                             <th>Tipe</th>
                                             <th>Amount</th>
-                                            <th>Tanggal Pembayaran</th>
+                                            <th>Tgl Pymnt</th>
                                             <th>Target Tindak Lanjut</th>
                                             <th>Status & Keterangan</th>
                                         </tr>
@@ -1210,9 +1202,9 @@
                                     <th>Tgl RTP <span class="th-filter-icon" onclick="openExcelFilter(event, 'postedAtDate', 'history')">▼</span></th>
                                     <th>Jam RTP <span class="th-filter-icon" onclick="openExcelFilter(event, 'postedAtTime', 'history')">▼</span></th>
                                     <th>PIC Posted <span class="th-filter-icon" onclick="openExcelFilter(event, 'postedBy', 'history')">▼</span></th>
-                                    <th>Tanggal Pembayaran <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentAtDate', 'history')">▼</span></th>
-                                    <th>PIC Pembayaran <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentBy', 'history')">▼</span></th>
-                                    <th>Referensi Pembayaran <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentReference', 'history')">▼</span></th>
+                                    <th>Tgl Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentAtDate', 'history')">▼</span></th>
+                                    <th>PIC Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentBy', 'history')">▼</span></th>
+                                    <th>Ref Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentReference', 'history')">▼</span></th>
                                     <th>NIK <span class="th-filter-icon" onclick="openExcelFilter(event, 'nik', 'history')">▼</span></th>
                                     <th>Karyawan <span class="th-filter-icon" onclick="openExcelFilter(event, 'nama', 'history')">▼</span></th>
                                     <th>Entitas <span class="th-filter-icon" onclick="openExcelFilter(event, 'entitas', 'history')">▼</span></th>
@@ -1516,8 +1508,8 @@
                     <th>Tgl Proses <span class="th-filter-icon" onclick="openExcelFilter(event, 'tglProses', 'super-find')">▼</span></th>
                     <th>Tgl Submit <span class="th-filter-icon" onclick="openExcelFilter(event, 'tglSubmit', 'super-find')">▼</span></th>
                     <th>Tgl RTP <span class="th-filter-icon" onclick="openExcelFilter(event, 'postedAtDate', 'super-find')">▼</span></th>
-                    <th>Tanggal Pembayaran <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentAtDate', 'super-find')">▼</span></th>
-                    <th>Referensi Pembayaran <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentReference', 'super-find')">▼</span></th>
+                    <th>Tgl Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentAtDate', 'super-find')">▼</span></th>
+                    <th>Ref Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentReference', 'super-find')">▼</span></th>
                     <th>Total Amount <span class="th-filter-icon" onclick="openExcelFilter(event, 'totalHeader', 'super-find')">▼</span></th>
                     <th>Status Data <span class="th-filter-icon" onclick="openExcelFilter(event, 'statusClaim', 'super-find')">▼</span></th>
                 </tr>

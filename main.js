@@ -1737,9 +1737,9 @@ let adjNoteInput = document.getElementById('qk-adj-note');
 <th>Tgl RTP <span class="th-filter-icon" onclick="openExcelFilter(event, 'postedAtDate', 'history')">▼</span></th>
                         <th>Jam RTP <span class="th-filter-icon" onclick="openExcelFilter(event, 'postedAtTime', 'history')">▼</span></th>
                         <th>PIC Posted <span class="th-filter-icon" onclick="openExcelFilter(event, 'postedBy', 'history')">▼</span></th>
-                        <th>Tanggal Pembayaran <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentAtDate', 'history')">▼</span></th>
-                        <th>PIC Pembayaran <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentBy', 'history')">▼</span></th>
-                        <th>Referensi Pembayaran <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentReference', 'history')">▼</span></th>
+                        <th>Tgl Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentAtDate', 'history')">▼</span></th>
+                        <th>PIC Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentBy', 'history')">▼</span></th>
+                        <th>Ref Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentReference', 'history')">▼</span></th>
                         <th>NIK <span class="th-filter-icon" onclick="openExcelFilter(event, 'nik', 'history')">▼</span></th>
                         <th>Karyawan <span class="th-filter-icon" onclick="openExcelFilter(event, 'nama', 'history')">▼</span></th>
                         <th>Entitas <span class="th-filter-icon" onclick="openExcelFilter(event, 'entitas', 'history')">▼</span></th>
@@ -1819,7 +1819,7 @@ function buildReviseFolderHTML(folderTitle, items, isArchived) {
                     <th>Entitas</th>
                     <th>Tipe</th>
                     <th>Amount</th>
-                    <th>Tanggal Pembayaran</th>
+                    <th>Tgl Pymnt</th>
                     <th>Target Tindak Lanjut</th>
                     <th>Status & Keterangan</th>
                 </tr>

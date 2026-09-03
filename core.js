@@ -537,19 +537,37 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
         }
 
         // --- Custom Toast Notification ---
-        function showToast(msg, type = 'success') {
+        // options: { title, detail, icon } untuk notifikasi yang butuh judul
+        // dan keterangan tambahan (contoh: konfirmasi Posted).
+        function showToast(msg, type = 'success', options = {}) {
             let container = document.getElementById('toast-container');
             let toast = document.createElement('div');
             toast.className = 'toast ' + type;
+            if(options.title) toast.classList.add('toast-rich');
             toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
             toast.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
             const icon = document.createElement('span');
             icon.className = 'toast-icon';
             icon.setAttribute('aria-hidden', 'true');
-            icon.textContent = type === 'error' ? '!' : type === 'info' ? 'i' : '✓';
+            icon.textContent = options.icon || (type === 'error' ? '!' : type === 'info' ? 'i' : '✓');
             const copy = document.createElement('span');
             copy.className = 'toast-copy';
-            copy.textContent = normalizeSystemMessageText(msg);
+            if(options.title) {
+                const heading = document.createElement('strong');
+                heading.className = 'toast-title';
+                heading.textContent = normalizeSystemMessageText(options.title);
+                copy.appendChild(heading);
+            }
+            const body = document.createElement('span');
+            body.className = 'toast-message';
+            body.textContent = normalizeSystemMessageText(msg);
+            copy.appendChild(body);
+            if(options.detail) {
+                const detail = document.createElement('small');
+                detail.className = 'toast-detail';
+                detail.textContent = normalizeSystemMessageText(options.detail);
+                copy.appendChild(detail);
+            }
             const close = document.createElement('button');
             close.type = 'button';
             close.className = 'toast-close';
@@ -1104,12 +1122,16 @@ function sortDataArray(arr, order) {
         }
         setInterval(updateClock, 1000);
 
-        // --- RTP Full Animation ---
+        // --- Notifikasi RTP (Posted) ---
+        // Dulu berupa popup layar penuh; sekarang memakai kanal notifikasi yang
+        // sama dengan pesan lain, yaitu toast di sudut kanan bawah.
         function showRTPAnimation() {
-            let over = document.getElementById('rtp-overlay'); let box = document.getElementById('rtp-box-inner');
-            over.style.display = 'flex'; setTimeout(() => { over.style.opacity = '1'; box.classList.add('active'); }, 50);
-            setTimeout(() => { over.style.opacity = '0'; box.classList.remove('active'); setTimeout(() => { over.style.display = 'none'; }, 500); }, 1500);
+            showToast('Data berhasil diubah menjadi Posted.', 'success', {
+                title: 'Dokumen RTP Selesai',
+                detail: 'Silakan cetak voucher dan serahkan dokumen RTP kepada Finance.'
+            });
         }
+        window.showRTPAnimation = showRTPAnimation;
 
         // --- Excel-Like Filter Logic (NEW Checkbox Features) ---
         // Satu sumber filter/sort tabel utama.
@@ -1444,11 +1466,11 @@ window.syncAllTreeCb = function() {
             }
         }
 
-const colNamesTranslate = { 'masukApproval': 'Masuk Persetujuan', 'noPR_extNo': 'No. Ref', 'nik': 'NIK', 'nama': 'Nama Karyawan', 'entitas': 'Entitas', 'tipe': 'Tipe Pengajuan', 'tglProses': 'Tgl Proses', 'tglSubmit': 'Tgl Submit', 'slaDays': 'SLA', 'totalHeader': 'Total Amount', 'inputBy': 'Diinput Oleh', 'statusClaim': 'Status Data', 'postedAtDate': 'Tgl RTP', 'postedAtTime': 'Jam RTP', 'postedBy': 'PIC Posted', 'paymentAtDate': 'Tanggal Pembayaran', 'paymentBy': 'PIC Pembayaran', 'paymentReference': 'Referensi Pembayaran', 'cc': 'Cost Center', 'lokasi': 'Lokasi Kerja', 'jabatan': 'Jabatan', 'departemen': 'Departemen' };
+const colNamesTranslate = { 'masukApproval': 'Masuk Persetujuan', 'noPR_extNo': 'No. Ref', 'nik': 'NIK', 'nama': 'Nama Karyawan', 'entitas': 'Entitas', 'tipe': 'Tipe Pengajuan', 'tglProses': 'Tgl Proses', 'tglSubmit': 'Tgl Submit', 'slaDays': 'SLA', 'totalHeader': 'Total Amount', 'inputBy': 'Diinput Oleh', 'statusClaim': 'Status Data', 'postedAtDate': 'Tgl RTP', 'postedAtTime': 'Jam RTP', 'postedBy': 'PIC Posted', 'paymentAtDate': 'Tgl Pymnt', 'paymentBy': 'PIC Pymnt', 'paymentReference': 'Ref Pymnt', 'cc': 'Cost Center', 'lokasi': 'Lokasi Kerja', 'jabatan': 'Jabatan', 'departemen': 'Departemen' };
 
 function getFilterColumnLabel(module, key) {
-    if(module === 'rekap' && key === 'paymentAtDate') return 'Tgl Pymnt';
-    if(module === 'rekap' && key === 'paymentBy') return 'PIC Pymnt';
+    // Label singkat pembayaran (Tgl Pymnt / PIC Pymnt / Ref Pymnt) kini
+    // dipakai seluruh modul, jadi tidak ada lagi pengecualian per modul.
     return colNamesTranslate[key] || key;
 }
 
@@ -3677,12 +3699,41 @@ const WORKSHEET_LANGUAGE_KEY = 'worksheet-interface-language';
 const WORKSHEET_SUPPORTED_LANGUAGES = ['id', 'en', 'ja'];
 const WORKSHEET_FONT_KEY = 'worksheet-interface-font';
 const WORKSHEET_SUPPORTED_FONTS = ['google-sans', 'inter', 'arial', 'segoe-ui'];
+// Emoji Windows 11 selalu berada di depan tumpukan font (termasuk untuk
+// label Chart.js yang digambar ke canvas), sementara font teksnya tetap
+// mengikuti pilihan pengguna.
+const WORKSHEET_EMOJI_FAMILY = '"Windows 11 Emoji"';
+const WORKSHEET_EMOJI_FALLBACK = '"Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji"';
+const withEmojiFamily = stack => `${WORKSHEET_EMOJI_FAMILY}, ${stack}, ${WORKSHEET_EMOJI_FALLBACK}, sans-serif`;
 const WORKSHEET_FONT_FAMILIES = Object.freeze({
-    'google-sans': '"Google Sans", Inter, "Segoe UI", Arial, sans-serif',
-    inter: 'Inter, "Segoe UI", Arial, sans-serif',
-    arial: 'Arial, Helvetica, sans-serif',
-    'segoe-ui': '"Segoe UI", Tahoma, Arial, sans-serif'
+    'google-sans': withEmojiFamily('"Google Sans", Inter, "Segoe UI", Arial'),
+    inter: withEmojiFamily('Inter, "Segoe UI", Arial'),
+    arial: withEmojiFamily('Arial, Helvetica'),
+    'segoe-ui': withEmojiFamily('"Segoe UI", Tahoma, Arial')
 });
+
+// Perangkat non-Windows tidak memiliki Segoe UI Emoji. Font tersebut milik
+// Microsoft sehingga tidak boleh disalurkan lewat CDN publik; sediakan
+// sendiri berkasnya lalu daftarkan lewat window.WORKSHEET_EMOJI_FONT_URL
+// (lihat assets/fonts/README.md). Bila tidak diisi, tidak ada permintaan
+// jaringan sama sekali dan emoji bawaan perangkat tetap dipakai.
+const WORKSHEET_EMOJI_UNICODE_RANGE = 'U+2139, U+20E3, U+2300-23FF, U+2600-27BF, U+2B00-2BFF, U+FE0E-FE0F, U+1F000-1FAFF';
+function loadWindowsEmojiWebfont() {
+    const source = window.WORKSHEET_EMOJI_FONT_URL;
+    if(!source || typeof window.FontFace !== 'function' || !document.fonts) return;
+    try {
+        const face = new FontFace('Windows 11 Emoji', `url("${source}")`, {
+            style: 'normal',
+            weight: '400',
+            display: 'swap',
+            unicodeRange: WORKSHEET_EMOJI_UNICODE_RANGE
+        });
+        face.load()
+            .then(loaded => { document.fonts.add(loaded); refreshWorksheetChartFonts(); })
+            .catch(() => {});
+    } catch (_) {}
+}
+window.loadWindowsEmojiWebfont = loadWindowsEmojiWebfont;
 const WORKSHEET_TRANSLATION_ROWS = [
     ['Worksheet Klaim - Operasional & Pelaporan', 'Claim Worksheet — Operations & Reporting', '申請ワークシート — 業務・レポート'],
     ['CLAIM WORKSHEET', 'CLAIM WORKSHEET', '申請ワークシート'],
@@ -3969,6 +4020,9 @@ const WORKSHEET_TRANSLATION_ROWS = [
     ['Tersimpan di perangkat', 'Saved on Device', '端末に保存済み'],
     ['Semua perubahan sudah tersinkron', 'All Changes Synchronized', 'すべての変更を同期しました'],
     ['Data berhasil disimpan', 'Data saved successfully', 'データを保存しました'],
+    ['Dokumen RTP Selesai', 'RTP Document Completed', 'RTP書類完了'],
+    ['Data berhasil diubah menjadi Posted.', 'The record has been changed to Posted.', 'データを計上済みに変更しました。'],
+    ['Silakan cetak voucher dan serahkan dokumen RTP kepada Finance.', 'Please print the voucher and hand the RTP document to Finance.', 'バウチャーを印刷し、RTP書類を財務部へ提出してください。'],
     ['Data tersimpan', 'Data saved', 'データを保存しました'],
     ['File Excel berhasil disiapkan.', 'The Excel file is ready.', 'Excelファイルを作成しました。'],
     ['Rentang tanggal tidak valid.', 'The date range is invalid.', '期間が無効です。'],
@@ -4138,8 +4192,9 @@ const WORKSHEET_ADDITIONAL_TRANSLATION_ROWS = [
     ['Arsip Monitoring', 'Monitoring Archive', 'モニタリング保管'],
     ['Hapus Seluruh Tampilan', 'Delete All Displayed Data', '表示データをすべて削除'],
     ['Total Amount', 'Total Amount', '金額合計'],
-    ['Tgl Pymnt', 'Payment Date', '支払日'],
-    ['PIC Pymnt', 'Payment PIC', '支払担当者'],
+    ['Tgl Pymnt', 'Pymnt Date', '支払日'],
+    ['PIC Pymnt', 'Pymnt PIC', '支払担当者'],
+    ['Ref Pymnt', 'Pymnt Ref', '支払参照'],
     ['Diinput Oleh', 'Entered By', '入力者'],
     ['Status Data', 'Data Status', 'データステータス'],
     ['Klaim yang saat ini telah mencapai RTP: Posted, Paid, atau Hold.', 'Claims that have reached RTP: Posted, Paid, or Hold.', 'RTP到達済みの申請：計上済み、支払済み、または保留。'],
@@ -4717,6 +4772,7 @@ window.getWorksheetFont = () => worksheetFont;
 
 function initializeWorksheetFont() {
     setAppFont(worksheetFont, { persist:false });
+    loadWindowsEmojiWebfont();
     if(document.fonts && typeof document.fonts.load === 'function') {
         const activeFamily = WORKSHEET_FONT_FAMILIES[worksheetFont];
         document.fonts.load(`600 16px ${activeFamily}`).then(refreshWorksheetChartFonts).catch(() => {});
