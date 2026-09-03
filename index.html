@@ -1581,98 +1581,89 @@
                     </table>
                 </div>
             </div>
-<div id="menu-super-find" class="content-card">
-    
-    <!-- Card Atas: Header, Filter Tanggal, & Search Box Terpadu -->
-    <div class="sf-modern-card">
-        <div class="sf-header-title" style="justify-content: space-between; flex-wrap: wrap; gap: 15px; margin-bottom: 25px;">
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <div class="sf-icon-box">🔍</div>
-                <div>
-                    <h3>Pencarian Klaim - Riwayat Komprehensif</h3>
-                    <p>Menampilkan seluruh klaim aktif, arsip, dan riwayat berstatus Posted.</p>
-                    <div id="viewer-search-notice">Mode Viewer: akses terbatas pada pencarian dan peninjauan linimasa klaim.</div>
-                </div>
-            </div>
-            
-            <!-- Filter Tanggal Modern & Preset (Custom Dropdown) -->
-            <div style="display:flex; align-items:center; gap:10px;">
-                
-                <!-- Custom Dropdown Container -->
-                <div id="custom-preset-superfind" style="position: relative; user-select: none; z-index: 100;">
-                    <!-- Kotak Tombol -->
-                    <div id="sf-preset-trigger" onclick="toggleSfPresetDropdown()" class="sf-dropdown-modern">
-                        <span id="sf-preset-text">Bulan Ini</span>
-                        <span id="sf-preset-arrow" style="font-size: 10px; color: #00b4db; transition: transform 0.3s ease;">▼</span>
-                    </div>
-                    
-                    <!-- Isi List Menggantung -->
-                    <div id="sf-preset-options" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; margin-top: 8px; border: 2px solid rgba(0, 180, 219, 0.3); border-radius: 12px; box-shadow: 0 12px 30px rgba(0,80,160,0.15); overflow: hidden; flex-direction: column; z-index: 1000;">
-                        <div class="sf-preset-item" onclick="selectSfPreset('this_month', 'Bulan Ini')">Bulan Ini</div>
-                        <div class="sf-preset-item" onclick="selectSfPreset('last_month', 'Bulan Lalu')">Bulan Lalu</div>
-                        <div class="sf-preset-item" onclick="selectSfPreset('last_3_months', '3 Bulan Terakhir')">3 Bulan Terakhir</div>
-                        <div class="sf-preset-item" onclick="selectSfPreset('this_year', 'Tahun Ini')">Tahun Ini</div>
-                        <div class="sf-preset-item" onclick="selectSfPreset('custom', '📅 Pilih Periode Manual...')">📅 Pilih Periode Manual...</div>
-                    </div>
-                </div>
+<div id="menu-super-find" class="content-card sf-page">
+    <header class="sf-hero">
+        <div class="sf-hero-icon" aria-hidden="true">🔍</div>
+        <div class="sf-hero-copy">
+            <span class="sf-eyebrow">CLAIM LOOKUP</span>
+            <h3>Pencarian Klaim</h3>
+            <p>Telusuri seluruh klaim aktif, arsip, dan riwayat berstatus Posted dalam satu pencarian.</p>
+            <div id="viewer-search-notice">Mode Viewer: akses terbatas pada pencarian dan peninjauan linimasa klaim.</div>
+        </div>
+        <div class="sf-hero-mark" aria-hidden="true">🗂️</div>
+    </header>
 
-                <div style="position: relative;">
-                    <span style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 15px; pointer-events: none; z-index: 10;">📅</span>
-                    <input type="text" id="filter-date-super-find" class="sf-date-modern" placeholder="Filter Tgl Submit..." readonly> 
-                </div>
-                
-                <!-- Panggil Fungsi Reset Bersih -->
-                <button class="sf-reset-modern" onclick="resetSuperFind()" title="Atur ulang filter">
-                    ✖ Atur Ulang
-                </button>
-            </div>
-</div>
-
-        <!-- Kolom Pencarian NIK (Single & Rapih) -->
-        <div class="sf-search-box">
-            <label class="sf-search-label">Pencarian NIK / Nama / No.</label>
-            <div class="sf-input-row">
-                <input type="text" id="sf-search-input" class="sf-input-field" placeholder="Masukkan NIK, Nama, atau No Excel lalu Enter..." onkeyup="if(event.key === 'Enter') executeSuperFind(true)">
-                <button class="sf-search-btn" onclick="executeSuperFind(true)">Cari Data</button>
+    <section class="sf-query-card" aria-label="Formulir pencarian klaim">
+        <div class="sf-query-step">
+            <span class="sf-step-index" aria-hidden="true">1</span>
+            <div class="sf-step-copy"><strong>Periode Tanggal Submit</strong><small>Tentukan rentang waktu yang ditelusuri</small></div>
+            <div class="sf-step-controls">
+                <select id="preset-period-super-find" class="compact-period-select sf-preset-select" onchange="applyPresetSuperFind(this.value)" aria-label="Preset periode Pencarian Klaim">
+                    <option value="this_month" selected>Bulan Ini</option>
+                    <option value="last_month">Bulan Lalu</option>
+                    <option value="last_3_months">3 Bulan Terakhir</option>
+                    <option value="this_year">Tahun Ini</option>
+                    <option value="custom">📅 Pilih Periode Manual...</option>
+                </select>
+                <input type="text" id="filter-date-super-find" class="sf-date-modern" placeholder="📅 Filter Tgl Submit..." readonly>
+                <button type="button" class="btn btn-secondary sf-reset-modern" onclick="resetSuperFind()" title="Atur ulang filter">✖ <span>Atur Ulang</span></button>
             </div>
         </div>
-    </div>
 
-    <h4 id="sf-result-title" style="display:none; font-size:14px; color:#0050A0; margin-bottom:12px; padding-left:4px;">Hasil pencarian untuk: <span id="sf-keyword-text" style="color:#0f172a;">""</span></h4>
+        <div class="sf-query-step sf-query-step-search">
+            <span class="sf-step-index" aria-hidden="true">2</span>
+            <div class="sf-step-copy"><strong>Kata Kunci</strong><small>NIK, nama karyawan, atau nomor dokumen</small></div>
+            <div class="sf-step-controls">
+                <div class="sf-input-row">
+                    <span class="sf-input-icon" aria-hidden="true">🔍</span>
+                    <input type="text" id="sf-search-input" class="sf-input-field" placeholder="Masukkan NIK, Nama, atau No Excel lalu Enter..." onkeyup="if(event.key === 'Enter') executeSuperFind(true)">
+                </div>
+                <button type="button" class="btn btn-primary sf-search-btn" onclick="executeSuperFind(true)">Cari Data</button>
+            </div>
+        </div>
+    </section>
 
-    <!-- Card Bawah: Tabel -->
-    <div class="table-responsive sf-table-container">
-        <table class="std-table sf-table" id="sf-table">
-            <thead>
-                <tr>
-                    <th width="70">Aksi</th>
-                    <th width="80">No. <span class="th-filter-icon" onclick="openExcelFilter(event, 'noPR_extNo', 'super-find')">▼</span></th>
-                    <th>NIK <span class="th-filter-icon" onclick="openExcelFilter(event, 'nik', 'super-find')">▼</span></th>
-                    <th>Nama Karyawan <span class="th-filter-icon" onclick="openExcelFilter(event, 'nama', 'super-find')">▼</span></th>
-                    <th>Entitas <span class="th-filter-icon" onclick="openExcelFilter(event, 'entitas', 'super-find')">▼</span></th>
-                    <th>Tipe Pengajuan <span class="th-filter-icon" onclick="openExcelFilter(event, 'tipe', 'super-find')">▼</span></th>
-                    <th>Tgl Proses <span class="th-filter-icon" onclick="openExcelFilter(event, 'tglProses', 'super-find')">▼</span></th>
-                    <th>Tgl Submit <span class="th-filter-icon" onclick="openExcelFilter(event, 'tglSubmit', 'super-find')">▼</span></th>
-                    <th>Tgl RTP <span class="th-filter-icon" onclick="openExcelFilter(event, 'postedAtDate', 'super-find')">▼</span></th>
-                    <th>Tgl Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentAtDate', 'super-find')">▼</span></th>
-                    <th>Ref Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentReference', 'super-find')">▼</span></th>
-                    <th>Total Amount <span class="th-filter-icon" onclick="openExcelFilter(event, 'totalHeader', 'super-find')">▼</span></th>
-                    <th>Status Data <span class="th-filter-icon" onclick="openExcelFilter(event, 'statusClaim', 'super-find')">▼</span></th>
-                </tr>
-            </thead>
-            <tbody id="tbody-super-find">
-                <tr>
-                    <td colspan="13" style="border:none; background:transparent;">
-                        <div class="sf-state-container">
-                            <div class="sf-state-icon waiting">🔍</div>
-                            <div class="sf-state-title">Menunggu Pencarian</div>
-                            <div class="sf-state-desc">Silakan pilih periode tanggal submit dan masukkan kata kunci NIK atau nama, kemudian tekan tombol Cari Data.</div>
-                        </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+    <section class="sf-result-card" aria-label="Hasil pencarian klaim">
+        <div class="sf-result-head">
+            <div class="sf-result-title-group">
+                <span class="sf-result-icon" aria-hidden="true">▤</span>
+                <div>
+                    <h4>Hasil Pencarian</h4>
+                    <small id="sf-result-title" style="display:none;">Hasil pencarian untuk: <span id="sf-keyword-text">""</span></small>
+                </div>
+            </div>
+            <span id="sf-result-count" class="sf-result-count" hidden></span>
+        </div>
+
+        <div id="sf-empty-state" class="sf-state-container">
+            <div class="sf-state-icon waiting">🔍</div>
+            <div class="sf-state-title">Menunggu Pencarian</div>
+            <div class="sf-state-desc">Silakan pilih periode tanggal submit dan ketik kata kunci NIK/Nama, lalu tekan tombol Cari Data.</div>
+        </div>
+
+        <div class="table-responsive sf-table-container" id="sf-table-container" style="display:none;">
+            <table class="std-table sf-table" id="sf-table">
+                <thead>
+                    <tr>
+                        <th width="70">Aksi</th>
+                        <th width="80">No. <span class="th-filter-icon" onclick="openExcelFilter(event, 'noPR_extNo', 'super-find')">▼</span></th>
+                        <th>NIK <span class="th-filter-icon" onclick="openExcelFilter(event, 'nik', 'super-find')">▼</span></th>
+                        <th>Nama Karyawan <span class="th-filter-icon" onclick="openExcelFilter(event, 'nama', 'super-find')">▼</span></th>
+                        <th>Entitas <span class="th-filter-icon" onclick="openExcelFilter(event, 'entitas', 'super-find')">▼</span></th>
+                        <th>Tipe Pengajuan <span class="th-filter-icon" onclick="openExcelFilter(event, 'tipe', 'super-find')">▼</span></th>
+                        <th>Tgl Proses <span class="th-filter-icon" onclick="openExcelFilter(event, 'tglProses', 'super-find')">▼</span></th>
+                        <th>Tgl Submit <span class="th-filter-icon" onclick="openExcelFilter(event, 'tglSubmit', 'super-find')">▼</span></th>
+                        <th>Tgl RTP <span class="th-filter-icon" onclick="openExcelFilter(event, 'postedAtDate', 'super-find')">▼</span></th>
+                        <th>Tgl Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentAtDate', 'super-find')">▼</span></th>
+                        <th>Ref Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentReference', 'super-find')">▼</span></th>
+                        <th>Total Amount <span class="th-filter-icon" onclick="openExcelFilter(event, 'totalHeader', 'super-find')">▼</span></th>
+                        <th>Status Data <span class="th-filter-icon" onclick="openExcelFilter(event, 'statusClaim', 'super-find')">▼</span></th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-super-find"></tbody>
+            </table>
+        </div>
+    </section>
 </div>
 
 <!-- MENU EXECUTIVE SUMMARY -->

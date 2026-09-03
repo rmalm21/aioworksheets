@@ -5390,9 +5390,9 @@ onWorksheetReady(function() {
                 onChange: function(selectedDates, dateStr, instance) { 
                     window.filterDatesSuperFind = selectedDates; 
                     
-                    // Kalau milih manual, dropdown ganti ke "Pilih Manual..."
-                    let presetText = document.getElementById('sf-preset-text');
-                    if (presetText && instance.isOpen) presetText.innerText = '📅 Pilih Periode Manual...';
+                    // Pilihan manual dari kalender menandai preset sebagai custom.
+                    const presetSelect = document.getElementById('preset-period-super-find');
+                    if (presetSelect && instance.isOpen) presetSelect.value = 'custom';
 
                     if(typeof executeSuperFind === 'function') executeSuperFind(false); 
                 }
@@ -5419,7 +5419,8 @@ window.applyPresetSuperFind = function(val) {
 // FUNGSI RESET BERSIH SUPER FIND
 // Update Tampilan Bersih pas di-Reset (Biar center juga)
 window.resetSuperFind = function() {
-    document.getElementById('sf-preset-text').innerText = '📅 Pilih Periode Manual...';
+    const preset = document.getElementById('preset-period-super-find');
+    if(preset) preset.value = 'custom';
     
     let fp = document.getElementById('filter-date-super-find');
     if (fp && fp._flatpickr) fp._flatpickr.clear();
@@ -5428,19 +5429,13 @@ window.resetSuperFind = function() {
     let searchInput = document.getElementById('sf-search-input');
     if (searchInput) searchInput.value = '';
     
-    document.getElementById('sf-result-title').style.display = 'none';
-    
-    let tbody = document.getElementById('tbody-super-find');
-    if (tbody) {
-        tbody.innerHTML = `<tr><td colspan="13" style="border:none !important; background:transparent !important; text-align:center !important; padding: 70px 20px !important;">
-            <div class="sf-state-container" style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center !important; width:100%; margin:0 auto;">
-                <div class="sf-state-icon waiting" style="margin: 0 auto 20px auto; display:block;">🔍</div>
-                <div class="sf-state-title" style="text-align:center !important; width:100%; display:block;">Menunggu Pencarian</div>
-                <div class="sf-state-desc" style="text-align:center !important; margin:0 auto; display:block; max-width:450px;">Silakan pilih periode tanggal submit dan ketik kata kunci NIK/Nama, lalu tekan tombol Cari Data.</div>
-            </div>
-        </td></tr>`;
-    }
-    
+    const resultTitle = document.getElementById('sf-result-title');
+    if(resultTitle) resultTitle.style.display = 'none';
+
+    const tbody = document.getElementById('tbody-super-find');
+    if(tbody) tbody.innerHTML = '';
+    showSuperFindState('waiting');
+
     showToast('Filter dan pencarian telah diatur ulang.', 'info');
 };
 
@@ -5474,6 +5469,33 @@ window.executeSuperFind = function(isManual = false) {
     if(isManual) logActivity(sessionUser, `Pencarian klaim dijalankan untuk periode ${d1} s.d. ${d2}`).catch(() => {});
 };
 
+// Empty state hidup di luar tabel supaya baris header tidak ikut tampil
+// ketika belum ada hasil; tabel baru dimunculkan saat benar-benar ada data.
+window.showSuperFindState = function(state, total = 0) {
+    const emptyState = document.getElementById('sf-empty-state');
+    const tableWrap = document.getElementById('sf-table-container');
+    const counter = document.getElementById('sf-result-count');
+    const hasResults = state === 'results';
+
+    if(tableWrap) tableWrap.style.display = hasResults ? 'block' : 'none';
+    if(counter) {
+        counter.hidden = !hasResults;
+        if(hasResults) counter.textContent = `${total.toLocaleString('id-ID')} klaim ditemukan`;
+    }
+    if(!emptyState) return;
+    emptyState.style.display = hasResults ? 'none' : 'flex';
+    if(hasResults) return;
+
+    const waiting = state === 'waiting';
+    emptyState.innerHTML = `
+        <div class="sf-state-icon ${waiting ? 'waiting' : 'not-found'}">${waiting ? '🔍' : '📭'}</div>
+        <div class="sf-state-title${waiting ? '' : ' is-empty'}">${waiting ? 'Menunggu Pencarian' : 'Data Tidak Ditemukan'}</div>
+        <div class="sf-state-desc">${waiting
+            ? 'Silakan pilih periode tanggal submit dan ketik kata kunci NIK/Nama, lalu tekan tombol Cari Data.'
+            : 'Tidak ada riwayat klaim yang cocok dengan kata kunci dan periode tersebut. Coba periksa kembali NIK/Nama atau sesuaikan filter Anda.'}</div>`;
+    if(typeof window.applyWorksheetTranslations === 'function') window.applyWorksheetTranslations(emptyState);
+};
+
 // Modifikasi Render Tabel buat UI Empty State Modern & Beneran Center
 window.renderSuperFindTable = function() {
     let tbody = document.getElementById('tbody-super-find');
@@ -5485,14 +5507,9 @@ window.renderSuperFindTable = function() {
 
     // TAMPILAN 1: Menunggu Pencarian (Belum isi form lengkap)
     if(!keyword || !hasDate) {
-        tbody.innerHTML = `<tr><td colspan="13" style="border:none !important; background:transparent !important; text-align:center !important; padding: 70px 20px !important;">
-            <div class="sf-state-container" style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center !important; width:100%; margin:0 auto;">
-                <div class="sf-state-icon waiting" style="margin: 0 auto 20px auto; display:block;">🔍</div>
-                <div class="sf-state-title" style="text-align:center !important; width:100%; display:block;">Menunggu Pencarian</div>
-                <div class="sf-state-desc" style="text-align:center !important; margin:0 auto; display:block; max-width:450px;">Silakan pilih periode tanggal submit dan ketik kata kunci NIK/Nama, lalu tekan tombol Cari Data.</div>
-            </div>
-        </td></tr>`;
-        document.getElementById('sf-result-title').style.display = 'none';
+        showSuperFindState('waiting');
+        const resultTitle = document.getElementById('sf-result-title');
+        if(resultTitle) resultTitle.style.display = 'none';
         return;
     }
 
@@ -5525,15 +5542,11 @@ window.renderSuperFindTable = function() {
 
     // TAMPILAN 2: Data Tidak Ditemukan
     if(processedData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="13" style="border:none !important; background:transparent !important; text-align:center !important; padding: 70px 20px !important;">
-            <div class="sf-state-container" style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center !important; width:100%; margin:0 auto;">
-                <div class="sf-state-icon not-found" style="margin: 0 auto 20px auto; display:block;">📭</div>
-                <div class="sf-state-title" style="color:#dc3545; text-align:center !important; width:100%; display:block;">Data Tidak Ditemukan</div>
-                <div class="sf-state-desc" style="text-align:center !important; margin:0 auto; display:block; max-width:450px;">Tidak ada riwayat klaim yang cocok dengan kata kunci dan periode tersebut. Coba periksa kembali NIK/Nama atau sesuaikan filter Anda.</div>
-            </div>
-        </td></tr>`;
+        showSuperFindState('not-found');
         return;
     }
+
+    showSuperFindState('results', processedData.length);
 
     processedData.forEach(item => {
         let ent = item.entitas || '-';
@@ -5579,41 +5592,6 @@ let actionBtn = canEditClaims()
         </tr>`;
     });
 };
-// --- CUSTOM DROPDOWN PRESET SUPER FIND ---
-window.toggleSfPresetDropdown = function() {
-    let list = document.getElementById('sf-preset-options');
-    let arrow = document.getElementById('sf-preset-arrow');
-    if(list.style.display === 'none' || list.style.display === '') {
-        list.style.display = 'flex';
-        arrow.style.transform = 'rotate(180deg)'; // Panah muter ke atas
-    } else {
-        list.style.display = 'none';
-        arrow.style.transform = 'rotate(0deg)'; // Panah muter ke bawah
-    }
-};
-
-// Fungsi pas salah satu list di-klik
-window.selectSfPreset = function(value, text) {
-    document.getElementById('sf-preset-text').innerText = text;
-    toggleSfPresetDropdown(); // Tutup dropdown
-    
-    // Set parameter ke sistem kalender
-    applyPresetSuperFind(value); 
-};
-
-// Auto-close: nutup dropdown kalau user nge-klik asal di luar area
-document.addEventListener('click', function(e) {
-    let selectBox = document.getElementById('custom-preset-superfind');
-    if (selectBox && !selectBox.contains(e.target)) {
-        let list = document.getElementById('sf-preset-options');
-        let arrow = document.getElementById('sf-preset-arrow');
-        if(list && list.style.display === 'flex') {
-            list.style.display = 'none';
-            arrow.style.transform = 'rotate(0deg)';
-        }
-    }
-});
-
 // =========================================================
 // FITUR BARU: KOLOM WAITING APPROVAL PASCA REVISI DI EXCEL
 // =========================================================

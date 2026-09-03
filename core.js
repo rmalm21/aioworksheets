@@ -5000,6 +5000,17 @@ const WORKSHEET_P20_TRANSLATION_ROWS = [
 ];
 
 const WORKSHEET_P21_TRANSLATION_ROWS = [
+    ['CLAIM LOOKUP', 'CLAIM LOOKUP', '申請検索'],
+    ['Pencarian Klaim', 'Claim Search', '申請検索'],
+    ['Telusuri seluruh klaim aktif, arsip, dan riwayat berstatus Posted dalam satu pencarian.', 'Search every active, archived, and Posted claim in one place.', 'アクティブ・アーカイブ・Posted済みの全申請をまとめて検索します。'],
+    ['Periode Tanggal Submit', 'Submit Date Period', '提出日の期間'],
+    ['Tentukan rentang waktu yang ditelusuri', 'Set the range to search', '検索する期間を設定'],
+    ['Kata Kunci', 'Keyword', 'キーワード'],
+    ['NIK, nama karyawan, atau nomor dokumen', 'NIK, employee name, or document number', 'NIK・従業員名・書類番号'],
+    ['Hasil Pencarian', 'Search Results', '検索結果'],
+    ['Formulir pencarian klaim', 'Claim search form', '申請検索フォーム'],
+    ['Hasil pencarian klaim', 'Claim search results', '申請検索結果'],
+    ['Preset periode Pencarian Klaim', 'Claim Search period preset', '申請検索の期間プリセット'],
     ['Tampilkan password', 'Show password', 'パスワードを表示'],
     ['Sembunyikan password', 'Hide password', 'パスワードを非表示'],
     ['Akun yang sedang login', 'Signed-in account', 'ログイン中のアカウント'],
@@ -5170,6 +5181,7 @@ const WORKSHEET_DYNAMIC_TRANSLATIONS = [
     { re: /^Halaman (\d+) dari (\d+)$/i, en: m => `Page ${m[1]} of ${m[2]}`, ja: m => `${m[1]} / ${m[2]} ページ` },
     { re: /^Halaman (\d+)\/(\d+)$/i, en: m => `Page ${m[1]}/${m[2]}`, ja: m => `${m[1]}/${m[2]} ページ` },
     { re: /^Halaman (\d+) \/ (\d+)$/i, en: m => `Page ${m[1]} / ${m[2]}`, ja: m => `${m[1]} / ${m[2]} ページ` },
+    { re: /^([\d.,]+) klaim ditemukan$/i, en: m => `${m[1]} claims found`, ja: m => `${m[1]}件の申請が見つかりました` },
     { re: /^Catatan:\s*(.+)$/i, en: m => `Note: ${m[1]}`, ja: m => `メモ：${m[1]}` },
     { re: /^SLA \(Kerja\):\s*(\d+) Hari$/i, en: m => `SLA (working): ${m[1]} days`, ja: m => `SLA（営業日）：${m[1]}日` },
     { re: /^Zona waktu: (.+) \| Terakhir diperbarui: (.+) \| Oleh: (.+)$/i, en: m => `Time zone: ${m[1]} | Last updated: ${m[2]} | By: ${m[3]}`, ja: m => `タイムゾーン：${m[1]}｜最終更新：${m[2]}｜更新者：${m[3]}` }
