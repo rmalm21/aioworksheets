@@ -3487,6 +3487,140 @@ window.openDeepDiveRapor = function(nik, nama) {
     if(typeof window.applyWorksheetTranslations === 'function') window.applyWorksheetTranslations(reportModal);
 };
 
+/* =========================================================
+   P13 — LAPISAN TEMA GRAFIK MODERN
+   ---------------------------------------------------------
+   Satu sumber warna, tipografi, tooltip, dan plugin untuk
+   seluruh grafik aplikasi (Statistik dan Ringkasan Manajemen)
+   supaya tampilannya konsisten dan mengikuti mode gelap.
+   ========================================================= */
+window.getChartTheme = function() {
+    const dark = document.body.classList.contains('dark-mode');
+    return {
+        dark,
+        text: dark ? '#a9c2d4' : '#6a8296',
+        strong: dark ? '#eaf3f9' : '#24475f',
+        grid: dark ? 'rgba(150,180,203,.15)' : 'rgba(20,84,130,.08)',
+        surface: dark ? '#162c3e' : '#ffffff',
+        tooltipBg: dark ? 'rgba(9,26,39,.96)' : 'rgba(13,44,68,.95)',
+        tooltipText: '#ffffff',
+        tooltipMuted: dark ? '#9fbdd2' : '#bcd6e7',
+        blue: '#1e8ed4',
+        blueDeep: '#0a5e9c',
+        blueSoft: dark ? 'rgba(30,142,212,.34)' : 'rgba(30,142,212,.30)',
+        green: '#14a97b',
+        amber: '#e2a03a',
+        red: '#df5c70',
+        slate: dark ? '#7d99ae' : '#a8bccc',
+        slateSoft: dark ? 'rgba(125,153,174,.35)' : 'rgba(168,188,204,.35)'
+    };
+};
+
+// Gradien vertikal untuk batang dan area. Dipanggil lewat callback scriptable
+// Chart.js sehingga chartArea sudah tersedia saat digambar.
+window.buildChartGradient = function(context, from, to) {
+    const { ctx, chartArea } = context.chart;
+    if(!chartArea) return from;
+    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+    gradient.addColorStop(0, from);
+    gradient.addColorStop(1, to);
+    return gradient;
+};
+
+// Tooltip modern: kartu gelap membulat, tanpa kotak warna kaku.
+window.buildChartTooltip = function(theme, extra = {}) {
+    return Object.assign({
+        backgroundColor: theme.tooltipBg,
+        titleColor: theme.tooltipText,
+        bodyColor: theme.tooltipMuted,
+        borderColor: 'rgba(255,255,255,.10)',
+        borderWidth: 1,
+        cornerRadius: 12,
+        padding: { top: 10, right: 13, bottom: 11, left: 13 },
+        displayColors: true,
+        boxWidth: 8,
+        boxHeight: 8,
+        boxPadding: 6,
+        usePointStyle: true,
+        titleFont: { size: 12, weight: '800' },
+        bodyFont: { size: 11, weight: '600' }
+    }, extra);
+};
+
+window.buildChartLegend = function(theme, extra = {}) {
+    return Object.assign({
+        position: 'bottom',
+        align: 'center',
+        labels: {
+            color: theme.text,
+            usePointStyle: true,
+            pointStyle: 'circle',
+            boxWidth: 8,
+            boxHeight: 8,
+            padding: 16,
+            font: { size: 11, weight: '700' }
+        }
+    }, extra);
+};
+
+// Teks di tengah grafik donat (persentase besar + keterangan kecil).
+window.chartCenterTextPlugin = {
+    id: 'chartCenterText',
+    afterDatasetsDraw(chart) {
+        const config = chart.options.plugins && chart.options.plugins.chartCenterText;
+        if(!config || !config.value) return;
+        const { ctx, chartArea } = chart;
+        if(!chartArea) return;
+        const x = (chartArea.left + chartArea.right) / 2;
+        const y = (chartArea.top + chartArea.bottom) / 2;
+        const family = (window.Chart && Chart.defaults.font.family) || 'sans-serif';
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        if(config.label) {
+            ctx.font = `800 9px ${family}`;
+            ctx.fillStyle = config.labelColor || '#8aa3b6';
+            ctx.fillText(String(config.label).toUpperCase(), x, y - 22);
+        }
+        ctx.font = `900 30px ${family}`;
+        ctx.fillStyle = config.valueColor || '#24475f';
+        ctx.fillText(String(config.value), x, y + 2);
+        if(config.caption) {
+            ctx.font = `700 10px ${family}`;
+            ctx.fillStyle = config.captionColor || '#8aa3b6';
+            ctx.fillText(String(config.caption), x, y + 24);
+        }
+        ctx.restore();
+    }
+};
+
+// Placeholder rapi saat grafik tidak punya data sama sekali.
+window.chartEmptyStatePlugin = {
+    id: 'chartEmptyState',
+    afterDraw(chart) {
+        const config = chart.options.plugins && chart.options.plugins.chartEmptyState;
+        if(!config || !config.display) return;
+        const { ctx, chartArea } = chart;
+        if(!chartArea) return;
+        const family = (window.Chart && Chart.defaults.font.family) || 'sans-serif';
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `700 12px ${family}`;
+        ctx.fillStyle = config.color || '#8aa3b6';
+        ctx.fillText(config.text || 'Belum ada data pada periode ini.',
+            (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2);
+        ctx.restore();
+    }
+};
+
+// Dipanggil ulang setiap mode gelap berubah agar sumbu, grid, dan legenda
+// ikut menyesuaikan tanpa perlu memuat ulang halaman.
+window.refreshWorksheetCharts = function() {
+    if(window.currentOpenMenu === 'statistik' && typeof window.renderStatistikData === 'function') window.renderStatistikData();
+    if(window.currentOpenMenu === 'executive' && typeof window.renderExecutiveDashboard === 'function') window.renderExecutiveDashboard();
+};
+
 window.statLeaderboardSort = 'count_desc'; 
 window.toggleStatSort = function(type) {
     if (type === 'count') window.statLeaderboardSort = (window.statLeaderboardSort === 'count_desc') ? 'count_asc' : 'count_desc';
@@ -3530,17 +3664,107 @@ window.renderStatistikData = function() {
     const slaSourceLabels = [`Sangat Baik (≤ ${window.slaSettings.greenMaxDays} Hari)`, `Perlu Perhatian (${window.slaSettings.greenMaxDays + 1}-${window.slaSettings.warningMaxDays} Hari)`, `Terlambat (> ${window.slaSettings.warningMaxDays} Hari)`];
     const slaDisplayLabels = slaSourceLabels.map(label => translateUiText(label));
 
+    const theme = window.getChartTheme();
+    const slaTotal = slaCount.h + slaCount.k + slaCount.m;
+    const slaAchievedPct = slaTotal > 0 ? Math.round(((slaCount.h + slaCount.k) / slaTotal) * 100) : 0;
+    const slaTargetPct = Number(window.slaSettings.achievementTargetPercent) || 90;
+
     try {
         if (window.chartTrendInstance) window.chartTrendInstance.destroy();
         window.chartTrendInstance = new Chart(document.getElementById('chart-trend'), {
-            type: 'bar', data: { labels: translatedTrendLabels, datasets: [{ label: translateUiText('Volume Pengajuan'), data: tData, backgroundColor: 'rgba(0, 80, 160, 0.8)', borderColor: '#0050A0', borderWidth: 1, borderRadius: 4 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, onClick: (e, els) => { if(els.length) window.showChartBreakdown('trend', tLabels[els[0].index]); }, onHover: (e, els) => e.native.target.style.cursor = els.length ? 'pointer' : 'default' }
+            type: 'bar',
+            data: {
+                labels: translatedTrendLabels,
+                datasets: [{
+                    label: translateUiText('Volume Pengajuan'),
+                    data: tData,
+                    backgroundColor: context => window.buildChartGradient(context, theme.blue, theme.blueSoft),
+                    hoverBackgroundColor: context => window.buildChartGradient(context, theme.blueDeep, theme.blue),
+                    borderWidth: 0,
+                    borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 2, bottomRight: 2 },
+                    borderSkipped: false,
+                    maxBarThickness: 46,
+                    categoryPercentage: 0.78,
+                    barPercentage: 0.86
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { top: 8, left: 2, right: 2 } },
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: window.buildChartTooltip(theme, {
+                        callbacks: { label: context => ' ' + translateUiText(`${context.parsed.y} Dokumen`) }
+                    }),
+                    chartEmptyState: { display: tData.length === 0, color: theme.text, text: translateUiText('Belum ada data pada periode ini.') }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        border: { display: false },
+                        grid: { color: theme.grid, drawTicks: false },
+                        ticks: { color: theme.text, padding: 10, precision: 0, font: { size: 10, weight: '700' } }
+                    },
+                    x: {
+                        border: { display: false },
+                        grid: { display: false },
+                        ticks: { color: theme.text, padding: 6, maxRotation: 0, autoSkipPadding: 14, font: { size: 10, weight: '700' } }
+                    }
+                },
+                onClick: (e, els) => { if(els.length) window.showChartBreakdown('trend', tLabels[els[0].index]); },
+                onHover: (e, els) => e.native.target.style.cursor = els.length ? 'pointer' : 'default'
+            },
+            plugins: [window.chartEmptyStatePlugin]
         });
 
         if (window.chartSlaInstance) window.chartSlaInstance.destroy();
         window.chartSlaInstance = new Chart(document.getElementById('chart-sla'), {
-            type: 'doughnut', data: { labels: slaDisplayLabels, datasets: [{ data: [slaCount.h, slaCount.k, slaCount.m], backgroundColor: ['#28a745', '#ffc107', '#dc3545'] }] },
-            options: { responsive: true, maintainAspectRatio: false, cutout: '60%', onClick: (e, els) => { if(els.length) window.showChartBreakdown('sla', slaSourceLabels[els[0].index]); }, onHover: (e, els) => e.native.target.style.cursor = els.length ? 'pointer' : 'default' }
+            type: 'doughnut',
+            data: {
+                labels: slaDisplayLabels,
+                datasets: [{
+                    data: [slaCount.h, slaCount.k, slaCount.m],
+                    backgroundColor: [theme.green, theme.amber, theme.red],
+                    hoverBackgroundColor: [theme.green, theme.amber, theme.red],
+                    borderColor: theme.surface,
+                    borderWidth: 3,
+                    borderRadius: 8,
+                    spacing: 2,
+                    hoverOffset: 8,
+                    hoverBorderColor: theme.surface
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '72%',
+                layout: { padding: 6 },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: window.buildChartTooltip(theme, {
+                        callbacks: {
+                            label: context => {
+                                const share = slaTotal > 0 ? Math.round((context.parsed / slaTotal) * 100) : 0;
+                                return ' ' + translateUiText(`${context.parsed} Dokumen`) + ` · ${share}%`;
+                            }
+                        }
+                    }),
+                    chartCenterText: {
+                        value: `${slaAchievedPct}%`,
+                        label: translateUiText('Pencapaian'),
+                        caption: translateUiText(`Target ${slaTargetPct}%`),
+                        valueColor: slaAchievedPct >= slaTargetPct ? theme.green : theme.red,
+                        labelColor: theme.text,
+                        captionColor: theme.text
+                    },
+                    chartEmptyState: { display: slaTotal === 0, color: theme.text, text: translateUiText('Belum ada data pada periode ini.') }
+                },
+                onClick: (e, els) => { if(els.length) window.showChartBreakdown('sla', slaSourceLabels[els[0].index]); },
+                onHover: (e, els) => e.native.target.style.cursor = els.length ? 'pointer' : 'default'
+            },
+            plugins: [window.chartCenterTextPlugin, window.chartEmptyStatePlugin]
         });
     } catch(e) {}
 
@@ -3558,16 +3782,33 @@ window.renderStatistikData = function() {
     let slaInfoEl = document.getElementById('sla-info-text');
     if (slaInfoEl) {
         if (totalSLADocs === 0) {
-            slaInfoEl.innerHTML = '<div style="text-align:center; color:#888; font-style:italic;">Belum ada data pada periode ini.</div>';
+            slaInfoEl.innerHTML = '<div class="stats-empty-inline">Belum ada data pada periode ini.</div>';
         } else {
+            const slaLegendRows = [
+                { tone: 'green', label: `Sangat Baik (≤ ${window.slaSettings.greenMaxDays} Hari)`, count: slaCount.h, pct: pctH },
+                { tone: 'amber', label: `Perlu Perhatian (${window.slaSettings.greenMaxDays + 1}-${window.slaSettings.warningMaxDays} Hari)`, count: slaCount.k, pct: pctK },
+                { tone: 'red', label: `Terlambat (> ${window.slaSettings.warningMaxDays} Hari)`, count: slaCount.m, pct: pctM }
+            ];
             slaInfoEl.innerHTML = `
-                <button type="button" class="analytics-sla-line" onclick="showChartBreakdown('sla', 'Sangat Baik (≤ ${window.slaSettings.greenMaxDays} Hari)')"><span>🟢 Sangat Baik (≤ ${window.slaSettings.greenMaxDays} Hari):</span> <strong>${pctH}%</strong></button>
-                <button type="button" class="analytics-sla-line" onclick="showChartBreakdown('sla', 'Perlu Perhatian (${window.slaSettings.greenMaxDays + 1}-${window.slaSettings.warningMaxDays} Hari)')"><span>🟡 Perlu Perhatian (${window.slaSettings.greenMaxDays + 1}-${window.slaSettings.warningMaxDays} Hari):</span> <strong>${pctK}%</strong></button>
-                <button type="button" class="analytics-sla-line" onclick="showChartBreakdown('sla', 'Terlambat (> ${window.slaSettings.warningMaxDays} Hari)')"><span>🔴 Terlambat (> ${window.slaSettings.warningMaxDays} Hari):</span> <strong>${pctM}%</strong></button>
-                <button type="button" class="analytics-sla-line" onclick="showChartBreakdown('sla_achieved', 'Sangat Baik + Perhatian')" style="font-size:14px; border-bottom:0; margin-top:5px;">
-                    <span style="font-weight:bold; color:#0050A0;">🏆 Pencapaian SLA:</span> 
-                    <span style="background:${achieveColor}; color:white; padding:3px 8px; border-radius:4px; font-weight:bold;">${pctAchieve}%</span>
-                    <small style="display:block; margin-top:4px; color:#64748b;">Target perusahaan ${companyTarget}% · ${achievementStatus}</small>
+                <div class="sla-legend">
+                    ${slaLegendRows.map(row => `
+                    <button type="button" class="sla-legend-row sla-tone-${row.tone}" onclick="showChartBreakdown('sla', '${row.label}')" title="Buka rincian klaim kategori ini">
+                        <span class="sla-legend-dot" aria-hidden="true"></span>
+                        <span class="sla-legend-name">${row.label}</span>
+                        <span class="sla-legend-count">${row.count} Dokumen</span>
+                        <span class="sla-legend-value">${row.pct}%</span>
+                        <span class="sla-legend-bar" aria-hidden="true"><i style="width:${row.pct}%;"></i></span>
+                    </button>`).join('')}
+                </div>
+                <button type="button" class="sla-achievement sla-achievement-${pctAchieve >= companyTarget ? 'on' : 'off'}" onclick="showChartBreakdown('sla_achieved', 'Sangat Baik + Perhatian')" title="Buka rincian klaim penyusun pencapaian SLA">
+                    <span class="sla-achievement-head">
+                        <span class="sla-achievement-label"><span aria-hidden="true">🏆</span> Pencapaian SLA</span>
+                        <span class="sla-achievement-badge" style="background:${achieveColor};">${pctAchieve}%</span>
+                    </span>
+                    <span class="sla-achievement-target">
+                        <span>Target perusahaan ${companyTarget}%</span>
+                        <span class="sla-achievement-status">${achievementStatus}</span>
+                    </span>
                 </button>
             `;
         }
@@ -3948,6 +4189,10 @@ const WORKSHEET_TRANSLATION_ROWS = [
     ['Total Dokumen Direvisi', 'Total Revised Documents', '修正書類合計'],
     ['Analisis Perbandingan Tren (CP dan PP)', 'Trend Comparison Analysis (CP and PP)', 'トレンド比較分析（CP・PP）'],
     ['Distribusi Pencapaian SLA', 'SLA Achievement Distribution', 'SLA達成分布'],
+    ['Pencapaian SLA', 'SLA Achievement', 'SLA達成率'],
+    ['Pencapaian', 'Achievement', '達成率'],
+    ['Buka rincian klaim kategori ini', 'Open the claim details for this category', 'このカテゴリの申請明細を開く'],
+    ['Buka rincian klaim penyusun pencapaian SLA', 'Open the claims behind the SLA achievement', 'SLA達成の根拠となる申請を開く'],
     ['Berikut adalah rincian kecepatan proses berdasarkan filter periode yang Anda pilih:', 'The following processing-speed details follow your selected period filter:', '選択した期間フィルターに基づく処理速度の詳細です：'],
     ['Rasio Dokumen Revisi', 'Revision Document Ratio', '修正書類比率'],
     ['Perbandingan jumlah dokumen yang bermasalah terhadap total pengajuan di periode ini:', 'Comparison of issue documents against total claims in this period:', 'この期間の申請総数に対する問題書類数の比較：'],
@@ -4533,6 +4778,7 @@ const WORKSHEET_DYNAMIC_TRANSLATIONS = [
     { re: /^Memperbarui cloud (\d+)\/(\d+)$/i, en: m => `Updating cloud ${m[1]}/${m[2]}`, ja: m => `クラウド更新 ${m[1]}/${m[2]}` },
     { re: /^Ekspor Excel berhasil: (\d+) klaim dan (\d+) baris\.$/i, en: m => `Excel export completed: ${m[1]} claims and ${m[2]} rows.`, ja: m => `Excel出力完了：申請${m[1]}件、${m[2]}行。` },
     { re: /^Target perusahaan (\d+)%$/i, en: m => `Company target ${m[1]}%`, ja: m => `会社目標 ${m[1]}%` },
+    { re: /^Target (\d+)%$/i, en: m => `Target ${m[1]}%`, ja: m => `目標 ${m[1]}%` },
     { re: /^Terlambat (\d+) hari$/i, en: m => `${m[1]} days late`, ja: m => `${m[1]}日遅延` },
     { re: /^Dokumen tertahan >\s*(\d+) Hari$/i, en: m => `Documents pending > ${m[1]} Days`, ja: m => `${m[1]}日超の保留書類` },
     { re: /^Sangat Baik \(≤\s*(\d+) Hari\)$/i, en: m => `Excellent (≤ ${m[1]} Days)`, ja: m => `良好（${m[1]}日以内）` },

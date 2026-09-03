@@ -307,6 +307,8 @@ function toggleDarkMode() {
         localStorage.setItem('otsukaDarkMode', 'false');
     }
     renderDarkModeButton();
+    // Grafik digambar ke canvas, jadi warnanya tidak ikut berubah lewat CSS.
+    if(typeof window.refreshWorksheetCharts === 'function') window.refreshWorksheetCharts();
 }
 // Init Dark Mode
 if (localStorage.getItem('otsukaDarkMode') === 'true') {

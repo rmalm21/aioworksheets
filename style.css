@@ -3214,8 +3214,6 @@ body.dark-mode .activity-log-detail-claim { border-color: #315a76; background: #
 .analytics-breakdown-pagination { display: flex; align-items: center; gap: 7px; }
 .analytics-breakdown-pagination select { padding: 5px 7px; border: 1px solid #c7d8e7; border-radius: 6px; background: #fff; color: #40586d; font-size: 10px; }
 .analytics-breakdown-pagination .btn { padding: 5px 7px; font-size: 9px; }
-.analytics-sla-line { display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 5px 2px; border: 0; border-bottom: 1px dashed #d7e3ed; background: transparent; color: inherit; cursor: pointer; text-align: left; }
-.analytics-sla-line:hover { color: #0050a0; background: #edf6ff; }
 body.dark-mode .analytics-breakdown-meta,body.dark-mode .analytics-breakdown-bottom { border-color: #334b60; background: #1b2c3b; }
 body.dark-mode .analytics-breakdown-meta span { border-color: #3c566d; background: #182634; color: #c4d5e4; }
 
@@ -3532,6 +3530,7 @@ body.mobile-sidebar-open .sidebar-backdrop { opacity: 1; visibility: visible; po
     .finance-queue-summary { grid-template-columns: 1fr !important; }
     .quick-workflow-panel { align-items: stretch; flex-direction: column; }
     .chart-wrapper-locked { height: 235px !important; }
+    .stats-chart-primary .chart-wrapper-locked, .stats-chart-sla .chart-wrapper-locked { height: 235px !important; min-height: 0; }
     .analytics-breakdown-bottom, .analytics-breakdown-pagination, .activity-log-pagination { align-items: stretch; flex-direction: column; }
     .analytics-breakdown-pagination .btn, .activity-log-pagination .btn { width: 100%; }
     input[style*="width:220px"], input[style*="width:230px"], input[style*="min-width:230px"] { width: 100% !important; min-width: 0 !important; max-width: 100% !important; }
@@ -4031,6 +4030,68 @@ body.dark-mode .status-transition-icon { background: #29485d; color: #8ed8fa; }
 .stats-sla-insight { margin-top: 12px; padding: 12px; border: 1px solid #dcebf2; border-radius: 12px; background: #f5fafc; color: #4f697c; font-size: 11px; box-shadow: none; }
 .stats-empty-inline { color: #8193a1; font-size: 11px; font-style: normal; text-align: center; }
 
+/* --- Panel grafik: tinggi Tren Volume dipaskan dengan panel Performa SLA --- */
+/* Grafik donat SLA memakai tinggi tetap; sisa ruang pada panel tren diisi
+   oleh kanvasnya sendiri sehingga dasar kedua kartu selalu rata. */
+.stats-chart-sla .chart-wrapper-locked { flex: 0 0 auto; height: 236px !important; }
+.stats-chart-primary .chart-wrapper-locked { flex: 1 1 auto; height: auto !important; min-height: 236px; }
+
+/* --- Legenda dan pencapaian SLA --- */
+.sla-legend { display: flex; flex-direction: column; gap: 2px; }
+.sla-legend-row {
+    display: grid;
+    grid-template-columns: 9px minmax(0,1fr) auto auto;
+    align-items: center;
+    gap: 4px 9px;
+    width: 100%;
+    padding: 8px 9px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+.sla-legend-row:hover { border-color: #cde2ef; background: #fff; transform: translateX(2px); }
+.sla-legend-row:focus-visible { outline: 2px solid var(--stats-blue); outline-offset: 1px; }
+.sla-legend-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--sla-tone,#94a9ba); box-shadow: 0 0 0 3px var(--sla-tone-soft,rgba(148,169,186,.18)); }
+.sla-legend-name { min-width: 0; overflow: hidden; color: #4a6479; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.sla-legend-count { color: #8ba2b4; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sla-legend-value { min-width: 34px; color: var(--sla-tone,#4a6479); font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; text-align: right; }
+.sla-legend-bar { grid-column: 2 / -1; height: 4px; overflow: hidden; border-radius: 999px; background: rgba(20,84,130,.08); }
+.sla-legend-bar > i { display: block; height: 100%; border-radius: 999px; background: var(--sla-tone,#94a9ba); transition: width .45s cubic-bezier(.25,.8,.35,1); }
+.sla-tone-green { --sla-tone: #14a97b; --sla-tone-soft: rgba(20,169,123,.17); }
+.sla-tone-amber { --sla-tone: #d9992f; --sla-tone-soft: rgba(217,153,47,.17); }
+.sla-tone-red { --sla-tone: #d9536a; --sla-tone-soft: rgba(217,83,106,.17); }
+
+.sla-achievement {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    width: 100%;
+    margin-top: 9px;
+    padding: 11px 12px;
+    border: 1px solid #d3e6f1;
+    border-radius: 13px;
+    background: linear-gradient(135deg,#f2f9fd,#eaf4fb);
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    transition: border-color .18s ease, box-shadow .18s ease;
+}
+.sla-achievement:hover { border-color: #a9cfe6; box-shadow: 0 8px 18px rgba(12,79,124,.11); }
+.sla-achievement:focus-visible { outline: 2px solid var(--stats-blue); outline-offset: 1px; }
+.sla-achievement-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sla-achievement-label { color: #1c5a8b; font-size: 12px; font-weight: 900; }
+.sla-achievement-badge { padding: 4px 11px; border-radius: 9px; color: #fff; font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
+/* Keterangan target selalu memakai barisnya sendiri di bawah persentase. */
+.sla-achievement-target { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; width: 100%; color: #6d879b; font-size: 10px; font-weight: 700; }
+.sla-achievement-status { padding: 2px 8px; border-radius: 999px; background: rgba(20,169,123,.13); color: #0f8560; }
+.sla-achievement-off .sla-achievement-status { background: rgba(217,83,106,.13); color: #c1445a; }
+
 .stats-ranking-card { margin-top: 14px; padding: 18px; }
 .stats-ranking-header { flex-wrap: wrap; }
 .stats-ranking-revision .stats-panel-icon { background: #fff4dd; color: var(--stats-amber); }
@@ -4115,6 +4176,13 @@ body.dark-mode .stats-ranking-revision .stats-panel-icon { background: #4c3b20; 
 body.dark-mode .stats-ranking-claimant .stats-panel-icon { background: #4a2e38; color: #ff9faf; }
 body.dark-mode .stats-employee-card .stats-panel-icon { background: #38375d; color: #bbb2ff; }
 body.dark-mode .stats-sla-insight { border-color: #365568; background: #172b3a; color: #c5d6e2; }
+body.dark-mode .sla-legend-row:hover { border-color: #3c6280; background: #1e394c; }
+body.dark-mode .sla-legend-name { color: #cadcea; }
+body.dark-mode .sla-legend-count { color: #91a9bb; }
+body.dark-mode .sla-legend-bar { background: rgba(150,180,203,.16); }
+body.dark-mode .sla-achievement { border-color: #37607e; background: linear-gradient(135deg,#1d3c53,#183246); }
+body.dark-mode .sla-achievement-label { color: #90cdf0; }
+body.dark-mode .sla-achievement-target { color: #9fb7c8; }
 body.dark-mode .stats-table-wrap { border-color: #385367 !important; }
 body.dark-mode .stats-table thead th { background: #172a3a; color: #a9c0d0; }
 body.dark-mode .stats-table tbody td { border-color: #30495c; }
@@ -4136,6 +4204,7 @@ body.dark-mode .stats-employee-metric-revision strong { color: #ff99a8; }
     .stats-toolbar-controls { justify-content: flex-start; flex-wrap: wrap; }
     .stats-export-button { margin-left: auto; }
     .stats-chart-grid { grid-template-columns: 1fr; }
+    .stats-chart-primary .chart-wrapper-locked, .stats-chart-sla .chart-wrapper-locked { flex: 0 0 auto; height: 262px !important; min-height: 0; }
 }
 
 @media (max-width: 850px) {
