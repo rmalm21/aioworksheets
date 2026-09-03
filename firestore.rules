@@ -1,0 +1,275 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function rolePath() { return /databases/$(database)/documents/userRoles/$(request.auth.uid); }
+    function hasRoleDocument() { return signedIn() && exists(rolePath()); }
+    function currentRole() { return hasRoleDocument() ? get(rolePath()).data.role : 'viewer'; }
+    function isAdmin() { return currentRole() == 'admin'; }
+    function isFinance() { return currentRole() == 'finance'; }
+    function canEditAccountingClaims() { return currentRole() in ['admin', 'user']; }
+    function canManageFinanceWorkflow() { return currentRole() in ['admin', 'finance']; }
+    function canCreateAuditEvent() { return currentRole() in ['admin', 'user', 'finance', 'viewer']; }
+
+    function validClaimShape() {
+      return request.resource.data.keys().hasAll([
+        'id', 'nama', 'nik', 'statusClaim', 'tglProses', 'tglSubmit',
+        'totalHeader', 'mataUang', '_version', '_updatedAt', '_updatedAtMs', '_updatedBy'
+      ])
+      && request.resource.data.nama is string
+      && request.resource.data.nik is string
+      && request.resource.data.statusClaim is string
+      && request.resource.data.totalHeader is number
+      && request.resource.data.totalHeader >= 0
+      && request.resource.data.mataUang is string
+      && request.resource.data.mataUang.matches('^[A-Z]{3}$')
+      && request.resource.data._version is int
+      && request.resource.data._updatedAt is timestamp
+      && request.resource.data._updatedAtMs is int
+      && request.resource.data._updatedAtMs > 0
+      && request.resource.data._updatedBy is string;
+    }
+
+    function validDeletionTombstone(claimId) {
+      return request.resource.data.keys().hasAll([
+          'claimId', 'sourceVersion', 'deletedAtMs', 'deletedAt', 'deletedBy'
+        ])
+        && request.resource.data.claimId == claimId
+        && request.resource.data.sourceVersion is int
+        && request.resource.data.sourceVersion >= 0
+        && request.resource.data.deletedAtMs is int
+        && request.resource.data.deletedAtMs > 0
+        && request.resource.data.deletedAt is timestamp
+        && request.resource.data.deletedBy == request.auth.token.email;
+    }
+
+    function workflowFieldsOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'statusClaim', 'postedAt', 'postedBy', 'paymentAt', 'paymentAtMs',
+        'paymentDate', 'paymentBy', 'paymentReference',
+        'holdReason', 'holdAt', 'holdAtMs', 'holdBy',
+        'returnReason', 'returnedAt', 'returnedAtMs', 'returnedBy',
+        'lastPaymentCancellation', 'lastHoldRelease',
+        'workflowTimestamps', 'isArchived', 'waitingApprovalAt',
+        'reviseStep', 'reviseTime', 'reviseTimestamp', 'reviseNote',
+        'historyLog', '_version', '_updatedAt', '_updatedAtMs', '_updatedBy'
+      ]);
+    }
+
+    function preservesPostedAudit() {
+      return request.resource.data.get('postedAt', null) == resource.data.get('postedAt', null)
+        && request.resource.data.get('postedBy', null) == resource.data.get('postedBy', null)
+        && request.resource.data.workflowTimestamps.get('completedAt', null)
+          == resource.data.workflowTimestamps.get('completedAt', null);
+    }
+
+    function hasWorkflowHistory() {
+      return request.resource.data.historyLog is list
+        && request.resource.data.historyLog.size() >= resource.data.get('historyLog', []).size() + 1;
+    }
+
+    function validAccountingUpdate() {
+      return canEditAccountingClaims()
+        && !(resource.data.statusClaim in ['Posted', 'Paid', 'Hold'])
+        && request.resource.data.statusClaim in ['In Process', 'Revisi', 'Waiting Approval', 'Posted', 'Returned by Finance']
+        && (request.resource.data.statusClaim != 'Returned by Finance' || resource.data.statusClaim == 'Returned by Finance')
+        && (request.resource.data.statusClaim != 'Posted'
+          || (workflowFieldsOnly()
+            && request.resource.data.keys().hasAll(['postedAt', 'postedBy', 'workflowTimestamps', 'historyLog'])
+            && request.resource.data.isArchived == true));
+    }
+
+    function validAdminReversePosted() {
+      return isAdmin()
+        && resource.data.statusClaim == 'Posted'
+        && request.resource.data.statusClaim in ['In Process', 'Waiting Approval', 'Revisi']
+        && workflowFieldsOnly()
+        && request.resource.data.isArchived == false
+        && !request.resource.data.keys().hasAny(['postedAt', 'postedBy'])
+        && request.resource.data.workflowTimestamps.get('completedAt', null) == null
+        && hasWorkflowHistory();
+    }
+
+    function validFinancePaid() {
+      return canManageFinanceWorkflow()
+        && resource.data.statusClaim in ['Posted', 'Hold']
+        && request.resource.data.statusClaim == 'Paid'
+        && workflowFieldsOnly()
+        && request.resource.data.keys().hasAll([
+          'paymentAt', 'paymentAtMs', 'paymentDate', 'paymentBy',
+          'paymentReference', 'workflowTimestamps', 'historyLog'
+        ])
+        && request.resource.data.paymentAt is string
+        && request.resource.data.paymentAt.size() > 0
+        && request.resource.data.paymentAtMs is int
+        && request.resource.data.paymentAtMs > 0
+        && request.resource.data.paymentDate is string
+        && request.resource.data.paymentDate.matches('^[0-9]{2}/[0-9]{2}/[0-9]{4}$')
+        && request.resource.data.paymentBy == request.auth.token.email
+        && request.resource.data.paymentReference is string
+        && request.resource.data.paymentReference.size() > 0
+        && request.resource.data.paymentReference.size() <= 120
+        && request.resource.data.isArchived == true
+        && request.resource.data.workflowTimestamps.get('paidAt', null) == request.resource.data.paymentAtMs
+        && preservesPostedAudit()
+        && hasWorkflowHistory()
+        && (resource.data.statusClaim != 'Hold'
+          || !request.resource.data.keys().hasAny(['holdReason', 'holdAt', 'holdAtMs', 'holdBy']));
+    }
+
+    function validFinanceHold() {
+      return canManageFinanceWorkflow()
+        && resource.data.statusClaim == 'Posted'
+        && request.resource.data.statusClaim == 'Hold'
+        && workflowFieldsOnly()
+        && request.resource.data.keys().hasAll(['holdReason', 'holdAt', 'holdAtMs', 'holdBy', 'workflowTimestamps', 'historyLog'])
+        && request.resource.data.holdReason is string
+        && request.resource.data.holdReason.size() > 0
+        && request.resource.data.holdReason.size() <= 500
+        && request.resource.data.holdAt is string
+        && request.resource.data.holdAtMs is int
+        && request.resource.data.holdAtMs > 0
+        && request.resource.data.holdBy == request.auth.token.email
+        && request.resource.data.isArchived == true
+        && request.resource.data.workflowTimestamps.get('holdAt', null) == request.resource.data.holdAtMs
+        && preservesPostedAudit()
+        && hasWorkflowHistory();
+    }
+
+    function validFinanceReturn() {
+      return canManageFinanceWorkflow()
+        && resource.data.statusClaim in ['Posted', 'Hold']
+        && request.resource.data.statusClaim == 'Returned by Finance'
+        && workflowFieldsOnly()
+        && request.resource.data.keys().hasAll(['returnReason', 'returnedAt', 'returnedAtMs', 'returnedBy', 'workflowTimestamps', 'historyLog'])
+        && request.resource.data.returnReason is string
+        && request.resource.data.returnReason.size() > 0
+        && request.resource.data.returnReason.size() <= 500
+        && request.resource.data.returnedAt is string
+        && request.resource.data.returnedAtMs is int
+        && request.resource.data.returnedAtMs > 0
+        && request.resource.data.returnedBy == request.auth.token.email
+        && request.resource.data.isArchived == false
+        && request.resource.data.workflowTimestamps.get('returnedAt', null) == request.resource.data.returnedAtMs
+        && preservesPostedAudit()
+        && hasWorkflowHistory()
+        && (resource.data.statusClaim != 'Hold'
+          || !request.resource.data.keys().hasAny(['holdReason', 'holdAt', 'holdAtMs', 'holdBy']));
+    }
+
+    function validFinanceCancelPaid() {
+      return canManageFinanceWorkflow()
+        && resource.data.statusClaim == 'Paid'
+        && request.resource.data.statusClaim == 'Posted'
+        && (isAdmin() || resource.data.paymentBy == request.auth.token.email)
+        && workflowFieldsOnly()
+        && request.resource.data.lastPaymentCancellation is map
+        && request.resource.data.lastPaymentCancellation.reason is string
+        && request.resource.data.lastPaymentCancellation.reason.size() > 0
+        && request.resource.data.lastPaymentCancellation.reason.size() <= 500
+        && request.resource.data.lastPaymentCancellation.cancelledAtMs is int
+        && request.resource.data.lastPaymentCancellation.cancelledBy == request.auth.token.email
+        && !request.resource.data.keys().hasAny(['paymentAt', 'paymentAtMs', 'paymentDate', 'paymentBy', 'paymentReference'])
+        && request.resource.data.workflowTimestamps.get('paidAt', null) == null
+        && request.resource.data.isArchived == true
+        && preservesPostedAudit()
+        && hasWorkflowHistory();
+    }
+
+    function validFinanceReleaseHold() {
+      return canManageFinanceWorkflow()
+        && resource.data.statusClaim == 'Hold'
+        && request.resource.data.statusClaim == 'Posted'
+        && workflowFieldsOnly()
+        && request.resource.data.lastHoldRelease is map
+        && request.resource.data.lastHoldRelease.reason is string
+        && request.resource.data.lastHoldRelease.reason.size() > 0
+        && request.resource.data.lastHoldRelease.reason.size() <= 500
+        && request.resource.data.lastHoldRelease.releasedAtMs is int
+        && request.resource.data.lastHoldRelease.releasedBy == request.auth.token.email
+        && !request.resource.data.keys().hasAny(['holdReason', 'holdAt', 'holdAtMs', 'holdBy'])
+        && request.resource.data.workflowTimestamps.get('holdAt', null) == null
+        && request.resource.data.isArchived == true
+        && preservesPostedAudit()
+        && hasWorkflowHistory();
+    }
+
+    function validFinanceWorkflowUpdate() {
+      return validFinancePaid()
+        || validFinanceHold()
+        || validFinanceReturn()
+        || validFinanceCancelPaid()
+        || validFinanceReleaseHold();
+    }
+
+    match /claims/{claimId} {
+      allow read: if signedIn();
+      allow create: if canEditAccountingClaims()
+                    && validClaimShape()
+                    && !(request.resource.data.statusClaim in ['Paid', 'Hold', 'Returned by Finance'])
+                    && (request.resource.data.statusClaim != 'Posted' || isAdmin())
+                    && request.resource.data._version == 1;
+      allow update: if validClaimShape()
+                    && request.resource.data.id == resource.data.id
+                    && request.resource.data._version == resource.data._version + 1
+                    && (validAccountingUpdate() || validAdminReversePosted() || validFinanceWorkflowUpdate());
+      allow delete: if isAdmin()
+        && existsAfter(/databases/$(database)/documents/claimDeletions/$(claimId));
+    }
+
+    // Tombstone membuat penghapusan tetap tersinkron ke perangkat yang sempat
+    // offline tanpa harus membaca ulang seluruh collection claims.
+    match /claimDeletions/{claimId} {
+      allow read: if signedIn();
+      allow create: if isAdmin() && validDeletionTombstone(claimId);
+      allow update: if isAdmin()
+        && validDeletionTombstone(claimId)
+        && request.resource.data.deletedAt >= resource.data.deletedAt;
+      allow delete: if false;
+    }
+
+    match /userRoles/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.data.role in ['admin', 'user', 'finance', 'viewer'];
+      allow delete: if isAdmin();
+    }
+
+    match /activityLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if canCreateAuditEvent()
+        && request.resource.data.keys().hasAll(['time', 'ts', 'user', 'action', 'actorUid', 'source'])
+        && request.resource.data.time is string
+        && request.resource.data.time.size() <= 80
+        && request.resource.data.ts is number
+        && request.resource.data.user is string
+        && request.resource.data.user.size() <= 200
+        && request.resource.data.action is string
+        && request.resource.data.action.size() <= 600
+        && request.resource.data.actorUid is string
+        && request.resource.data.actorUid.size() <= 200
+        && request.resource.data.source == 'application'
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.user == request.auth.token.email
+        && request.resource.data.actorRole == currentRole();
+      // Retry dengan Event ID yang sama boleh menulis ulang payload identik.
+      // Field apa pun tetap tidak dapat diubah, sehingga log secara logis immutable.
+      allow update: if canCreateAuditEvent()
+        && request.resource.data == resource.data
+        && resource.data.source == 'application'
+        && resource.data.actorUid == request.auth.uid
+        && resource.data.user == request.auth.token.email
+        && resource.data.actorRole == currentRole();
+      allow delete: if isAdmin();
+    }
+
+    match /appData/{documentId} {
+      allow read: if signedIn()
+        && documentId in ['gl', 'karyawan', 'slaCalendar', 'slaSettings'];
+      allow write: if isAdmin()
+        && documentId in ['gl', 'karyawan', 'slaCalendar', 'slaSettings'];
+    }
+  }
+}
