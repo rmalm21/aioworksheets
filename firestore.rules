@@ -5,12 +5,14 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function rolePath() { return /databases/$(database)/documents/userRoles/$(request.auth.uid); }
     function hasRoleDocument() { return signedIn() && exists(rolePath()); }
-    function currentRole() { return hasRoleDocument() ? get(rolePath()).data.role : 'viewer'; }
+    function storedRole() { return hasRoleDocument() ? get(rolePath()).data.role : 'viewer'; }
+    function currentRole() { return storedRole() == 'user' ? 'accounting' : storedRole(); }
     function isAdmin() { return currentRole() == 'admin'; }
     function isFinance() { return currentRole() == 'finance'; }
-    function canEditAccountingClaims() { return currentRole() in ['admin', 'user']; }
+    function canEditAccountingClaims() { return currentRole() in ['admin', 'accounting']; }
     function canManageFinanceWorkflow() { return currentRole() in ['admin', 'finance']; }
-    function canCreateAuditEvent() { return currentRole() in ['admin', 'user', 'finance', 'viewer']; }
+    function canCreateAuditEvent() { return currentRole() in ['admin', 'accounting', 'finance', 'viewer']; }
+    function auditRoleMatches(role) { return role == currentRole() || (currentRole() == 'accounting' && role == 'user'); }
 
     function validClaimShape() {
       return request.resource.data.keys().hasAll([
@@ -51,6 +53,8 @@ service cloud.firestore {
         'holdReason', 'holdAt', 'holdAtMs', 'holdBy',
         'returnReason', 'returnedAt', 'returnedAtMs', 'returnedBy',
         'lastPaymentCancellation', 'lastHoldRelease',
+        'cancelReason', 'canceledAt', 'canceledAtMs', 'canceledBy',
+        'reactivateReason', 'reactivatedAt', 'reactivatedAtMs', 'reactivatedBy', 'isInactive',
         'workflowTimestamps', 'isArchived', 'waitingApprovalAt',
         'reviseStep', 'reviseTime', 'reviseTimestamp', 'reviseNote',
         'historyLog', '_version', '_updatedAt', '_updatedAtMs', '_updatedBy'
@@ -71,13 +75,60 @@ service cloud.firestore {
 
     function validAccountingUpdate() {
       return canEditAccountingClaims()
-        && !(resource.data.statusClaim in ['Posted', 'Paid', 'Hold'])
+        && !(resource.data.statusClaim in ['Posted', 'Paid', 'Hold', 'Canceled'])
         && request.resource.data.statusClaim in ['In Process', 'Revisi', 'Waiting Approval', 'Posted', 'Returned by Finance']
         && (request.resource.data.statusClaim != 'Returned by Finance' || resource.data.statusClaim == 'Returned by Finance')
         && (request.resource.data.statusClaim != 'Posted'
           || (workflowFieldsOnly()
             && request.resource.data.keys().hasAll(['postedAt', 'postedBy', 'workflowTimestamps', 'historyLog'])
             && request.resource.data.isArchived == true));
+    }
+
+    function validAccountingCancel() {
+      return canEditAccountingClaims()
+        && !(resource.data.statusClaim in ['Posted', 'Paid', 'Hold', 'Canceled'])
+        && request.resource.data.statusClaim == 'Canceled'
+        && workflowFieldsOnly()
+        && request.resource.data.keys().hasAll([
+          'cancelReason', 'canceledAt', 'canceledAtMs', 'canceledBy',
+          'workflowTimestamps', 'historyLog', 'isInactive', 'isArchived'
+        ])
+        && request.resource.data.cancelReason is string
+        && request.resource.data.cancelReason.size() > 0
+        && request.resource.data.cancelReason.size() <= 500
+        && request.resource.data.canceledAt is string
+        && request.resource.data.canceledAt.size() > 0
+        && request.resource.data.canceledAtMs is int
+        && request.resource.data.canceledAtMs > 0
+        && request.resource.data.canceledBy == request.auth.token.email
+        && request.resource.data.isInactive == true
+        && request.resource.data.isArchived == true
+        && request.resource.data.workflowTimestamps.get('canceledAt', null) == request.resource.data.canceledAtMs
+        && hasWorkflowHistory();
+    }
+
+    function validAccountingReverseCancel() {
+      return canEditAccountingClaims()
+        && resource.data.statusClaim == 'Canceled'
+        && resource.data.get('isInactive', false) == true
+        && request.resource.data.statusClaim == 'In Process'
+        && workflowFieldsOnly()
+        && request.resource.data.keys().hasAll([
+          'reactivateReason', 'reactivatedAt', 'reactivatedAtMs', 'reactivatedBy',
+          'workflowTimestamps', 'historyLog', 'isInactive', 'isArchived'
+        ])
+        && request.resource.data.reactivateReason is string
+        && request.resource.data.reactivateReason.size() > 0
+        && request.resource.data.reactivateReason.size() <= 500
+        && request.resource.data.reactivatedAt is string
+        && request.resource.data.reactivatedAt.size() > 0
+        && request.resource.data.reactivatedAtMs is int
+        && request.resource.data.reactivatedAtMs > 0
+        && request.resource.data.reactivatedBy == request.auth.token.email
+        && request.resource.data.isInactive == false
+        && request.resource.data.isArchived == false
+        && request.resource.data.workflowTimestamps.get('reactivatedAt', null) == request.resource.data.reactivatedAtMs
+        && hasWorkflowHistory();
     }
 
     function validAdminReversePosted() {
@@ -207,13 +258,13 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if canEditAccountingClaims()
                     && validClaimShape()
-                    && !(request.resource.data.statusClaim in ['Paid', 'Hold', 'Returned by Finance'])
+                    && !(request.resource.data.statusClaim in ['Paid', 'Hold', 'Returned by Finance', 'Canceled'])
                     && (request.resource.data.statusClaim != 'Posted' || isAdmin())
                     && request.resource.data._version == 1;
       allow update: if validClaimShape()
                     && request.resource.data.id == resource.data.id
                     && request.resource.data._version == resource.data._version + 1
-                    && (validAccountingUpdate() || validAdminReversePosted() || validFinanceWorkflowUpdate());
+                    && (validAccountingUpdate() || validAccountingCancel() || validAccountingReverseCancel() || validAdminReversePosted() || validFinanceWorkflowUpdate());
       allow delete: if isAdmin()
         && existsAfter(/databases/$(database)/documents/claimDeletions/$(claimId));
     }
@@ -233,7 +284,7 @@ service cloud.firestore {
       allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
       allow list: if isAdmin();
       allow create, update: if isAdmin()
-        && request.resource.data.role in ['admin', 'user', 'finance', 'viewer'];
+        && request.resource.data.role in ['admin', 'accounting', 'finance', 'viewer'];
       allow delete: if isAdmin();
     }
 
@@ -253,7 +304,7 @@ service cloud.firestore {
         && request.resource.data.source == 'application'
         && request.resource.data.actorUid == request.auth.uid
         && request.resource.data.user == request.auth.token.email
-        && request.resource.data.actorRole == currentRole();
+        && auditRoleMatches(request.resource.data.actorRole);
       // Retry dengan Event ID yang sama boleh menulis ulang payload identik.
       // Field apa pun tetap tidak dapat diubah, sehingga log secara logis immutable.
       allow update: if canCreateAuditEvent()
@@ -261,15 +312,18 @@ service cloud.firestore {
         && resource.data.source == 'application'
         && resource.data.actorUid == request.auth.uid
         && resource.data.user == request.auth.token.email
-        && resource.data.actorRole == currentRole();
+        && auditRoleMatches(resource.data.actorRole);
       allow delete: if isAdmin();
     }
 
     match /appData/{documentId} {
-      allow read: if signedIn()
-        && documentId in ['gl', 'karyawan', 'slaCalendar', 'slaSettings'];
+      // uiTextSettings berisi copy/label antarmuka saja. Read dibuat publik agar
+      // override login page sudah dapat diterapkan sebelum pengguna login.
+      allow read: if documentId == 'uiTextSettings'
+        || (signedIn() && documentId in ['gl', 'karyawan', 'slaCalendar', 'slaSettings'])
+        || (isAdmin() && documentId == 'activityLogState');
       allow write: if isAdmin()
-        && documentId in ['gl', 'karyawan', 'slaCalendar', 'slaSettings'];
+        && documentId in ['gl', 'karyawan', 'slaCalendar', 'slaSettings', 'activityLogState', 'uiTextSettings'];
     }
   }
 }

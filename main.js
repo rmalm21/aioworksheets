@@ -307,8 +307,6 @@ function toggleDarkMode() {
         localStorage.setItem('otsukaDarkMode', 'false');
     }
     renderDarkModeButton();
-    // Grafik digambar ke canvas, jadi warnanya tidak ikut berubah lewat CSS.
-    if(typeof window.refreshWorksheetCharts === 'function') window.refreshWorksheetCharts();
 }
 // Init Dark Mode
 if (localStorage.getItem('otsukaDarkMode') === 'true') {
@@ -349,7 +347,8 @@ function updateBackButtonVisibility() {
 }
 window.exportStatistikExcel = function() {
     const statisticRange = normalizeReportingRange(window.filterDatesStatistik);
-    let baseStat = filterClaimsByReportingRange(dbRekap, window.filterDatesStatistik);
+    const analyticsSource = dbRekap.filter(item => typeof isClaimActiveForAnalytics === 'function' ? isClaimActiveForAnalytics(item) : String(item && item.statusClaim || '') !== 'Canceled');
+    let baseStat = filterClaimsByReportingRange(analyticsSource, window.filterDatesStatistik);
 
     if (baseStat.length === 0) return showToast("Tidak terdapat data pada periode Statistik yang dipilih.", "error");
 
@@ -372,7 +371,7 @@ window.exportStatistikExcel = function() {
     let sortedKeys = Object.keys(trendMap).sort((a, b) => a.localeCompare(b));
     let trendSheetData = sortedKeys.length > 0 ? sortedKeys.map(k => ({ "Periode Waktu": trendMap[k].display, "Volume Klaim (Dokumen)": trendMap[k].count })) : [{"Periode Waktu": "Tidak ada data", "Volume Klaim (Dokumen)": 0}];
 
-    let basePengaju = filterClaimsByReportingRange(dbRekap, window.filterDatesPengaju);
+    let basePengaju = filterClaimsByReportingRange(analyticsSource, window.filterDatesPengaju);
     let empMap = {};
     basePengaju.forEach(d => {
         let key = `${d.nik}_${d.nama}`;
@@ -386,7 +385,7 @@ window.exportStatistikExcel = function() {
         "Frekuensi Pengajuan": emp.count, "Mata Uang": currency, "Total Nominal": total
     }))) : [{"Peringkat berdasarkan Frekuensi": "-", "NIK Karyawan": "-", "Nama Karyawan": "Tidak ada data", "Frekuensi Pengajuan": 0, "Mata Uang": "-", "Total Nominal": 0}];
 
-    let baseRevise = filterClaimsByReportingRange(dbRekap, window.filterDatesRevisi);
+    let baseRevise = filterClaimsByReportingRange(analyticsSource, window.filterDatesRevisi);
     let reviseMap = {};
     baseRevise.forEach(d => {
         let slaDays = calculateSLADays(d), revCount = 0;
@@ -473,9 +472,11 @@ window.refreshActiveViewSilently = function() {
     schedulePostSaveMaintenance();
     let menu = window.currentOpenMenu;
     if (menu === 'claim-rekap') renderRekapTable();
-else if (menu === 'waiting-approval') renderWaitingTable();
+    else if (menu === 'in-process' && typeof renderInProcessTable === 'function') renderInProcessTable();
+    else if (menu === 'waiting-approval') renderWaitingTable();
     else if (menu === 'claim-revise') renderReviseConfirm();
     else if (menu === 'history') renderHistoryTable();
+    else if (menu === 'canceled' && typeof renderCanceledTable === 'function') renderCanceledTable();
     else if (menu === 'super-find') renderSuperFindTable();
     else if (menu === 'statistik' && typeof renderStatistikData === 'function') renderStatistikData();
     else if (menu === 'claim-quick' && typeof updateQuickWorkflowControls === 'function') updateQuickWorkflowControls();
@@ -592,13 +593,24 @@ function sanitizeTimelineNote(value) {
         .replace(/&lt;(\/?)strike(?:\s+style=&quot;[^&]*&quot;)?&gt;/gi, '<$1strike>');
 }
 
+function getTimelineTone(title, type) {
+    if(type === 'adjust') return {chip:'Penyesuaian', cls:'is-adjust', color:'#c13b4d'};
+    const value = String(title || '').toLowerCase();
+    if(value.includes('cancel')) return {chip:'Canceled', cls:'is-canceled', color:'#be123c'};
+    if(value.includes('paid')) return {chip:'Paid', cls:'is-paid', color:'#0f8b69'};
+    if(value.includes('posted')) return {chip:'Posted', cls:'is-posted', color:'#0780b7'};
+    if(value.includes('revisi') || value.includes('revision')) return {chip:'Revisi', cls:'is-revision', color:'#b67a00'};
+    if(value.includes('waiting')) return {chip:'Approval', cls:'is-waiting', color:'#7c5bb1'};
+    if(value.includes('return')) return {chip:'Returned', cls:'is-returned', color:'#c15d39'};
+    return {chip:'Status', cls:'', color:'#1684b8'};
+}
+
 function renderMergedTimelineContent(data, tlContainer) {
     tlContainer.innerHTML = '';
     let allEvents = [];
-    
     if (data.historyLog) {
         data.historyLog.forEach(log => {
-            allEvents.push({ type: 'status', timeVal: parseHistoryTime(log.time).getTime(), timeStr: log.time, title: log.status, by: log.by, note: log.note });
+            allEvents.push({ type:'status', timeVal:parseHistoryTime(log.time).getTime(), timeStr:log.time, title:log.status, by:log.by, note:log.note });
         });
     }
     if (data.adjustments) {
@@ -610,20 +622,20 @@ function renderMergedTimelineContent(data, tlContainer) {
             let txtDiff = currencyChanged ? `(Mata uang ${oldCurrency} → ${newCurrency}; tanpa konversi kurs)` : (diff > 0 ? `(Naik ${formatMoney(Math.abs(diff), newCurrency)})` : `(Turun ${formatMoney(Math.abs(diff), newCurrency)})`);
             let noteStr = `Data diubah dari ${formatMoney(adj.oldVal, oldCurrency)} menjadi ${formatMoney(adj.newVal, newCurrency)} ${txtDiff}.`;
             if (adj.note) noteStr += ` | Alasan: <strong>${adj.note}</strong>`;
-            allEvents.push({ type: 'adjust', timeVal: parseHistoryTime(adj.date).getTime(), timeStr: adj.date, title: `🔧 Penyesuaian Nominal`, by: adj.by, note: noteStr });
+            allEvents.push({ type:'adjust', timeVal:parseHistoryTime(adj.date).getTime(), timeStr:adj.date, title:'Penyesuaian Nominal', by:adj.by, note:noteStr });
         });
     }
-    allEvents.sort((a,b) => a.timeVal - b.timeVal);
-    
-    if (allEvents.length > 0) {
-        allEvents.forEach(ev => {
-            let dotColor = ev.type === 'adjust' ? '#dc3545' : '#0050A0';
-            let ext = ev.note ? `<div class="timeline-note" style="border-top-color:${dotColor} !important;">${sanitizeTimelineNote(ev.note)}</div>` : '';
-            tlContainer.innerHTML += `<div class="timeline-item"><div class="timeline-dot" style="background:${dotColor} !important;"></div><div class="timeline-content"><strong>${escapeTimelineText(ev.title)}</strong><span>${escapeTimelineText(ev.timeStr)} | Oleh: ${formatActorUsernameHtml(ev.by)}</span>${ext}</div></div>`; 
-        });
-    } else {
-        tlContainer.innerHTML = `<span style="font-size:11px; color:#777;">Belum ada history tracker.</span>`; 
+    allEvents.sort((a,b) => b.timeVal - a.timeVal);
+    if (!allEvents.length) {
+        tlContainer.innerHTML = `<div class="timeline-empty">Belum ada riwayat status.</div>`;
+        return;
     }
+    tlContainer.innerHTML = allEvents.map(ev => {
+        const tone = getTimelineTone(ev.title, ev.type);
+        const ext = ev.note ? `<div class="timeline-note" style="border-left-color:${tone.color} !important;">${sanitizeTimelineNote(ev.note)}</div>` : '';
+        return `<div class="timeline-item"><div class="timeline-dot" style="background:${tone.color} !important;"></div><div class="timeline-content"><span class="timeline-event-chip ${tone.cls}">${escapeTimelineText(tone.chip)}</span><strong>${escapeTimelineText(ev.title)}</strong><span>${escapeTimelineText(ev.timeStr)} · Oleh: ${formatActorUsernameHtml(ev.by)}</span>${ext}</div></div>`;
+    }).join('');
+    if(typeof window.applyWorksheetTranslations === 'function') window.applyWorksheetTranslations(tlContainer);
 }
 
 // --- SLA ENGINE (KERJA H+1, SKIP WEEKEND/HOLIDAY) ---
@@ -1021,6 +1033,7 @@ function calculateSLADays(item) {
 }
 
 function renderSLABadge(item) {
+    if(typeof isCanceledClaim === 'function' && isCanceledClaim(item)) return `<span class="badge status-canceled" title="Claim inactive dan tidak dihitung dalam SLA/statistik">Inactive</span>`;
     let sla = calculateSLADays(item);
     let isPaused = (item.statusClaim === 'Revisi');
     let modeTxt = window.slaMode === 'calendar_days' ? 'Kalender' : 'Kerja';
@@ -1306,10 +1319,18 @@ let tempId = currentEditingId;
                 if(await window.restoreClaimsAfterConflict(error)) return;
                 return showToast('Data gagal disimpan ke perangkat. Form tetap dibuka.', 'error');
             }
-            currentEditingId = null;
+            const addedAdjustment = !!existingOldData && (claimData.adjustments || []).length > (existingOldData.adjustments || []).length;
+            const stayAfterAdjustment = Number(window.adjustmentStayClaimId) === Number(claimData.id) || addedAdjustment;
             logActivity(sessionUser, existing ? `Pembaruan Input Klaim ID: ${claimData.id}` : `Penambahan Klaim Baru ID: ${claimData.id}`);
 
             if(statusBaru === 'Posted') showRTPAnimation();
+            if(stayAfterAdjustment) {
+                currentEditingId = claimData.id;
+                window.adjustmentStayClaimId = null;
+                showToast('Perubahan dan adjustment berhasil disimpan. Data tetap terbuka.', 'success');
+                return claimData.id;
+            }
+            currentEditingId = null;
             runLoader("Menyimpan...", () => { changeMenu('claim-rekap'); showToast('Data berhasil disimpan', 'success'); });
         }
 
@@ -1663,11 +1684,14 @@ let adjNoteInput = document.getElementById('qk-adj-note');
             logActivity(sessionUser, existing ? `Pembaruan Input Cepat Klaim ID: ${claimData.id}` : `Penambahan Klaim melalui Input Cepat ID: ${claimData.id}`);
 
             if(statusBaru === 'Posted') showRTPAnimation();
-            if(saveOptions.stayOnForm || saveOptions.openStatusAfterSave) {
+            const adjustmentChanged = !!existingOldData && (claimData.adjustments || []).length > (existingOldData.adjustments || []).length;
+            const stayAfterAdjustment = Number(window.adjustmentStayClaimId) === Number(savedClaimId) || adjustmentChanged;
+            if(saveOptions.stayOnForm || saveOptions.openStatusAfterSave || stayAfterAdjustment) {
                 currentEditingId = savedClaimId;
                 viewMode = false;
                 updateQuickWorkflowControls();
-                showToast('Perubahan Input Cepat berhasil disimpan pada perangkat.', 'success');
+                if(stayAfterAdjustment) window.adjustmentStayClaimId = null;
+                showToast(stayAfterAdjustment ? 'Perubahan dan adjustment berhasil disimpan. Data tetap terbuka.' : 'Perubahan Input Cepat berhasil disimpan pada perangkat.', 'success');
                 if(saveOptions.openStatusAfterSave) openStatusModal(savedClaimId);
                 return savedClaimId;
             }
@@ -1721,8 +1745,8 @@ let adjNoteInput = document.getElementById('qk-adj-note');
         }
 
         function buildClaimStatusBadge(item) {
-            const canChange = (canEditClaims() && !isFinalClaimStatus(item.statusClaim))
-                || (canManageFinanceWorkflow() && getAllowedStatusTransitions(item).length > 0);
+            const transitions = getAllowedStatusTransitions(item);
+            const canChange = transitions.length > 0 && (canEditClaims() || canManageFinanceWorkflow());
             return canChange
                 ? `<span class="badge ${getClaimStatusClass(item.statusClaim)} clickable" onclick="openStatusModal(${item.id})">${item.statusClaim} ✏️</span>`
                 : `<span class="badge ${getClaimStatusClass(item.statusClaim)}" title="Status klaim">${item.statusClaim}</span>`;
@@ -1762,7 +1786,7 @@ let tipeInfo = item.tipe + (item.extNo ? `<br><span class="badge status-process"
                 let detailBtn = '';
 if (item.detailNota) {
     detailBtn = `<button class="btn" style="background:#d4edda; color:#155724; border:1px solid #c3e6cb; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Lihat Rincian Nota">🧾</button>`;
-} else if (!isFinalClaimStatus(item.statusClaim) && canEditClaims()) {
+} else if (!isClaimFinanciallyLocked(item) && canEditClaims()) {
     detailBtn = `<button class="btn" style="background:#eef4fc; color:#0050A0; border:1px solid #cce0f5; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Buat Rincian Nota">➕</button>`;
 } else {
     detailBtn = `<button class="btn" style="background:#f8f9fa; color:#6c757d; border:1px solid #dee2e6; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; opacity:0.6; cursor:not-allowed; margin-left:4px;" title="Detail kosong (Sudah Posted)" disabled>🧾 </button>`;
@@ -1894,7 +1918,7 @@ let tipeInfo = item.tipe + (item.extNo ? `<br><span class="badge status-process"
                 let detailBtn = '';
 if (item.detailNota) {
     detailBtn = `<button class="btn" style="background:#d4edda; color:#155724; border:1px solid #c3e6cb; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Lihat Rincian Nota">🧾</button>`;
-} else if (!isFinalClaimStatus(item.statusClaim) && canEditClaims()) {
+} else if (!isClaimFinanciallyLocked(item) && canEditClaims()) {
     detailBtn = `<button class="btn" style="background:#eef4fc; color:#0050A0; border:1px solid #cce0f5; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Buat Rincian Nota">➕</button>`;
 } else {
     detailBtn = `<button class="btn" style="background:#f8f9fa; color:#6c757d; border:1px solid #dee2e6; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; opacity:0.6; cursor:not-allowed; margin-left:4px;" title="Detail kosong (Sudah Posted)" disabled>🧾</button>`;
@@ -1954,7 +1978,7 @@ window.renderWaitingTable = function() {
         let ent = item.entitas || '-'; let detailBtn = '';
 if (item.detailNota) {
     detailBtn = `<button class="btn" style="background:#d4edda; color:#155724; border:1px solid #c3e6cb; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Lihat Rincian Nota">🧾</button>`;
-} else if (!isFinalClaimStatus(item.statusClaim) && canEditClaims()) {
+} else if (!isClaimFinanciallyLocked(item) && canEditClaims()) {
     detailBtn = `<button class="btn" style="background:#eef4fc; color:#0050A0; border:1px solid #cce0f5; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Buat Rincian Nota">➕</button>`;
 } else {
     detailBtn = `<button class="btn" style="background:#f8f9fa; color:#6c757d; border:1px solid #dee2e6; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; opacity:0.6; cursor:not-allowed; margin-left:4px;" title="Detail kosong (Sudah Posted)" disabled>🧾</button>`;
@@ -1970,127 +1994,88 @@ let actionBtns = isFinanceRole()
     });
 };
 
-window.patchPaginationUIFixed = function() {
-    document.querySelectorAll('select[id$="-rows-per-page"]').forEach(sel => {
-        let opt200 = sel.querySelector('option[value="200"]');
-        if(opt200) opt200.innerText = '200 baris'; else sel.insertAdjacentHTML('beforeend', '<option value="200">200 baris</option>');
-    });
-    ['rekap', 'hist', 'kar'].forEach(mod => {
-        let container = document.querySelector(`#${mod}-page-info`)?.parentElement;
-        if (container && !container.querySelector('.jump-box-native')) {
-            let funcName = mod === 'rekap' ? 'rekap' : mod === 'hist' ? 'history' : 'karyawan';
-            container.insertAdjacentHTML('beforeend', `<div class="jump-box-native" style="margin-left:15px; font-size:12px; font-weight:bold; color:#0050A0; display:inline-flex; align-items:center;">Loncat Hal: <input type="number" min="1" style="width:50px; padding:3px; margin-left:5px; border:1px solid #0050A0; border-radius:4px; text-align:center; outline:none;" onkeydown="if(event.key==='Enter') executeJumpPage('${funcName}', this)"></div>`);
-        }
-    });
+
+window.inProcessCurrentPage = Number(window.inProcessCurrentPage) || 1;
+window.inProcessRowsPerPage = Number(window.inProcessRowsPerPage) || 20;
+window.canceledCurrentPage = Number(window.canceledCurrentPage) || 1;
+window.canceledRowsPerPage = Number(window.canceledRowsPerPage) || 20;
+
+window.renderInProcessTable = function() {
+    const tbody = document.getElementById('tbody-in-process');
+    if(!tbody) return;
+    const baseData = dbRekap.filter(item => ['In Process', 'Returned by Finance'].includes(String(item.statusClaim || '')) && !isCanceledClaim(item));
+    const filtered = getFilteredAndSortedData('in-process', baseData);
+    const maxPage = Math.ceil(filtered.length / window.inProcessRowsPerPage) || 1;
+    window.inProcessCurrentPage = Math.min(Math.max(1, window.inProcessCurrentPage), maxPage);
+    const start = (window.inProcessCurrentPage - 1) * window.inProcessRowsPerPage;
+    const pageRows = filtered.slice(start, start + window.inProcessRowsPerPage);
+    const pageInfo = document.getElementById('in-process-page-info');
+    if(pageInfo) pageInfo.textContent = `Halaman ${window.inProcessCurrentPage} / ${maxPage} (${filtered.length} Data)`;
+    if(!pageRows.length) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:24px; color:#94a3b8;">Tidak ada claim aktif pada filter ini.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = pageRows.map(item => `<tr>
+        <td><strong>${escapeTimelineText(item.noPR || item.extNo || '-')}</strong></td>
+        <td>${escapeTimelineText(item.tglProses || '-')}</td>
+        <td>${escapeTimelineText(item.tglSubmit || '-')}</td>
+        <td>${escapeTimelineText(item.nik || '-')}</td>
+        <td><strong>${escapeTimelineText(item.nama || '-')}</strong></td>
+        <td>${escapeTimelineText(item.entitas || '-')}</td>
+        <td>${escapeTimelineText(item.tipe || '-')}</td>
+        <td><strong>${formatClaimMoney(item)}</strong></td>
+        <td>${buildClaimStatusBadge(item)}</td>
+    </tr>`).join('');
 };
-window.executeJumpPage = function(module, inputEl) {
-    let page = parseInt(inputEl.value); if (!page || page < 1) return;
-    if (module === 'rekap') { rekapCurrentPage = page; renderRekapTable(); }
-    else if (module === 'history') { histCurrentPage = page; renderHistoryTable(); }
-    else if (module === 'waiting') { window.waitingCurrentPage = page; renderWaitingTable(); }
-    else if (module === 'karyawan') { karCurrentPage = page; renderMasterKaryawan(); }
-    inputEl.value = ''; 
+
+window.openClaimNoteDetail = function(id, type = 'cancel') {
+    const item = dbRekap.find(row => Number(row.id) === Number(id));
+    if(!item) return;
+    const title = document.getElementById('note-detail-title');
+    const body = document.getElementById('note-detail-body');
+    const meta = document.getElementById('note-detail-meta');
+    if(!title || !body || !meta) return;
+    const isCancel = type === 'cancel';
+    title.textContent = isCancel ? 'Detail Catatan Cancel' : 'Detail Catatan';
+    const note = isCancel ? (item.cancelReason || '-') : (item.reviseNote || item.quickNote || '-');
+    meta.innerHTML = `<span>${escapeTimelineText(item.noPR || item.extNo || item.id)}</span><span>${escapeTimelineText(item.nama || '-')}</span>`;
+    body.textContent = note;
+    document.getElementById('modal-note-detail').style.display = 'flex';
+    if(typeof window.applyWorksheetTranslations === 'function') window.applyWorksheetTranslations(document.getElementById('modal-note-detail'));
 };
-setInterval(patchPaginationUIFixed, 1500);
 
-        // --- REKAP PAGINATION & 2 VIEWS RENDER ---
-
-        let rekapCurrentPage = 1; let rekapRowsPerPage = 20;
-        function changeRekapRows() { rekapRowsPerPage = parseInt(document.getElementById('rekap-rows-per-page').value); rekapCurrentPage = 1; renderRekapTable(); }
-        function nextRekapPage() { rekapCurrentPage++; renderRekapTable(); }
-        function prevRekapPage() { if(rekapCurrentPage > 1) { rekapCurrentPage--; renderRekapTable(); } }
-
-        function toggleRekapView(mode) {
-            if(mode === 'list') {
-                document.getElementById('rekap-list-view').style.display = 'block';
-                document.getElementById('rekap-folder-view').style.display = 'none';
-                document.getElementById('btn-rekap-list').className = 'btn btn-primary';
-                document.getElementById('btn-rekap-folder').className = 'btn btn-secondary';
-            } else {
-                document.getElementById('rekap-list-view').style.display = 'none';
-                document.getElementById('rekap-folder-view').style.display = 'block';
-                document.getElementById('btn-rekap-folder').className = 'btn btn-primary';
-                document.getElementById('btn-rekap-list').className = 'btn btn-secondary';
-                renderRekapFolder(getFilteredAndSortedData('rekap', dbRekap));
-            }
-        }
-
-        function renderRekapFolder(filteredData) {
-            let container = document.getElementById('rekap-folder-view');
-            container.innerHTML = '';
-            if(filteredData.length === 0) {
-                container.innerHTML = '<p style="font-style:italic; color:#777;">Tidak ada data rekapitulasi.</p>';
-                return;
-            }
-
-            let groups = {};
-            filteredData.forEach(d => {
-                let p = d.tglProses ? d.tglProses.split('/') : [];
-                let ym = p.length === 3 ? `${p[2]} - ${p[1]}` : 'Unknown';
-                if(!groups[ym]) groups[ym] = [];
-                groups[ym].push(d);
-            });
-
-            let sortedYM = Object.keys(groups).sort((a,b) => b.localeCompare(a));
-
-            sortedYM.forEach(ym => {
-                let html = `<div class="folder-group"><div class="folder-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='none'?'block':'none'">📁 Bulan/Tahun Proses: ${ym} <span>(${groups[ym].length} Item)</span></div><div class="folder-content" style="display:none;"><div class="table-responsive" style="border:none;"><table class="std-table"><thead>
-                    <tr>
-                        <th width="70">Aksi</th>
-<th width="80">No. <span class="th-filter-icon" onclick="openExcelFilter(event, 'noPR_extNo', 'rekap')">▼</span></th>
-                        <th>NIK <span class="th-filter-icon" onclick="openExcelFilter(event, 'nik', 'rekap')">▼</span></th>
-                        <th>Nama Karyawan <span class="th-filter-icon" onclick="openExcelFilter(event, 'nama', 'rekap')">▼</span></th>
-                        <th>Entitas <span class="th-filter-icon" onclick="openExcelFilter(event, 'entitas', 'rekap')">▼</span></th>
-                        <th>Tipe Pengajuan <span class="th-filter-icon" onclick="openExcelFilter(event, 'tipe', 'rekap')">▼</span></th>
-                        <th>Tgl Proses <span class="th-filter-icon" onclick="openExcelFilter(event, 'tglProses', 'rekap')">▼</span></th>
-                        <th>Tgl Submit <span class="th-filter-icon" onclick="openExcelFilter(event, 'tglSubmit', 'rekap')">▼</span></th>
-                        <th>Total Amount <span class="th-filter-icon" onclick="openExcelFilter(event, 'totalHeader', 'rekap')">▼</span></th>
-                        <th>Tgl Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentAtDate', 'rekap')">▼</span></th>
-                        <th>PIC Pymnt <span class="th-filter-icon" onclick="openExcelFilter(event, 'paymentBy', 'rekap')">▼</span></th>
-                        <th>Diinput Oleh <span class="th-filter-icon" onclick="openExcelFilter(event, 'inputBy', 'rekap')">▼</span></th>
-                        <th>Status Data <span class="th-filter-icon" onclick="openExcelFilter(event, 'statusClaim', 'rekap')">▼</span></th>
-                    </tr>
-                </thead><tbody>`;
-                
-                groups[ym].forEach(item => {
-                    let ent = item.entitas || '-'; 
-let tipeInfo = item.tipe + (item.extNo ? `<br><span class="badge status-process" style="font-size:10px; font-weight:bold; background:#0050A0; color:white; padding:2px 4px; margin-top:3px; display:inline-block;">🔢 No: ${item.extNo}</span>` : '');
-let sClass = getClaimStatusClass(item.statusClaim);
-                    
-                    let detailBtn = '';
-if (item.detailNota) {
-    detailBtn = `<button class="btn" style="background:#d4edda; color:#155724; border:1px solid #c3e6cb; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Lihat Rincian Nota">🧾</button>`;
-} else if (!isFinalClaimStatus(item.statusClaim) && canEditClaims()) {
-    detailBtn = `<button class="btn" style="background:#eef4fc; color:#0050A0; border:1px solid #cce0f5; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Buat Rincian Nota">➕</button>`;
-} else {
-    detailBtn = `<button class="btn" style="background:#f8f9fa; color:#6c757d; border:1px solid #dee2e6; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; opacity:0.6; cursor:not-allowed; margin-left:4px;" title="Detail kosong (Sudah Posted)" disabled>🧾</button>`;
-}
-
-let actionBtns = isFinalClaimStatus(item.statusClaim) 
-    ? `<button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="Lihat data">👁️</button> ${detailBtn}` 
-    : `${canEditClaims() ? `<button class="btn-icon" onclick="openEditRoute(${item.id})" title="Ubah data">✏️</button>` : `<button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="Lihat data">👁️</button>`} ${isAppAdmin() ? `<button class="btn-icon" style="color:#dc3545;" onclick="deleteClaim(${item.id})" title="Hapus">🗑️</button>` : ''} ${detailBtn}`;
-                    let btnStatus = buildClaimStatusBadge(item);
-
-                    html += `<tr>
-                        <td>${actionBtns}</td>
-                        <td><strong>${item.noPR || item.extNo || '-'}</strong></td>
-                        <td>${item.nik}</td>
-                        <td><strong>${item.nama}</strong></td>
-                        <td><span class="badge status-revise">${ent}</span></td>
-                        <td>${tipeInfo}</td>
-                        <td>${item.tglProses || '-'}</td>
-                        <td>${item.tglSubmit}</td>
-                        <td><strong style="color:#0050A0;">${formatClaimMoney(item)}</strong></td>
-                        <td>${formatPaymentDate(item)}</td>
-                        <td>${formatActorUsernameHtml(item.paymentBy)}</td>
-                        <td><span style="font-size:11px;color:#666;">${formatActorUsernameHtml(item.inputBy)}</span></td>
-                        <td>${btnStatus}</td>
-                    </tr>`;
-                });
-                html += `</tbody></table></div></div></div>`;
-                container.innerHTML += html;
-            });
-        }
+window.renderCanceledTable = function() {
+    const tbody = document.getElementById('tbody-canceled');
+    if(!tbody) return;
+    const baseData = dbRekap.filter(item => isCanceledClaim(item));
+    const filtered = getFilteredAndSortedData('canceled', baseData);
+    const maxPage = Math.ceil(filtered.length / window.canceledRowsPerPage) || 1;
+    window.canceledCurrentPage = Math.min(Math.max(1, window.canceledCurrentPage), maxPage);
+    const start = (window.canceledCurrentPage - 1) * window.canceledRowsPerPage;
+    const pageRows = filtered.slice(start, start + window.canceledRowsPerPage);
+    const pageInfo = document.getElementById('canceled-page-info');
+    if(pageInfo) pageInfo.textContent = `Halaman ${window.canceledCurrentPage} / ${maxPage} (${filtered.length} Data)`;
+    if(!pageRows.length) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:24px; color:#94a3b8;">Tidak ada claim canceled pada filter ini.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = pageRows.map(item => {
+        const reason = String(item.cancelReason || '-');
+        const preview = reason.length > 70 ? `${reason.slice(0,70)}…` : reason;
+        return `<tr>
+            <td><strong>${escapeTimelineText(item.noPR || item.extNo || '-')}</strong></td>
+            <td>${escapeTimelineText(formatCanceledDate(item))}</td>
+            <td>${formatActorUsernameHtml(item.canceledBy)}</td>
+            <td>${escapeTimelineText(item.tglSubmit || '-')}</td>
+            <td>${escapeTimelineText(item.nik || '-')}</td>
+            <td><strong>${escapeTimelineText(item.nama || '-')}</strong></td>
+            <td>${escapeTimelineText(item.entitas || '-')}</td>
+            <td>${escapeTimelineText(item.tipe || '-')}</td>
+            <td><strong>${formatClaimMoney(item)}</strong></td>
+            <td class="canceled-status-cell"><div class="canceled-status-row">${buildClaimStatusBadge(item)}<button type="button" class="btn btn-secondary status-note-detail-btn" onclick="openClaimNoteDetail(${item.id},'cancel')">Detail Catatan</button></div><div class="canceled-note-preview">${escapeTimelineText(preview)}</div></td>
+        </tr>`;
+    }).join('');
+};
 
         function renderRekapTable() {
             let tbodyRekap = document.getElementById('tbody-main-rekap');
@@ -2119,13 +2104,13 @@ let sClass = getClaimStatusClass(item.statusClaim);
                 let detailBtn = '';
 if (item.detailNota) {
     detailBtn = `<button class="btn" style="background:#d4edda; color:#155724; border:1px solid #c3e6cb; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Lihat Rincian Nota">🧾</button>`;
-} else if (!isFinalClaimStatus(item.statusClaim) && canEditClaims()) {
+} else if (!isClaimFinanciallyLocked(item) && canEditClaims()) {
     detailBtn = `<button class="btn" style="background:#eef4fc; color:#0050A0; border:1px solid #cce0f5; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Buat Rincian Nota">➕</button>`;
 } else {
     detailBtn = `<button class="btn" style="background:#f8f9fa; color:#6c757d; border:1px solid #dee2e6; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; opacity:0.6; cursor:not-allowed; margin-left:4px;" title="Detail kosong (Sudah Posted)" disabled>🧾</button>`;
 }
 
-let actionBtns = isFinalClaimStatus(item.statusClaim) 
+let actionBtns = isClaimFinanciallyLocked(item) 
     ? `<button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="Lihat data">👁️</button> ${detailBtn}` 
     : `${canEditClaims() ? `<button class="btn-icon" onclick="openEditRoute(${item.id})" title="Ubah data">✏️</button>` : `<button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="Lihat data">👁️</button>`} ${isAppAdmin() ? `<button class="btn-icon" style="color:#dc3545;" onclick="deleteClaim(${item.id})" title="Hapus">🗑️</button>` : ''} ${detailBtn}`;
                 let btnStatus = buildClaimStatusBadge(item);
@@ -2275,7 +2260,7 @@ let tipeInfo = item.tipe + (item.extNo ? `<br><span class="badge status-process"
     let detailBtn = '';
 if (item.detailNota) {
     detailBtn = `<button class="btn" style="background:#d4edda; color:#155724; border:1px solid #c3e6cb; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Lihat Rincian Nota">🧾</button>`;
-} else if (!isFinalClaimStatus(item.statusClaim) && canEditClaims()) {
+} else if (!isClaimFinanciallyLocked(item) && canEditClaims()) {
     detailBtn = `<button class="btn" style="background:#eef4fc; color:#0050A0; border:1px solid #cce0f5; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Buat Rincian Nota">➕</button>`;
 } else {
     detailBtn = `<button class="btn" style="background:#f8f9fa; color:#6c757d; border:1px solid #dee2e6; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; opacity:0.6; cursor:not-allowed; margin-left:4px;" title="Detail kosong (Sudah Posted)" disabled>🧾</button>`;
@@ -2405,6 +2390,7 @@ function renderReviseConfirm() {
 function getAllowedStatusTransitions(data) {
     if(!data || sessionRole === 'viewer') return [];
     const current = data.statusClaim;
+    if(typeof isCanceledClaim === 'function' && isCanceledClaim(data)) return canEditClaims() ? ['In Process'] : [];
     if(canManageFinanceWorkflow() && current === 'Posted') return ['Paid', 'Hold', 'Returned by Finance'];
     if(canManageFinanceWorkflow() && current === 'Hold') return ['Paid', 'Posted', 'Returned by Finance'];
     if(canManageFinanceWorkflow() && current === 'Paid') {
@@ -2412,7 +2398,7 @@ function getAllowedStatusTransitions(data) {
         return ['Posted'];
     }
     if(isFinanceRole()) return [];
-    if(canEditClaims() && !isFinalClaimStatus(current)) return ['In Process', 'Revisi', 'Waiting Approval', 'Posted'];
+    if(canEditClaims() && !isFinalClaimStatus(current)) return ['In Process', 'Revisi', 'Waiting Approval', 'Posted', 'Canceled'];
     return [];
 }
 
@@ -2427,6 +2413,7 @@ const STATUS_TRANSITION_PRESENTATION = Object.freeze({
     Revisi: { icon:'↺', tone:'revision', label:'Revisi', description:'Kembalikan untuk perbaikan' },
     'Waiting Approval': { icon:'⌛', tone:'waiting', label:'Menunggu Persetujuan', description:'Kirim ke antrean persetujuan' },
     Posted: { icon:'✓', tone:'posted', label:'Posted', description:'Selesaikan proses RTP' },
+    Canceled: { icon:'×', tone:'canceled', label:'Canceled', description:'Nonaktifkan claim dan keluarkan dari statistik' },
     Paid: { icon:'◆', tone:'paid', label:'Paid', description:'Catat penyelesaian pembayaran' },
     Hold: { icon:'Ⅱ', tone:'hold', label:'Hold', description:'Tahan proses dengan alasan' },
     'Returned by Finance': { icon:'↩', tone:'returned', label:'Dikembalikan ke Accounting', description:'Kembalikan untuk tindak lanjut' }
@@ -2490,6 +2477,10 @@ function openStatusModal(id) {
     saveStatusButton.disabled = false;
     document.getElementById('modal-payment-reference').value = '';
     document.getElementById('modal-finance-reason').value = '';
+    const cancelReasonInput = document.getElementById('modal-cancel-reason');
+    if(cancelReasonInput) cancelReasonInput.value = '';
+    const reactivateReasonInput = document.getElementById('modal-reactivate-reason');
+    if(reactivateReasonInput) reactivateReasonInput.value = '';
     if((data.statusClaim === 'Revisi' || data.statusClaim === 'Waiting Approval') && data.reviseStep) {
         document.getElementById('modal-select-revise').value = data.reviseStep;
         document.getElementById('modal-revise-notes').value = data.reviseNote || '';
@@ -2499,7 +2490,7 @@ function openStatusModal(id) {
     renderMergedTimelineContent(data, document.getElementById('timeline-list'));
     const realStatusCount = (data.historyLog || []).filter(isWorkflowStatusLog).length;
     const btnUndo = document.getElementById('btn-undo-status');
-    if(btnUndo) btnUndo.style.display = (isAppAdmin() && realStatusCount > 1 && !isFinalClaimStatus(data.statusClaim) && data.statusClaim !== 'Returned by Finance') ? 'inline-block' : 'none';
+    if(btnUndo) btnUndo.style.display = (isAppAdmin() && realStatusCount > 1 && !isClaimFinanciallyLocked(data) && data.statusClaim !== 'Returned by Finance') ? 'inline-block' : 'none';
     document.getElementById('modal-status').style.display = 'flex';
     if(typeof window.applyWorksheetTranslations === 'function') window.applyWorksheetTranslations(document.getElementById('modal-status'));
 
@@ -2526,6 +2517,10 @@ function toggleReviseSub() {
     const oldStatus = item ? item.statusClaim : '';
     const financeAction = isFinanceWorkflowTransition(oldStatus, stat);
     document.getElementById('modal-revise-options').style.display = stat === 'Revisi' ? 'block' : 'none';
+    const cancelOptions = document.getElementById('modal-cancel-options');
+    if(cancelOptions) cancelOptions.style.display = stat === 'Canceled' ? 'block' : 'none';
+    const reactivateOptions = document.getElementById('modal-reactivate-options');
+    if(reactivateOptions) reactivateOptions.style.display = oldStatus === 'Canceled' && stat === 'In Process' ? 'block' : 'none';
     document.getElementById('modal-finance-options').style.display = financeAction ? 'block' : 'none';
     document.getElementById('modal-payment-reference-group').style.display = financeAction && stat === 'Paid' ? 'block' : 'none';
     const reasonRequired = financeAction && (stat === 'Hold' || stat === 'Returned by Finance' || (oldStatus === 'Paid' && stat === 'Posted') || (oldStatus === 'Hold' && stat === 'Posted'));
@@ -2558,7 +2553,11 @@ window.saveStatus = async function() {
     const revNote = document.getElementById('modal-revise-notes').value.trim();
     const paymentReference = document.getElementById('modal-payment-reference').value.trim();
     const financeReason = document.getElementById('modal-finance-reason').value.trim();
+    const cancelReason = String(document.getElementById('modal-cancel-reason')?.value || '').trim();
+    const reactivateReason = String(document.getElementById('modal-reactivate-reason')?.value || '').trim();
     if(stat === 'Revisi' && !revNote) return showToast('Alasan revisi wajib diisi.', 'error');
+    if(stat === 'Canceled' && !cancelReason) return showToast('Alasan cancel wajib diisi.', 'error');
+    if(oldStatus === 'Canceled' && stat === 'In Process' && !reactivateReason) return showToast('Alasan reverse cancel wajib diisi.', 'error');
     if(financeAction && stat === 'Paid' && !paymentReference) return showToast('Referensi pembayaran wajib diisi sebelum status diubah menjadi Paid.', 'error');
     const needsFinanceReason = financeAction && (stat === 'Hold' || stat === 'Returned by Finance' || (oldStatus === 'Paid' && stat === 'Posted') || (oldStatus === 'Hold' && stat === 'Posted'));
     if(needsFinanceReason && !financeReason) return showToast('Alasan atau catatan Finance wajib diisi untuk tindakan ini.', 'error');
@@ -2604,7 +2603,7 @@ window.saveStatus = async function() {
                 item.paymentDate = actionDate.toLocaleDateString('id-ID', {day:'2-digit', month:'2-digit', year:'numeric'});
                 item.paymentBy = actor; item.paymentReference = paymentReference;
                 item.workflowTimestamps.paidAt = timeMs;
-                logNote = `Referensi Pembayaran: ${paymentReference}${oldStatus === 'Hold' ? ' | Diproses dari status Hold.' : ''}`;
+                logNote = `Ref Pymnt: ${paymentReference}${oldStatus === 'Hold' ? ' | Diproses dari status Hold.' : ''}`;
             } else if(stat === 'Hold') {
                 item.statusClaim = 'Hold'; item.isArchived = true;
                 item.holdReason = financeReason; item.holdAt = timeStrWorkflow; item.holdAtMs = timeMs; item.holdBy = actor;
@@ -2639,22 +2638,49 @@ window.saveStatus = async function() {
                 logNote = financeReason;
             }
         } else {
-            if(stat === 'In Process' && !item.workflowTimestamps.processStartedAt) item.workflowTimestamps.processStartedAt = timeMs;
-            if(stat === 'Revisi') item.workflowTimestamps.revisionAt = timeMs;
-            if(stat === 'Waiting Approval') item.workflowTimestamps.waitingApprovalAt = timeMs;
-            if(stat === 'Posted') item.workflowTimestamps.completedAt = timeMs;
-            if(revisionCleared) item.workflowTimestamps.revisionClearedAt = timeMs;
-            if(stat === 'Waiting Approval' && oldStatus !== 'Waiting Approval') item.waitingApprovalAt = timeMs;
-            item.statusClaim = stat;
-            if(stat === 'Revisi') {
-                item.reviseStep = revStep; item.reviseNote = revNote; item.reviseTime = timeStrHistory; item.reviseTimestamp = timeMs;
-                logStatus = `${stat} - ${revStep}`; logNote = revNote;
-            } else {
+            if(oldStatus === 'Canceled' && stat === 'In Process') {
+                item.statusClaim = 'In Process';
+                item.isInactive = false;
+                item.isArchived = false;
+                item.reactivateReason = reactivateReason;
+                item.reactivatedAt = timeStrWorkflow;
+                item.reactivatedAtMs = timeMs;
+                item.reactivatedBy = actor;
+                item.workflowTimestamps.reactivatedAt = timeMs;
+                logStatus = 'Canceled → In Process';
+                logNote = reactivateReason;
+                actionType = 'accounting-cancel-reverse';
+            } else if(stat === 'Canceled') {
+                item.statusClaim = 'Canceled';
+                item.isInactive = true;
+                item.isArchived = true;
+                item.cancelReason = cancelReason;
+                item.canceledAt = timeStrWorkflow;
+                item.canceledAtMs = timeMs;
+                item.canceledBy = actor;
+                item.workflowTimestamps.canceledAt = timeMs;
                 item.reviseStep = null; item.reviseTime = null; item.reviseTimestamp = null; item.reviseNote = null;
-                if(revisionCleared && revNote) logNote = revNote;
+                logStatus = 'Canceled';
+                logNote = cancelReason;
+                actionType = 'accounting-cancel';
+            } else {
+                if(stat === 'In Process' && !item.workflowTimestamps.processStartedAt) item.workflowTimestamps.processStartedAt = timeMs;
+                if(stat === 'Revisi') item.workflowTimestamps.revisionAt = timeMs;
+                if(stat === 'Waiting Approval') item.workflowTimestamps.waitingApprovalAt = timeMs;
+                if(stat === 'Posted') item.workflowTimestamps.completedAt = timeMs;
+                if(revisionCleared) item.workflowTimestamps.revisionClearedAt = timeMs;
+                if(stat === 'Waiting Approval' && oldStatus !== 'Waiting Approval') item.waitingApprovalAt = timeMs;
+                item.statusClaim = stat;
+                if(stat === 'Revisi') {
+                    item.reviseStep = revStep; item.reviseNote = revNote; item.reviseTime = timeStrHistory; item.reviseTimestamp = timeMs;
+                    logStatus = `${stat} - ${revStep}`; logNote = revNote;
+                } else {
+                    item.reviseStep = null; item.reviseTime = null; item.reviseTimestamp = null; item.reviseNote = null;
+                    if(revisionCleared && revNote) logNote = revNote;
+                }
+                item.isArchived = stat === 'Posted';
+                if(stat === 'Posted') { item.postedAt = timeStrWorkflow; item.postedBy = actor; }
             }
-            item.isArchived = stat === 'Posted';
-            if(stat === 'Posted') { item.postedAt = timeStrWorkflow; item.postedBy = actor; }
         }
 
         const logEntry = {status: logStatus, time: timeStrHistory, by: actor, actionType};
@@ -2757,7 +2783,7 @@ let claimSnapshotQueue = Promise.resolve();
 let globalDataProgressCounter = 0;
 let activeGlobalDataProgressId = 0;
 let globalDataProgressHideTimer = null;
-window.unsubClaims = null; window.unsubClaimDeletions = null; window.unsubGL = null; window.unsubKar = null; window.unsubLogs = null; window.unsubCalendar = null;
+window.unsubClaims = null; window.unsubClaimDeletions = null; window.unsubGL = null; window.unsubKar = null; window.unsubLogs = null; window.unsubLogState = null; window.unsubCalendar = null;
 
 function clonePlain(value) { return JSON.parse(JSON.stringify(value)); }
 function parseStoredJson(key, fallback) {
@@ -3017,7 +3043,7 @@ function buildRestorePlan(normalizedPayload, currentClaims = dbRekap) {
         const currentClaim = currentMap.get(id);
         if(!currentClaim) createCount++;
         else if(claimComparable(currentClaim) === claimComparable(backupClaim)) unchangedCount++;
-        else if(isFinalClaimStatus(currentClaim.statusClaim)) {
+        else if(isClaimFinanciallyLocked(currentClaim)) {
             protectedFinalCount++;
             protectedFinalIds.push(id);
             return;
@@ -3460,6 +3486,14 @@ function buildClaimDeltaQuery() {
 
 function ensureActivityLogSubscription(generation = cloudListenerGeneration) {
     if(!isAppAdmin() || typeof window.fbOnSnapshot !== 'function' || typeof window.fbCollection !== 'function') return;
+    if(typeof window.unsubLogState !== 'function' && typeof window.fbDoc === 'function') {
+        const cleanupStateRef = window.fbDoc(window.firebaseDb, 'appData', 'activityLogState');
+        window.unsubLogState = window.fbOnSnapshot(cleanupStateRef, snapshot => {
+            if(generation !== cloudListenerGeneration || !snapshot.exists()) return;
+            const cutoffMs = Number(snapshot.data() && snapshot.data().cutoffMs) || 0;
+            if(cutoffMs > 0 && typeof window.applyActivityLogCleanupCutoff === 'function') window.applyActivityLogCleanupCutoff(cutoffMs);
+        }, error => console.error('[Activity Log] Cleanup state listener gagal:', error));
+    }
     if(typeof window.unsubLogs === 'function') return;
     const activityWatermark = typeof getActivityLogSyncWatermark === 'function' ? getActivityLogSyncWatermark() : 0;
     const logsRef = activityWatermark > 0
@@ -3475,11 +3509,14 @@ function ensureActivityLogSubscription(generation = cloudListenerGeneration) {
         );
     window.unsubLogs = window.fbOnSnapshot(logsRef, snapshot => {
         if(generation !== cloudListenerGeneration) return;
-        const remoteLogs = snapshot.docChanges()
+        const changes = snapshot.docChanges();
+        const removedIds = new Set(changes.filter(change => change.type === 'removed').map(change => String(change.doc.id)));
+        const remoteLogs = changes
             .filter(change => change.type !== 'removed')
             .map(change => ({ id: change.doc.id, ...change.doc.data() }));
         const latestRemoteTs = remoteLogs.reduce((max, log) => Math.max(max, Number(log.ts) || 0), activityWatermark || 0);
-        cacheActivityLogs(mergeActivityLogRows(remoteLogs, activityLogs, activityLogOutbox));
+        const keptLocal = activityLogs.filter(entry => !removedIds.has(String(entry && (entry.eventId || entry.id) || '')));
+        cacheActivityLogs(mergeActivityLogRows(remoteLogs, keptLocal, activityLogOutbox));
         if(typeof setActivityLogSyncWatermark === 'function') setActivityLogSyncWatermark(latestRemoteTs || Date.now());
     }, error => console.error('[Activity Log] Listener gagal:', error));
 }
@@ -3551,9 +3588,10 @@ function loadFromCloud() {
     const karRef = window.fbDoc(window.firebaseDb, 'appData', 'karyawan');
     const calendarRef = window.fbDoc(window.firebaseDb, 'appData', 'slaCalendar');
     const slaSettingsRef = window.fbDoc(window.firebaseDb, 'appData', 'slaSettings');
-    [window.unsubClaims, window.unsubClaimDeletions, window.unsubGL, window.unsubKar, window.unsubLogs, window.unsubCalendar, window.unsubSlaSettings]
+    [window.unsubClaims, window.unsubClaimDeletions, window.unsubGL, window.unsubKar, window.unsubLogs, window.unsubLogState, window.unsubCalendar, window.unsubSlaSettings]
         .forEach(unsub => { if(typeof unsub === 'function') unsub(); });
     window.unsubLogs = null;
+    window.unsubLogState = null;
     claimsSnapshotInitialized = false;
     claimSnapshotQueue = Promise.resolve();
 
@@ -4135,6 +4173,15 @@ function dailyImportErrorText(errorRows, emptyPrefix = '') {
     return `${emptyPrefix}${rows.join('\n')}${remainder}`;
 }
 
+window.updateDailyRecapCounter = function() {
+    const area = document.getElementById('excel-v2-area');
+    const counter = document.getElementById('daily-recap-row-count');
+    if(!area || !counter) return;
+    const rows = String(area.value || '').split(/\r\n|\n|\r/).filter(row => row.trim()).length;
+    counter.textContent = `${rows} baris siap dibaca`;
+    if(typeof window.applyWorksheetTranslations === 'function') window.applyWorksheetTranslations(counter);
+};
+
 // Rekap Harian P6 FINAL: parsing terindeks, cache lokal dahulu, sinkronisasi delta menyusul.
 async function processExcelV2Data() {
     if(!requireClaimEditor()) return;
@@ -4266,6 +4313,7 @@ async function processExcelV2Data() {
         }
 
         input.value = '';
+        if(typeof window.updateDailyRecapCounter === 'function') window.updateDailyRecapCounter();
         if(typeof rekapCurrentPage !== 'undefined') rekapCurrentPage = 1;
         changeMenu('claim-rekap');
         schedulePostSaveMaintenance();
@@ -4399,13 +4447,14 @@ window.bulkPosted = function(source = 'rekap') {
         let actionDate = customDateVal ? new Date(customDateVal.replace(' ', 'T')) : new Date();
         if(Number.isNaN(actionDate.getTime())) return showToast('Tanggal atau jam perubahan massal ke Posted tidak valid.', 'error');
 
-        let count = 0; 
+        let count = 0;
+        const postedIds = [];
         let timeNowHistory = actionDate.toLocaleString('id-ID', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
         let timeNowRTP = actionDate.toLocaleString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
 
         ids.forEach(id => {
             let index = dbRekap.findIndex(i => i.id === id);
-            if(index !== -1 && !isFinalClaimStatus(dbRekap[index].statusClaim)) {
+            if(index !== -1 && !isClaimFinanciallyLocked(dbRekap[index])) {
                 dbRekap[index].statusClaim = 'Posted'; 
                 dbRekap[index].postedAt = timeNowRTP; 
                 dbRekap[index].postedBy = sessionUser; 
@@ -4413,7 +4462,8 @@ window.bulkPosted = function(source = 'rekap') {
                 if(!dbRekap[index].workflowTimestamps) dbRekap[index].workflowTimestamps = {};
                 dbRekap[index].workflowTimestamps.completedAt = actionDate.getTime();
                 if(!dbRekap[index].historyLog) dbRekap[index].historyLog = []; 
-                dbRekap[index].historyLog.push({status: "Posted", time: timeNowHistory, by: sessionUser}); 
+                dbRekap[index].historyLog.push({status: "Posted", time: timeNowHistory, by: sessionUser});
+                postedIds.push(id);
                 count++;
             }
         });
@@ -4424,7 +4474,7 @@ window.bulkPosted = function(source = 'rekap') {
             else { window.globalSelections[source].clear(); }
             document.querySelectorAll(`thead input[type="checkbox"]`).forEach(cb => cb.checked = false);
             
-            try { await saveDataToLocal({ claimIds: ids }); }
+            try { await saveDataToLocal({ claimIds: postedIds }); }
             catch(error) {
                 if(await window.restoreClaimsAfterConflict(error)) return;
                 return showToast('Perubahan status massal gagal disimpan pada perangkat.', 'error');
@@ -4432,7 +4482,7 @@ window.bulkPosted = function(source = 'rekap') {
             logActivity(sessionUser, `Perubahan Massal ke Posted dari Modul ${source}: ${count} data`);
             refreshActiveViewSilently(); showRTPAnimation(); 
         } else { 
-            showToast('Seluruh data yang dipilih telah berstatus Posted.', 'info'); 
+            showToast('Tidak ada data terpilih yang dapat diubah menjadi Posted.', 'info'); 
         }
     };
 
@@ -4713,6 +4763,7 @@ window.openModalAddAdjust = function() {
         window.adjustmentSaveInProgress = true;
         try {
             await saveDataToLocal({ claimIds: [data.id] });
+            window.adjustmentStayClaimId = data.id;
             logActivity(sessionUser, `Penyesuaian Berulang Klaim ID ${data.id} sebesar ${formatMoney(realNominal, currency)}`);
         } catch(error) {
             if(await window.restoreClaimsAfterConflict(error)) return;
@@ -4869,6 +4920,7 @@ window.exportExecutiveExcel = function() {
     let ly = { qty:0, amounts:{}, rev:0, posted:0, slaNum:0, slaDenum:0 };
 
     dbRekap.forEach(d => {
+        if(typeof isClaimActiveForAnalytics === 'function' && !isClaimActiveForAnalytics(d)) return;
         const dDate = reportingDateForClaim(d); if(!dDate) return;
 
         let isRev = d.statusClaim === 'Revisi' || d.statusClaim === 'Confirm' || (d.historyLog && d.historyLog.some(l => l.status.toLowerCase().includes('revisi'))) ? 1 : 0;
@@ -4968,6 +5020,7 @@ window.renderExecutiveDashboard = function() {
     let ly = { qty:0, amounts:{}, rev:0, posted:0, slaNum:0, slaDenum:0 };
 
     dbRekap.forEach(d => {
+        if(typeof isClaimActiveForAnalytics === 'function' && !isClaimActiveForAnalytics(d)) return;
         const dDate = reportingDateForClaim(d); if(!dDate) return;
 
         let isRev = d.statusClaim === 'Revisi' || d.statusClaim === 'Confirm' || (d.historyLog && d.historyLog.some(l => l.status.toLowerCase().includes('revisi'))) ? 1 : 0;
@@ -4992,29 +5045,26 @@ window.renderExecutiveDashboard = function() {
     });
 
     const calcPct = (curr, past) => past === 0 ? (curr > 0 ? 100 : 0) : ((curr - past) / past) * 100;
-    // Chip pertumbuhan: untuk metrik revisi, naik berarti memburuk.
     const formatPct = (pct, isRevLogic = false) => {
-        if(!isFinite(pct)) pct = 0;
-        const rising = pct > 0, falling = pct < 0;
-        const tone = (!rising && !falling) ? 'flat' : ((rising !== isRevLogic) ? 'good' : 'bad');
-        const arrow = rising ? '▲' : falling ? '▼' : '▪';
-        return `<span class="exec-delta is-${tone}">${arrow} ${Math.abs(pct).toFixed(1)}%</span>`;
+        if (pct > 0) return `<span style="color:${isRevLogic ? '#dc3545' : '#28a745'}; font-weight:bold;">▲ ${pct.toFixed(1)}%</span>`;
+        if (pct < 0) return `<span style="color:${isRevLogic ? '#28a745' : '#dc3545'}; font-weight:bold;">▼ ${Math.abs(pct).toFixed(1)}%</span>`;
+        return `<span style="color:#6c757d; font-weight:bold;">▪ 0%</span>`;
     };
 
     // Tambahkan parameter isPct agar angka SLA otomatis mendapat imbuhan "%"
     const buildRow = (label, c, p, cmtd, clm, cly, currencyCode, isRevLogic, isPct = false) => {
         let format = (val) => currencyCode ? formatMoney(val, currencyCode) : (isPct ? `${val}%` : val.toLocaleString('id-ID'));
         return `
-        <tr>
-            <th scope="row" class="exec-table-label">${label}</th>
-            <td class="exec-num exec-num-strong">${format(c)}</td>
-            <td class="exec-num exec-num-muted">${format(p)}</td>
-            <td class="exec-num exec-cell-delta">${formatPct(calcPct(c, p), isRevLogic)}</td>
-            <td class="exec-num exec-num-strong exec-band-start">${format(cmtd)}</td>
-            <td class="exec-num exec-num-muted">${format(clm)}</td>
-            <td class="exec-num exec-cell-delta">${formatPct(calcPct(cmtd, clm), isRevLogic)}</td>
-            <td class="exec-num exec-num-muted exec-band-start">${format(cly)}</td>
-            <td class="exec-num exec-cell-delta">${formatPct(calcPct(cmtd, cly), isRevLogic)}</td>
+        <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:15px; font-weight:bold; color:#1e293b;">${label}</td>
+            <td style="padding:15px; text-align:right; font-weight:bold;">${format(c)}</td>
+            <td style="padding:15px; text-align:right; color:#64748b; font-size:12px;">${format(p)}</td>
+            <td style="padding:15px; text-align:right; background:#f8fbff;">${formatPct(calcPct(c, p), isRevLogic)}</td>
+            <td style="padding:15px; text-align:right; border-left: 2px solid #e2e8f0; font-weight:bold;">${format(cmtd)}</td>
+            <td style="padding:15px; text-align:right; color:#64748b; font-size:12px;">${format(clm)}</td>
+            <td style="padding:15px; text-align:right; background:#f8fbff;">${formatPct(calcPct(cmtd, clm), isRevLogic)}</td>
+            <td style="padding:15px; text-align:right; color:#64748b; font-size:12px;">${format(cly)}</td>
+            <td style="padding:15px; text-align:right; background:#f8fbff;">${formatPct(calcPct(cmtd, cly), isRevLogic)}</td>
         </tr>`;
     };
 
@@ -5029,132 +5079,73 @@ window.renderExecutiveDashboard = function() {
     let slaMtd = mtd.slaDenum > 0 ? Math.round((mtd.slaNum / mtd.slaDenum) * 100) : 0;
     let slaLm = lm.slaDenum > 0 ? Math.round((lm.slaNum / lm.slaDenum) * 100) : 0;
     let slaLy = ly.slaDenum > 0 ? Math.round((ly.slaNum / ly.slaDenum) * 100) : 0;
-
+    
     const companyTarget = Number(window.slaSettings.achievementTargetPercent) || 90;
-    const slaOnTarget = slaCp >= companyTarget;
-    let revRatioCp = cp.qty > 0 ? ((cp.rev / cp.qty) * 100).toFixed(1) : '0.0';
-    let revRatioPp = pp.qty > 0 ? ((pp.rev / pp.qty) * 100).toFixed(1) : '0.0';
-
-    // Kartu indikator ringkas dengan chip pertumbuhan dan nilai pembanding.
-    const buildKpiCard = (config) => `
-        <button type="button" class="exec-kpi exec-kpi-${config.tone}" onclick="${config.action}" title="Klik untuk membuka data pendukung">
-            <span class="exec-kpi-head">
-                <span class="exec-kpi-icon" aria-hidden="true">${config.icon}</span>
-                <span class="exec-kpi-label">${config.label}</span>
-            </span>
-            <span class="exec-kpi-value${config.compact ? ' exec-kpi-value-compact' : ''}">${config.value}</span>
-            <span class="exec-kpi-foot">
-                ${config.delta || ''}
-                <small>${config.note}</small>
-            </span>
-            <span class="exec-kpi-hint">Buka data pendukung →</span>
-        </button>`;
+    let slaColor = slaCp >= companyTarget ? '#34d399' : '#f87171';
+    let revRatioCp = cp.qty > 0 ? ((cp.rev / cp.qty) * 100).toFixed(1) : 0;
+    let revRatioPp = pp.qty > 0 ? ((pp.rev / pp.qty) * 100).toFixed(1) : 0;
 
     container.innerHTML = `
-        <section class="exec-context" aria-label="Periode analisis">
-            <div class="exec-context-item exec-context-current">
-                <small>Periode Analisis (CP)</small>
-                <strong>${cpStart.toLocaleDateString('id-ID')} – ${cpEnd.toLocaleDateString('id-ID')}</strong>
-            </div>
-            <div class="exec-context-item">
-                <small>Periode Sebelumnya (PP)</small>
-                <strong>${ppLabel}</strong>
-            </div>
-            <div class="exec-context-item">
-                <small>Total Dokumen Dibandingkan</small>
-                <strong>${(cp.qty + pp.qty).toLocaleString('id-ID')} Dokumen</strong>
-            </div>
-        </section>
+        <div class="exec-period-strip">
+            <span class="exec-period-icon" aria-hidden="true">📊</span>
+            <div><strong>Periode Analisis Saat Ini (CP)</strong><span>${cpStart.toLocaleDateString('id-ID')} s/d ${cpEnd.toLocaleDateString('id-ID')}</span></div>
+            <div class="exec-period-previous"><strong>Periode Sebelumnya (PP)</strong><span>${ppLabel}</span></div>
+        </div>
 
-        <section class="exec-kpi-grid" aria-label="Indikator utama">
-            ${buildKpiCard({
-                tone: 'volume', icon: '▤', label: 'Total Pengajuan',
-                value: `${cp.qty.toLocaleString('id-ID')} <em>Dok</em>`,
-                delta: formatPct(calcPct(cp.qty, pp.qty), false),
-                note: `Sebelumnya ${pp.qty.toLocaleString('id-ID')} Dok`,
-                action: "executeDrillDown('claim-rekap', [])"
-            })}
-            ${buildKpiCard({
-                tone: 'amount', icon: '◇', label: 'Nilai Pengajuan', compact: true,
-                value: formatCurrencyTotals(cp.amounts, true),
-                note: 'Tidak dijumlahkan lintas mata uang.',
-                action: "executeDrillDown('claim-rekap', [])"
-            })}
-            ${buildKpiCard({
-                tone: 'posted', icon: '✓', label: 'Dokumen Selesai (Posted)',
-                value: `${cp.posted.toLocaleString('id-ID')} <em>Dok</em>`,
-                delta: formatPct(calcPct(cp.posted, pp.posted), false),
-                note: `Sebelumnya ${pp.posted.toLocaleString('id-ID')} Dok`,
-                action: "executeDrillDown('history', [])"
-            })}
-        </section>
-
-        <section class="exec-highlight-grid" aria-label="Sorotan kinerja">
-            <article class="exec-highlight exec-highlight-sla${slaOnTarget ? '' : ' is-below'}">
-                <div class="exec-highlight-head">
-                    <span class="exec-highlight-title">Pencapaian SLA (≤ ${window.slaSettings.warningMaxDays} Hari)</span>
-                    <button type="button" class="exec-highlight-action" onclick="openExecSlaDetail(${cp.slaH}, ${cp.slaK}, ${cp.slaM}, ${cp.slaDenum})">Buka Detail Analitik →</button>
-                </div>
-                <div class="exec-highlight-value">${slaCp}<span>%</span></div>
-                <!-- Target perusahaan berdiri sebagai barisnya sendiri. -->
-                <div class="exec-highlight-target">
-                    <span>Target perusahaan ${companyTarget}%</span>
-                    <span class="exec-highlight-status">${slaOnTarget ? 'Target tercapai' : 'Target belum tercapai'}</span>
-                </div>
-                <div class="exec-meter" role="img" aria-label="Pencapaian ${slaCp} persen dari target ${companyTarget} persen">
-                    <i style="width:${Math.min(100, slaCp)}%;"></i>
-                    <b style="left:${Math.min(100, companyTarget)}%;"></b>
-                </div>
-                <dl class="exec-highlight-facts">
-                    <div><dt>Periode Sebelumnya (PP)</dt><dd>${slaPp}%</dd></div>
-                    <div><dt>Tepat Waktu (CP)</dt><dd>${cp.slaNum.toLocaleString('id-ID')} / ${cp.slaDenum.toLocaleString('id-ID')} Dokumen</dd></div>
-                </dl>
+        <section class="exec-kpi-grid" aria-label="Indikator utama manajemen">
+            <article class="exec-kpi-card exec-kpi-volume" onclick="executeDrillDown('claim-rekap', [])" role="button" tabindex="0">
+                <div class="exec-kpi-head"><span>Total Pengajuan</span><span class="exec-kpi-action" title="Klik untuk lihat data">🔍</span></div>
+                <div class="exec-kpi-value">${cp.qty.toLocaleString('id-ID')} <small>Dok</small></div>
+                <div class="exec-kpi-trend">${formatPct(calcPct(cp.qty, pp.qty), false)}<span>vs periode sebelumnya</span></div>
+                <div class="exec-kpi-foot">Sebelumnya <strong>${pp.qty.toLocaleString('id-ID')} Dok</strong></div>
             </article>
 
-            <article class="exec-highlight exec-highlight-revision">
-                <div class="exec-highlight-head">
-                    <span class="exec-highlight-title">Rasio Dokumen Bermasalah (Revisi)</span>
-                    <button type="button" class="exec-highlight-action" onclick="openExecRevDetail(${cp.rev}, ${cp.qty})">Buka Detail Analitik →</button>
-                </div>
-                <div class="exec-highlight-value">${revRatioCp}<span>%</span></div>
-                <div class="exec-highlight-target">
-                    <span>Semakin kecil nilainya, semakin baik.</span>
-                </div>
-                <div class="exec-meter exec-meter-warn">
-                    <i style="width:${Math.min(100, Number(revRatioCp))}%;"></i>
-                </div>
-                <dl class="exec-highlight-facts">
-                    <div><dt>Periode Sebelumnya (PP)</dt><dd>${revRatioPp}%</dd></div>
-                    <div><dt>Kasus Revisi (CP)</dt><dd>${cp.rev.toLocaleString('id-ID')} / ${cp.qty.toLocaleString('id-ID')} Dokumen</dd></div>
-                </dl>
+            <article class="exec-kpi-card exec-kpi-amount" onclick="executeDrillDown('claim-rekap', [])" role="button" tabindex="0">
+                <div class="exec-kpi-head"><span>Nilai Pengajuan</span><span class="exec-kpi-action" title="Klik untuk lihat data">🔍</span></div>
+                <div class="exec-kpi-value exec-kpi-money">${formatCurrencyTotals(cp.amounts, true)}</div>
+                <div class="exec-kpi-sub">Tidak dijumlahkan lintas mata uang.</div>
+                <div class="exec-kpi-foot exec-kpi-foot-stack"><span>Sebelumnya</span><strong>${formatCurrencyTotals(pp.amounts, true)}</strong></div>
+            </article>
+
+            <article class="exec-kpi-card exec-kpi-posted" onclick="executeDrillDown('history', [])" role="button" tabindex="0">
+                <div class="exec-kpi-head"><span>Dokumen Selesai (Posted)</span><span class="exec-kpi-action" title="Klik untuk lihat data">🔍</span></div>
+                <div class="exec-kpi-value">${cp.posted.toLocaleString('id-ID')} <small>Dok</small></div>
+                <div class="exec-kpi-trend">${formatPct(calcPct(cp.posted, pp.posted), false)}<span>vs periode sebelumnya</span></div>
+                <div class="exec-kpi-foot">Sebelumnya <strong>${pp.posted.toLocaleString('id-ID')} Dok</strong></div>
             </article>
         </section>
 
-        <section class="stats-panel exec-panel" aria-label="Analisis perbandingan tren">
-            <div class="stats-panel-header">
-                <div class="stats-panel-title"><span class="stats-panel-icon" aria-hidden="true">↗</span><div><h4>Analisis Perbandingan Tren</h4><small>Periode aktif dibandingkan periode sebelumnya</small></div></div>
-            </div>
-            <div class="chart-wrapper-locked exec-chart-wrapper"><canvas id="exec-modern-chart"></canvas></div>
+        <section class="exec-insight-grid" aria-label="Insight SLA dan revisi">
+            <article class="exec-insight-card exec-sla-card">
+                <div class="exec-insight-watermark" aria-hidden="true">⏱️</div>
+                <div class="exec-insight-head">
+                    <div><span class="exec-insight-eyebrow">SERVICE LEVEL</span><h4>Pencapaian SLA (≤ ${window.slaSettings.warningMaxDays} Hari)</h4></div>
+                    <button type="button" class="exec-detail-chip" onclick="openExecSlaDetail(${cp.slaH}, ${cp.slaK}, ${cp.slaM}, ${cp.slaDenum})">🔍 Buka Detail</button>
+                </div>
+                <div class="exec-insight-value" style="--exec-accent:${slaColor};">${slaCp}%</div>
+                <div class="exec-target-line"><span>Target Perusahaan</span><strong>≥ ${companyTarget}%</strong></div>
+                <div class="exec-insight-metrics"><div><span>Periode Sebelumnya (PP)</span><strong>${slaPp}%</strong></div><div><span>Tepat Waktu (CP)</span><strong>${cp.slaNum} / ${cp.slaDenum} dokumen</strong></div></div>
+            </article>
+
+            <article class="exec-insight-card exec-revision-card">
+                <div class="exec-insight-watermark" aria-hidden="true">⚠️</div>
+                <div class="exec-insight-head">
+                    <div><span class="exec-insight-eyebrow">QUALITY SIGNAL</span><h4>Rasio Dokumen Bermasalah (Revisi)</h4></div>
+                    <button type="button" class="exec-detail-chip" onclick="openExecRevDetail(${cp.rev}, ${cp.qty})">🔍 Buka Detail</button>
+                </div>
+                <div class="exec-insight-value" style="--exec-accent:#ff9aa6;">${revRatioCp}%</div>
+                <div class="exec-insight-note">Semakin kecil nilainya, semakin baik.</div>
+                <div class="exec-insight-metrics"><div><span>Periode Sebelumnya (PP)</span><strong>${revRatioPp}%</strong></div><div><span>Kasus Revisi (CP)</span><strong>${cp.rev} / ${cp.qty} dokumen</strong></div></div>
+            </article>
         </section>
 
-        <section class="stats-panel exec-panel" aria-label="Ringkasan tabel perbandingan">
-            <div class="stats-panel-header">
-                <div class="stats-panel-title"><span class="stats-panel-icon" aria-hidden="true">▤</span><div><h4>Ringkasan Tabel Perbandingan</h4><small>CP, MTD, dan periode sama tahun lalu</small></div></div>
-                <button class="btn stats-export-button" onclick="exportExecutiveExcel()"><span aria-hidden="true">↧</span> Unduh Excel</button>
-            </div>
+        <section class="exec-section-card exec-table-card">
+            <div class="exec-section-head"><div><span class="exec-section-icon" aria-hidden="true">▤</span><div><h4>Ringkasan Tabel Perbandingan</h4><small>CP, PP, MTD, PMTD, dan periode sama tahun lalu</small></div></div><button class="btn exec-mini-export" onclick="exportExecutiveExcel()">↧ Unduh Excel</button></div>
             <div class="table-responsive exec-table-wrap">
-                <table class="std-table exec-table">
+                <table class="std-table exec-comparison-table">
                     <thead>
                         <tr>
-                            <th scope="col" class="exec-table-corner">Komponen Analisis</th>
-                            <th scope="col">Periode Aktif (CP)</th>
-                            <th scope="col" class="exec-th-muted">Periode Sebelumnya (PP)</th>
-                            <th scope="col" class="exec-th-delta">Pertumbuhan vs PP</th>
-                            <th scope="col" class="exec-band-start">MTD (Bulan Ini)</th>
-                            <th scope="col" class="exec-th-muted">MTD Sebelumnya (PMTD)</th>
-                            <th scope="col" class="exec-th-delta">Pertumbuhan vs PMTD</th>
-                            <th scope="col" class="exec-th-muted exec-band-start">Periode Sama Tahun Lalu</th>
-                            <th scope="col" class="exec-th-delta">Pertumbuhan vs SPLY</th>
+                            <th>Komponen Analisis</th><th>Periode Aktif (CP)</th><th>Periode Sebelumnya (PP)</th><th>Pertumbuhan vs PP</th><th>MTD (Bulan Ini)</th><th>MTD Sebelumnya (PMTD)</th><th>Pertumbuhan vs PMTD</th><th>Periode Sama Tahun Lalu</th><th>Pertumbuhan vs SPLY</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -5167,124 +5158,81 @@ window.renderExecutiveDashboard = function() {
                 </table>
             </div>
         </section>
+
+        <section class="exec-section-card exec-chart-card">
+            <div class="exec-section-head"><div><span class="exec-section-icon exec-chart-icon" aria-hidden="true">↗</span><div><h4>Analisis Perbandingan Tren</h4><small>Perbandingan indikator utama antara CP dan PP</small></div></div><span class="exec-chart-badge">CP vs PP</span></div>
+            <div class="exec-chart-wrap"><canvas id="exec-modern-chart"></canvas></div>
+        </section>
     `;
 
     if(typeof window.applyWorksheetTranslations === 'function') window.applyWorksheetTranslations(container);
 
     setTimeout(() => {
-        let ctx = document.getElementById('exec-modern-chart');
-        if (ctx) {
-            const uiText = window.translateUiText || (value => value);
-            const theme = window.getChartTheme();
-            if (window.execModernChart) window.execModernChart.destroy();
-            let gQty = pp.qty === 0 ? (cp.qty > 0 ? 100 : 0) : ((cp.qty - pp.qty) / pp.qty * 100);
-            let gPosted = pp.posted === 0 ? (cp.posted > 0 ? 100 : 0) : ((cp.posted - pp.posted) / pp.posted * 100);
-            let gRev = pp.rev === 0 ? (cp.rev > 0 ? 100 : 0) : ((cp.rev - pp.rev) / pp.rev * 100);
-            let gSla = slaPp === 0 ? (slaCp > 0 ? 100 : 0) : ((slaCp - slaPp) / slaPp * 100); // Tambahan growth SLA
-            let growths = [gQty, gPosted, gRev, gSla];
-            const chartFont = () => (window.Chart && Chart.defaults.font.family) || 'sans-serif';
+        const canvas = document.getElementById('exec-modern-chart');
+        if (!canvas) return;
+        const uiText = window.translateUiText || (value => value);
+        if (window.execModernChart) window.execModernChart.destroy();
+        const chartContext = canvas.getContext('2d');
+        const cpGradient = chartContext.createLinearGradient(0, 0, 0, 320);
+        cpGradient.addColorStop(0, '#0b83bd'); cpGradient.addColorStop(1, '#56c1d7');
+        const ppGradient = chartContext.createLinearGradient(0, 0, 0, 320);
+        ppGradient.addColorStop(0, '#91a9ba'); ppGradient.addColorStop(1, '#c7d4dd');
+        let gQty = pp.qty === 0 ? (cp.qty > 0 ? 100 : 0) : ((cp.qty - pp.qty) / pp.qty * 100);
+        let gPosted = pp.posted === 0 ? (cp.posted > 0 ? 100 : 0) : ((cp.posted - pp.posted) / pp.posted * 100);
+        let gRev = pp.rev === 0 ? (cp.rev > 0 ? 100 : 0) : ((cp.rev - pp.rev) / pp.rev * 100);
+        let gSla = slaPp === 0 ? (slaCp > 0 ? 100 : 0) : ((slaCp - slaPp) / slaPp * 100);
+        let growths = [gQty, gPosted, gRev, gSla];
 
-            window.execModernChart = new Chart(ctx, {
-                data: {
-                    labels: ['Volume Pengajuan (Dok)', 'Dokumen Selesai (Posted)', 'Dokumen Direvisi', 'Pencapaian SLA (%)'].map(uiText),
-                    datasets: [
-                        {
-                            type: 'bar', label: uiText('Periode Aktif (CP)'), data: [cp.qty, cp.posted, cp.rev, slaCp],
-                            backgroundColor: context => window.buildChartGradient(context, theme.blue, theme.blueSoft),
-                            hoverBackgroundColor: context => window.buildChartGradient(context, theme.blueDeep, theme.blue),
-                            borderWidth: 0, borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 2, bottomRight: 2 },
-                            borderSkipped: false, maxBarThickness: 54, barPercentage: 0.74, categoryPercentage: 0.66
-                        },
-                        {
-                            type: 'bar', label: uiText('Periode Sebelumnya (PP)'), data: [pp.qty, pp.posted, pp.rev, slaPp],
-                            backgroundColor: context => window.buildChartGradient(context, theme.slate, theme.slateSoft),
-                            hoverBackgroundColor: theme.slate,
-                            borderWidth: 0, borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 2, bottomRight: 2 },
-                            borderSkipped: false, maxBarThickness: 54, barPercentage: 0.74, categoryPercentage: 0.66
-                        }
-                    ]
-                },
-                plugins: [{
-                    id: 'customDataLabels',
-                    afterDatasetsDraw(chart) {
-                        const { ctx } = chart;
-                        const family = chartFont();
-                        ctx.save();
-                        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-                        const metaCP = chart.getDatasetMeta(0); const metaPP = chart.getDatasetMeta(1);
-
-                        const drawValue = (meta, datasetIndex, color) => {
-                            meta.data.forEach((element, index) => {
-                                let val = chart.data.datasets[datasetIndex].data[index];
-                                if(val > 0) {
-                                    ctx.font = `800 10px ${family}`;
-                                    ctx.fillStyle = color;
-                                    let textVal = index === 3 ? val + '%' : val; // Tambahkan % khusus untuk kolom SLA
-                                    ctx.fillText(textVal, element.x, element.y - 6);
-                                }
-                            });
-                        };
-                        drawValue(metaCP, 0, theme.dark ? '#7cc6f2' : theme.blueDeep);
-                        drawValue(metaPP, 1, theme.text);
-
-                        metaCP.data.forEach((elCP, index) => {
-                            const elPP = metaPP.data[index]; let pct = growths[index];
-                            if(!isFinite(pct)) pct = 0;
-                            // Arah sudah diwakili panah, jadi angkanya ditulis tanpa tanda minus.
-                            let text = (pct > 0 ? '▲ ' : (pct < 0 ? '▼ ' : '▪ ')) + Math.abs(pct).toFixed(1) + '%';
-
-                            // Logika Warna (Index 2 adalah Dokumen Direvisi -> Semakin kecil semakin baik)
-                            let isRevLogic = index === 2; let color = theme.text;
-                            if (pct > 0) color = isRevLogic ? theme.red : theme.green;
-                            else if (pct < 0) color = isRevLogic ? theme.green : theme.red;
-
-                            let centerX = (elCP.x + elPP.x) / 2; let topY = Math.min(elCP.y, elPP.y) - 26;
-                            if (topY < 22) topY = 22;
-                            // Pil latar agar label pertumbuhan tetap terbaca di atas batang.
-                            ctx.font = `900 12px ${family}`;
-                            const padX = 8, width = ctx.measureText(text).width + padX * 2, height = 21;
-                            ctx.fillStyle = theme.dark ? 'rgba(255,255,255,.07)' : 'rgba(20,84,130,.06)';
-                            ctx.beginPath();
-                            ctx.roundRect(centerX - width / 2, topY - height + 5, width, height, 999);
-                            ctx.fill();
-                            ctx.fillStyle = color;
-                            ctx.fillText(text, centerX, topY);
+        window.execModernChart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: ['Volume Pengajuan (Dok)', 'Dokumen Selesai (Posted)', 'Dokumen Direvisi', 'Pencapaian SLA (%)'].map(uiText),
+                datasets: [
+                    { label: uiText('Periode Aktif (CP)'), data: [cp.qty, cp.posted, cp.rev, slaCp], backgroundColor: cpGradient, borderColor:'#087fbd', borderWidth:1, borderRadius:10, borderSkipped:false, barPercentage:.64, categoryPercentage:.68 },
+                    { label: uiText('Periode Sebelumnya (PP)'), data: [pp.qty, pp.posted, pp.rev, slaPp], backgroundColor: ppGradient, borderColor:'#8ba4b5', borderWidth:1, borderRadius:10, borderSkipped:false, barPercentage:.64, categoryPercentage:.68 }
+                ]
+            },
+            plugins: [{
+                id: 'executiveDataLabels',
+                afterDatasetsDraw(chart) {
+                    const {ctx} = chart; ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+                    [0,1].forEach(datasetIndex => {
+                        const meta = chart.getDatasetMeta(datasetIndex);
+                        meta.data.forEach((element, index) => {
+                            const val = chart.data.datasets[datasetIndex].data[index];
+                            if(val <= 0) return;
+                            ctx.font = '800 10px sans-serif';
+                            ctx.fillStyle = datasetIndex === 0 ? '#087fbd' : '#688294';
+                            ctx.fillText(index === 3 ? `${val}%` : val, element.x, element.y - 6);
                         });
-                        ctx.restore();
-                    }
-                }],
-                options: {
-                    responsive: true, maintainAspectRatio: false, layout: { padding: { top: 46 } },
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: window.buildChartLegend(theme),
-                        tooltip: window.buildChartTooltip(theme, {
-                            callbacks: {
-                                label: function(context) {
-                                    // Bikin tooltip cerdas, kalau index 3 kasih %, selain itu kasih 'Dokumen'
-                                    if (context.dataIndex === 3) return ' ' + context.dataset.label + ': ' + context.parsed.y + '%';
-                                    return ' ' + context.dataset.label + ': ' + uiText(context.parsed.y + ' Dokumen');
-                                }
-                            }
-                        })
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            border: { display: false },
-                            grid: { color: theme.grid, drawTicks: false },
-                            ticks: { color: theme.text, padding: 10, precision: 0, font: { size: 10, weight: '700' } },
-                            title: { display: true, text: uiText('Nilai / Volume'), color: theme.text, font: { size: 10, weight: '800' } }
-                        },
-                        x: {
-                            border: { display: false },
-                            grid: { display: false },
-                            ticks: { color: theme.text, padding: 8, font: { size: 10, weight: '700' } }
-                        }
-                    }
+                    });
+                    const metaCP = chart.getDatasetMeta(0), metaPP = chart.getDatasetMeta(1);
+                    metaCP.data.forEach((elCP, index) => {
+                        const elPP = metaPP.data[index]; const pct = growths[index];
+                        const isRevLogic = index === 2;
+                        let color = '#71869a';
+                        if(pct > 0) color = isRevLogic ? '#c94f60' : '#15966b';
+                        else if(pct < 0) color = isRevLogic ? '#15966b' : '#c94f60';
+                        const text = `${pct > 0 ? '▲ +' : (pct < 0 ? '▼ ' : '▪ ')}${Math.abs(pct).toFixed(1)}%`;
+                        let topY = Math.min(elCP.y, elPP.y) - 24; if(topY < 18) topY = 18;
+                        ctx.fillStyle = color; ctx.font = '800 11px sans-serif'; ctx.fillText(text, (elCP.x + elPP.x) / 2, topY);
+                    });
+                    ctx.restore();
                 }
-            });
-        }
+            }],
+            options: {
+                responsive:true, maintainAspectRatio:false, layout:{padding:{top:40,right:8,left:4}},
+                interaction:{mode:'index',intersect:false},
+                plugins:{
+                    legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'circle',boxWidth:8,boxHeight:8,padding:18,color:'#5f788b',font:{size:10,weight:'700'}}},
+                    tooltip:{backgroundColor:'#0f2f46',titleColor:'#fff',bodyColor:'#d9edf7',padding:12,cornerRadius:10,callbacks:{label(context){ return context.dataIndex === 3 ? `${context.dataset.label}: ${context.parsed.y}%` : `${context.dataset.label}: ${context.parsed.y} ${uiText('Dokumen')}`; }}}
+                },
+                scales:{
+                    y:{beginAtZero:true,grid:{color:'rgba(103,139,162,.12)',drawBorder:false},border:{display:false},ticks:{precision:0,color:'#71869a',font:{size:10}},title:{display:true,text:uiText('Nilai / Volume'),color:'#71869a',font:{size:10,weight:'700'}}},
+                    x:{grid:{display:false},border:{display:false},ticks:{color:'#5f788b',font:{size:10,weight:'700'},maxRotation:0,minRotation:0}}
+                }
+            }
+        });
     }, 100);
 };
 
@@ -5485,7 +5433,7 @@ let sClass = getClaimStatusClass(item.statusClaim);
         let detailBtn = '';
 if (item.detailNota) {
     detailBtn = `<button class="btn" style="background:#d4edda; color:#155724; border:1px solid #c3e6cb; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Lihat Rincian Nota">🧾</button>`;
-} else if (!isFinalClaimStatus(item.statusClaim) && canEditClaims()) {
+} else if (!isClaimFinanciallyLocked(item) && canEditClaims()) {
     detailBtn = `<button class="btn" style="background:#eef4fc; color:#0050A0; border:1px solid #cce0f5; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Buat Rincian Nota">➕</button>`;
 } else {
     detailBtn = `<button class="btn" style="background:#f8f9fa; color:#6c757d; border:1px solid #dee2e6; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; opacity:0.6; cursor:not-allowed; margin-left:4px;" title="Detail kosong (Sudah Posted)" disabled>🧾</button>`;
@@ -5493,12 +5441,12 @@ if (item.detailNota) {
 if(sessionRole === 'viewer') detailBtn = '';
 
 let actionBtn = canEditClaims()
-    ? (isFinalClaimStatus(item.statusClaim)
+    ? (isClaimFinanciallyLocked(item)
         ? `<button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="Lihat data">👁️</button> ${detailBtn}`
         : `<button class="btn-icon" onclick="openEditRoute(${item.id})" title="Ubah data">✏️</button> ${detailBtn}`)
     : `<button class="btn-icon" onclick="openStatusModal(${item.id})" title="Lihat status dan linimasa">👁️</button> ${buildFinanceWorkflowButton(item, true)}`;
         const liveFinanceAction = canManageFinanceWorkflow() && getAllowedStatusTransitions(item).length > 0;
-        let btnStatus = (canEditClaims() || liveFinanceAction)
+        let btnStatus = getAllowedStatusTransitions(item).length > 0
             ? `<span class="badge ${sClass} clickable" onclick="openStatusModal(${item.id})" title="${liveFinanceAction ? 'Ubah status Finance secara langsung' : 'Ubah status'}">${item.statusClaim} ✏️</span>`
             : `<span class="badge ${sClass}" title="Status klaim">${item.statusClaim}</span>`;
         let adjBadge = (item.adjustments && item.adjustments.length > 0) ? `<br><span style="font-size:10px; color:#dc3545; font-weight:bold;">[Disesuaikan]</span>` : '';
@@ -5634,18 +5582,19 @@ function getExportPeriodInfo(source) {
     const range = typeof getActiveModuleDateRange === 'function' ? getActiveModuleDateRange(source) : null;
     const normalized = normalizeReportingRange(range);
     const basis = source === 'history' ? 'Tanggal RTP'
-        : (source === 'super-find' ? 'Tanggal Submit'
-            : (source === 'revise' ? 'Semua Waktu (tanpa pagar tanggal)' : 'Tanggal Proses'));
+        : (source === 'canceled' ? 'Tanggal Cancel'
+            : (source === 'super-find' ? 'Tanggal Submit'
+                : (source === 'revise' ? 'Semua Waktu (tanpa pagar tanggal)' : 'Tanggal Proses')));
     if(!normalized) return { basis, period:'Semua Waktu' };
     const format = date => date.toLocaleDateString('id-ID', {day:'2-digit', month:'2-digit', year:'numeric'});
     return { basis, period:`${format(normalized[0])} s.d. ${format(normalized[1])}` };
 }
 
 const WAITING_APPROVAL_FINANCE_EXPORT_FIELDS = new Set([
-    'Tanggal Payment', 'PIC Payment', 'Payment Reference', 'Tanggal Hold', 'PIC Hold', 'Hold Reason',
+    'Tgl Pymnt', 'PIC Pymnt', 'Ref Pymnt', 'Tanggal Hold', 'PIC Hold', 'Hold Reason',
     'Tanggal Return Finance', 'PIC Return Finance', 'Alasan Return Finance', 'Cancel Paid Terakhir',
-    'PIC Cancel Paid', 'Alasan Cancel Paid', 'Tanggal Payment Dibatalkan', 'PIC Payment Dibatalkan',
-    'Payment Reference Dibatalkan', 'Release Hold Terakhir', 'PIC Release Hold', 'Catatan Release Hold',
+    'PIC Cancel Paid', 'Alasan Cancel Paid', 'Tgl Pymnt Dibatalkan', 'PIC Pymnt Dibatalkan',
+    'Ref Pymnt Dibatalkan', 'Release Hold Terakhir', 'PIC Release Hold', 'Catatan Release Hold',
     'Hold Reason Sebelumnya'
 ]);
 
@@ -5674,19 +5623,22 @@ function buildClaimSummaryExportRow(item, source = '') {
         'Input By': formatActorUsername(item.inputBy),
         'Quick Notes': item.quickNote || '-',
         'Status Terkini': item.statusClaim || '-',
+        'Tgl Cancel': typeof formatCanceledDate === 'function' ? formatCanceledDate(item) : (item.canceledAt || '-'),
+        'PIC Cancel': formatActorUsername(item.canceledBy),
+        'Alasan Cancel': item.cancelReason || '-',
         'Tanggal RTP': rtp.date,
         'Jam RTP': rtp.time,
         'PIC Posted': formatActorUsername(item.postedBy),
         'Returning Reason Accounting': typeof window.getReturningReason === 'function' ? window.getReturningReason(item) : '-',
         'Tanggal Feedback User': typeof getTglFeedback === 'function' ? getTglFeedback(item) : '-',
         'Tanggal Masuk Approval Pasca Revisi': typeof window.getWaitingApprovalAfterRevise === 'function' ? window.getWaitingApprovalAfterRevise(item) : '-',
-        'SLA Submit-RTP (Hari)': typeof calculateSLADays === 'function' ? calculateSLADays(item) : 0,
+        'SLA Submit-RTP (Hari)': isCanceledClaim(item) ? '-' : (typeof calculateSLADays === 'function' ? calculateSLADays(item) : 0),
         'History Adjustment & Catatan': typeof window.getAdjustmentHistoryText === 'function' ? stripExportMarkup(window.getAdjustmentHistoryText(item)) : '-',
 
         // BLOK FINANCE: seluruh payment, hold, return, cancel, dan release berada di kanan Accounting.
-        'Tanggal Payment': formatPaymentDate(item),
-        'PIC Payment': formatActorUsername(item.paymentBy),
-        'Payment Reference': formatPaymentReference(item),
+        'Tgl Pymnt': formatPaymentDate(item),
+        'PIC Pymnt': formatActorUsername(item.paymentBy),
+        'Ref Pymnt': formatPaymentReference(item),
         'Tanggal Hold': formatWorkflowDate(item, 'holdAt', 'holdAtMs'),
         'PIC Hold': formatActorUsername(item.holdBy),
         'Hold Reason': item.holdReason || '-',
@@ -5696,9 +5648,9 @@ function buildClaimSummaryExportRow(item, source = '') {
         'Cancel Paid Terakhir': cancellation.cancelledAt || '-',
         'PIC Cancel Paid': formatActorUsername(cancellation.cancelledBy),
         'Alasan Cancel Paid': cancellation.reason || '-',
-        'Tanggal Payment Dibatalkan': cancellation.paymentDate || '-',
-        'PIC Payment Dibatalkan': formatActorUsername(cancellation.paymentBy),
-        'Payment Reference Dibatalkan': cancellation.paymentReference || '-',
+        'Tgl Pymnt Dibatalkan': cancellation.paymentDate || '-',
+        'PIC Pymnt Dibatalkan': formatActorUsername(cancellation.paymentBy),
+        'Ref Pymnt Dibatalkan': cancellation.paymentReference || '-',
         'Release Hold Terakhir': holdRelease.releasedAt || '-',
         'PIC Release Hold': formatActorUsername(holdRelease.releasedBy),
         'Catatan Release Hold': holdRelease.reason || '-',
@@ -5724,6 +5676,9 @@ function buildClaimDetailExportRows(item, source = '') {
         'Tipe Pengajuan': item.tipe || '-',
         'Tanggal Proses': item.tglProses || '-',
         'Status Terkini': item.statusClaim || '-',
+        'Tgl Cancel': typeof formatCanceledDate === 'function' ? formatCanceledDate(item) : (item.canceledAt || '-'),
+        'PIC Cancel': formatActorUsername(item.canceledBy),
+        'Alasan Cancel': item.cancelReason || '-',
         'Tanggal RTP': rtp.date,
         'Jam RTP': rtp.time,
         'PIC Posted': formatActorUsername(item.postedBy),
@@ -5733,9 +5688,9 @@ function buildClaimDetailExportRows(item, source = '') {
     };
     const finance = source === 'waiting' ? {} : {
         // BLOK FINANCE DILETAKKAN SETELAH SELURUH RINCIAN ACCOUNTING.
-        'Tanggal Payment': formatPaymentDate(item),
-        'PIC Payment': formatActorUsername(item.paymentBy),
-        'Payment Reference': formatPaymentReference(item)
+        'Tgl Pymnt': formatPaymentDate(item),
+        'PIC Pymnt': formatActorUsername(item.paymentBy),
+        'Ref Pymnt': formatPaymentReference(item)
     };
     const rows = [];
     (item.lines || []).forEach((line, index) => rows.push({
@@ -5779,6 +5734,8 @@ window.exportDataXLSX = function(mode, source) {
     else {
         let rawBaseData = dbRekap;
         if(source === 'history') rawBaseData = dbRekap.filter(item => isCurrentHistoryClaim(item));
+        else if(source === 'canceled') rawBaseData = dbRekap.filter(item => isCanceledClaim(item));
+        else if(source === 'in-process') rawBaseData = dbRekap.filter(item => ['In Process','Returned by Finance'].includes(String(item.statusClaim || '')) && !isCanceledClaim(item));
         else if(source === 'revise') rawBaseData = typeof window.getReviseBaseData === 'function' ? window.getReviseBaseData() : dbRekap;
         else if(source === 'waiting') rawBaseData = dbRekap.filter(item => item.statusClaim === 'Waiting Approval' || item.statusClaim === 'Confirm');
         scopedData = typeof getFilteredAndSortedData === 'function' ? getFilteredAndSortedData(source, rawBaseData) : rawBaseData;
@@ -5813,7 +5770,7 @@ window.exportDataXLSX = function(mode, source) {
         'Basis Data': selectedIds.length ? 'Data dicentang dalam periode/filter aktif' : 'Sesuai filter dan urutan layar',
         'Basis Tanggal Filter': periodInfo.basis,
         'Periode Aktif': periodInfo.period,
-        'Scope Status': source === 'history' ? 'Status saat ini: Posted, Paid, atau Hold' : 'Mengikuti modul sumber',
+        'Scope Status': source === 'history' ? 'Status saat ini: Posted, Paid, atau Hold' : (source === 'canceled' ? 'Status Canceled / inactive' : 'Mengikuti modul sumber'),
         'Jumlah Claim': baseData.length,
         'Jumlah Baris Export': printData.length,
         'Waktu Export': new Date().toLocaleString('id-ID'),
@@ -6115,7 +6072,7 @@ async function processSaveDetail(data, status, newStatus, reviseNoteInput, prepa
     // Poin 5: Masukkan aktivitas Edit Rincian Nota ke History Log Pengajuan (Timeline)
     data.historyLog.push({status: "Update Rincian Nota", time: timeNow, by: sessionUser, note: `Detail nota diperbarui dan disimpan sebagai ${status}.`});
     
-    if(newStatus !== data.statusClaim && !isFinalClaimStatus(data.statusClaim)) {
+    if(newStatus !== data.statusClaim && !isClaimFinanciallyLocked(data)) {
         data.statusClaim = newStatus;
         let logEntry = {status: newStatus, time: timeNow, by: sessionUser, note: 'Status diubah saat memproses Detail Pengajuan'};
         
@@ -6212,7 +6169,7 @@ window.exportDetailExcel = function() {
         "Amount Claim": r.amtClaim === null || r.amtClaim === '' ? '' : (typeof r.amtClaim === 'number' ? r.amtClaim : parseCurrencyAmount(r.amtClaim, currency)),
         "Notes": r.note || '-',
         // FINANCE SELALU DI BAGIAN PALING KANAN.
-        "Tanggal Payment": formatPaymentDate(data), "PIC Payment": formatActorUsername(data.paymentBy), "Payment Reference": formatPaymentReference(data)
+        "Tgl Pymnt": formatPaymentDate(data), "PIC Pymnt": formatActorUsername(data.paymentBy), "Ref Pymnt": formatPaymentReference(data)
     }); });
     let ws = XLSX.utils.json_to_sheet(printData); let wb = XLSX.utils.book_new();
     setExportColumnWidths(ws, printData);

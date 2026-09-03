@@ -18,7 +18,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=p20">
 </head>
 <body>
 
@@ -224,11 +224,13 @@
     <!-- Loader -->
     <div id="loader-overlay"><div class="spinner"></div><div id="loader-text">Memuat...</div></div>
 
-    <!-- RTP Animation Screen -->
     <!-- Modal Status Update & Timeline -->
     <div id="modal-status" class="modal-overlay">
-        <div class="modal-content">
-            <h3 style="color:#0050A0; margin-bottom:15px;">Status & Linimasa Klaim</h3>
+        <div class="modal-content status-workflow-modal">
+            <div class="status-modal-hero">
+                <div class="status-modal-hero-icon" aria-hidden="true">↻</div>
+                <div><span class="status-modal-eyebrow">CLAIM WORKFLOW</span><h3>Status & Linimasa Klaim</h3><p>Pantau posisi klaim, ubah status, dan telusuri seluruh catatan proses dalam satu tampilan.</p></div>
+            </div>
             <input type="hidden" id="modal-claim-id">
             
             <div id="modal-status-edit-area">
@@ -248,14 +250,15 @@
                         <option value="Paid">Paid</option>
                         <option value="Hold">Hold</option>
                         <option value="Returned by Finance">Dikembalikan ke Accounting</option>
+                        <option value="Canceled">Canceled</option>
                     </select>
-<div class="form-group" style="margin-top:20px;">
-    <label style="color:#0050A0; font-weight:bold; font-size:13px; display:flex; align-items:center; gap:5px;">🕒 Waktu Kejadian Historis</label>
-    <div style="font-size:11px; color:#666; margin-bottom:8px;">Kosongkan kolom ini untuk menggunakan waktu saat ini secara otomatis.</div>
-    <div style="position:relative;">
-        <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:16px;">📅</span>
-        <input type="text" id="modal-custom-time" placeholder="Pilih tanggal dan waktu kejadian..." style="width:100%; padding:10px 15px 10px 40px; border:1px solid #0050A0; border-radius:8px; font-weight:bold; background:#eef4fc; color:#0050A0; cursor:pointer; box-shadow:inset 0 2px 4px rgba(0,0,0,0.05); transition:all 0.3s;" readonly onmouseover="this.style.background='#d0e3f7'" onmouseout="this.style.background='#eef4fc'">
-        <button type="button" onclick="let input=document.getElementById('modal-custom-time'); if(input && input._flatpickr) input._flatpickr.clear(); else if(input) input.value='';" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; color:#dc3545; font-size:16px; cursor:pointer; font-weight:bold;" title="Hapus waktu">✖</button>
+<div class="form-group status-time-group">
+    <label class="status-time-label">🕒 Waktu Kejadian Historis</label>
+    <div class="status-time-helper">Kosongkan kolom ini untuk menggunakan waktu saat ini secara otomatis.</div>
+    <div class="status-time-input-wrap">
+        <span class="status-time-icon" aria-hidden="true">📅</span>
+        <input type="text" id="modal-custom-time" placeholder="Pilih tanggal dan waktu kejadian..." readonly>
+        <button type="button" class="status-time-clear" onclick="let input=document.getElementById('modal-custom-time'); if(input && input._flatpickr) input._flatpickr.clear(); else if(input) input.value='';" title="Hapus waktu" aria-label="Hapus waktu">×</button>
     </div>
 </div>
                 </div>
@@ -271,6 +274,20 @@
                     <div class="form-group" style="margin-top:10px;">
                         <label style="color:#856404;">Catatan Proses</label>
                         <textarea id="modal-revise-notes" rows="2" placeholder="Tuliskan keterangan untuk PIC."></textarea>
+                    </div>
+                </div>
+                <div id="modal-cancel-options" class="cancel-action-panel" style="display:none; margin-top:12px;">
+                    <div class="form-group">
+                        <label style="color:#9f1239;">Alasan Cancel <span style="color:#dc3545;">*</span></label>
+                        <textarea id="modal-cancel-reason" rows="3" maxlength="500" placeholder="Contoh: double pengajuan, pengajuan tidak jadi diproses, atau alasan lain yang dapat diaudit."></textarea>
+                        <small>Claim menjadi inactive dan tidak masuk Statistik/Management Summary. Status dapat dikembalikan ke In Process bila claim perlu diproses kembali.</small>
+                    </div>
+                </div>
+                <div id="modal-reactivate-options" class="cancel-action-panel reactivate-action-panel" style="display:none; margin-top:12px;">
+                    <div class="form-group">
+                        <label style="color:#075985;">Alasan Mengaktifkan Kembali <span style="color:#dc3545;">*</span></label>
+                        <textarea id="modal-reactivate-reason" rows="3" maxlength="500" placeholder="Tuliskan alasan claim diproses kembali."></textarea>
+                        <small>Claim canceled dapat diproses kembali melalui status In Process. Riwayat cancel tetap tersimpan pada linimasa.</small>
                     </div>
                 </div>
                 <div id="modal-finance-options" class="finance-action-panel" style="display:none; margin-top:12px;">
@@ -289,16 +306,37 @@
 
             <div class="timeline-container">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <h4 style="font-size:13px; color:#555; margin:0;">🕒 Riwayat Perubahan Status</h4>
+            <div class="timeline-heading-copy"><span class="timeline-heading-icon" aria-hidden="true">◷</span><div><h4>Riwayat Perubahan Status</h4><small>Jejak status dan penyesuaian tersusun kronologis</small></div></div>
             <button id="btn-undo-status" class="btn btn-danger" style="display:none; font-size:10px; padding:4px 8px; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);" onclick="undoLastStatus()">↩ Batalkan Status Terakhir</button>
         </div>
         <div id="timeline-list"></div>
     </div>
 
-            <div style="display:flex; justify-content:space-between; margin-top:20px;">
+            <div class="status-modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('modal-status')">Tutup</button>
                 <button class="btn btn-primary" id="btn-save-status" onclick="saveStatus()">Simpan Status (Ctrl+S)</button>
             </div>
+        </div>
+    </div>
+
+    <div id="modal-note-detail" class="modal-overlay" style="z-index:100011;">
+        <div class="modal-content note-detail-modal">
+            <div class="note-detail-head"><div><span>CLAIM NOTE</span><h3 id="note-detail-title">Detail Catatan</h3></div><button type="button" onclick="closeModal('modal-note-detail')" aria-label="Tutup">×</button></div>
+            <div id="note-detail-meta" class="note-detail-meta"></div>
+            <div id="note-detail-body" class="note-detail-body"></div>
+            <div class="note-detail-footer"><button class="btn btn-secondary" onclick="closeModal('modal-note-detail')">Tutup</button></div>
+        </div>
+    </div>
+
+    <!-- Modal Ubah Password Pengguna Aktif -->
+    <div id="modal-change-password" class="modal-overlay" style="z-index:100010;">
+        <div class="modal-content" style="width:min(440px, calc(100vw - 28px));">
+            <h3 style="color:#0050A0; margin-bottom:8px;">🔑 Ubah Password</h3>
+            <p style="font-size:12px; color:#666; line-height:1.5; margin-bottom:16px;">Untuk keamanan, masukkan password saat ini lalu password baru. Perubahan berlaku langsung pada Firebase Authentication untuk akun yang sedang login.</p>
+            <div class="form-group"><label>Password Saat Ini</label><input type="password" id="change-password-current" autocomplete="current-password" placeholder="Password saat ini"></div>
+            <div class="form-group" style="margin-top:10px;"><label>Password Baru</label><input type="password" id="change-password-new" autocomplete="new-password" placeholder="Minimal 8 karakter"></div>
+            <div class="form-group" style="margin-top:10px;"><label>Konfirmasi Password Baru</label><input type="password" id="change-password-confirm" autocomplete="new-password" placeholder="Ulangi password baru"></div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:18px;"><button class="btn btn-secondary" onclick="closeModal('modal-change-password')">Batal</button><button class="btn btn-primary" id="btn-change-password" onclick="changeCurrentUserPassword()">Simpan Password</button></div>
         </div>
     </div>
 
@@ -335,21 +373,26 @@
             <div class="nav-sub-container" id="claim-dropdown">
                 <div class="nav-sub-item" id="nav-claim-input" onclick="changeMenu('claim-input')">📝 Masukkan Data</div>
                 <div class="nav-sub-item" id="nav-claim-quick" onclick="changeMenu('claim-quick')">⚡ Input Cepat</div>
+                <div class="nav-sub-item" id="nav-claim-excel-v2" onclick="changeMenu('claim-excel-v2')">⚡ Rekap Harian</div>
+                <div class="nav-sub-item" id="nav-claim-detail" onclick="changeMenu('claim-detail')">🧾 Detail Pengajuan</div>
+                <div class="nav-sub-item" id="nav-claim-catatan-detail" onclick="changeMenu('claim-catatan-detail')">📂 Catatan Detail</div>
+            </div>
+            <div class="nav-item" id="nav-claim-data-group" onclick="toggleAccordion('claim-data-dropdown')">Claim Data <span>▼</span></div>
+            <div class="nav-sub-container" id="claim-data-dropdown">
+                <div class="nav-sub-item" id="nav-in-process" onclick="changeMenu('in-process')">▶️ In Process</div>
                 <div class="nav-sub-item" id="nav-claim-revise" onclick="changeMenu('claim-revise')">⚠️ Revisi</div>
-                <div class="nav-sub-item" id="nav-claim-excel-v2" onclick="changeMenu('claim-excel-v2')">⚡Rekap Harian</div>
-		<div class="nav-sub-item" id="nav-claim-detail" onclick="changeMenu('claim-detail')">🧾 Detail Pengajuan</div>
-		<div class="nav-sub-item" id="nav-claim-catatan-detail" onclick="changeMenu('claim-catatan-detail')">📂 Catatan Detail</div>
-	
+                <div class="nav-sub-item" id="nav-waiting-approval" onclick="changeMenu('waiting-approval')">⏳ Pending Approval</div>
+                <div class="nav-sub-item" id="nav-history" onclick="changeMenu('history')">✔️ Claim History</div>
+                <div class="nav-sub-item" id="nav-canceled" onclick="changeMenu('canceled')">⛔ Canceled Claim</div>
             </div>
             <div class="nav-item" id="nav-claim-rekap" onclick="changeMenu('claim-rekap')">📊 Rekapitulasi</div>
-<div class="nav-item" id="nav-waiting-approval" onclick="changeMenu('waiting-approval')">⏳ Menunggu Persetujuan</div>
-            <div class="nav-item" id="nav-history" onclick="changeMenu('history')">✔️ Riwayat Klaim</div>
 <div class="nav-item" id="nav-statistik" onclick="changeMenu('statistik')">📈 Statistik & Analitik</div>
 <div class="nav-item" id="nav-executive" onclick="changeMenu('executive')">👔 Ringkasan Manajemen</div>
 <div class="nav-item" id="nav-super-find" onclick="changeMenu('super-find')">🔍 Cari Klaim</div>
             <div class="nav-item" id="nav-settings-group" onclick="toggleAccordion('master-dropdown')">⚙️ Pengaturan <span>▼</span></div>
             <div class="nav-sub-container" id="master-dropdown">
                 <div class="nav-sub-item" id="nav-master-user" onclick="changeMenu('master-user')">📋 Log Aktivitas</div>
+                <div class="nav-sub-item admin-only-nav" id="nav-master-content" onclick="changeMenu('master-content')">✎ Editor Teks</div>
                 <div class="nav-sub-item" id="nav-master-calendar" onclick="changeMenu('master-calendar')">📅 Kalender SLA</div>
                 <div class="nav-sub-item" id="nav-master-gl" onclick="changeMenu('master-gl')">GL Account</div>
                 <div class="nav-sub-item" id="nav-master-karyawan" onclick="changeMenu('master-karyawan')">Data Karyawan</div>
@@ -459,6 +502,9 @@
                                     <button type="button" data-language="ja" aria-pressed="false">日本語</button>
                                 </div>
                             </div>
+                            <button class="btn top-action-button profile-signout-action" onclick="closeProfileMenu(); openChangePasswordModal()" role="menuitem" aria-label="Ubah kata sandi" title="Ubah kata sandi">
+                                <span class="top-action-icon" aria-hidden="true">🔑</span><span class="top-action-label">Ubah Password</span>
+                            </button>
                             <button class="btn top-action-button top-action-logout profile-signout-action" onclick="closeProfileMenu(); doLogout()" role="menuitem" aria-label="Keluar dari sistem" title="Keluar dari sistem">
                                 <span class="top-action-icon" aria-hidden="true">↗</span><span class="top-action-label">Keluar</span>
                             </button>
@@ -783,23 +829,22 @@
             </div>
 
 <div id="menu-claim-excel-v2" class="content-card">
-                <div class="unified-form-box">
-                    <div class="header-actions">
-                        <h3 style="color: #0050A0;">⚡ Rekap Harian</h3>
+                <div class="daily-recap-shell">
+                    <div class="daily-recap-hero">
+                        <div><span class="daily-recap-kicker">DAILY IMPORT</span><h2>Rekap Harian</h2><p>Tempel data dari Excel Admin, validasi otomatis, lalu simpan batch claim baru tanpa mengganggu pekerjaan yang sedang dibuka.</p></div>
+                        <div class="daily-recap-format"><span>Format Kolom</span><code>No. · Submission Date · Description · NIK · UserName · Dept · Curr · Amount · Due Date</code></div>
                     </div>
-                    <p style="font-size:13px; color:#555; margin-bottom:15px;">
-                        Salin baris data dari file Excel Admin, kemudian tempel pada area di bawah ini. <br>
-                        Format kolom otomatis dideteksi: <code>No. | Submission Date | Description | NIK | UserName | Dept | Curr | Amount | Due Date</code>
-                    </p>
-                    <div class="form-group">
-                        <label>Area Tempel Data Excel</label>
-                        <textarea id="excel-v2-area" rows="10" placeholder="Tempel baris data Excel di sini.&#10;Contoh format:&#10;24847&#9;10-Jun-26&#9;TRAVELLING&#9;04058&#9;Richard&#9;MKT Beverage & Supplement&#9;IDR&#9;703,500&#9;18-Jun-26" style="font-family:monospace; font-size:12px; line-height:1.5; width:100%; border:1px solid #ccc; padding:10px; border-radius:6px; resize: vertical;"></textarea>
+                    <div class="daily-recap-steps" aria-label="Tahapan Rekap Harian">
+                        <div><span>01</span><strong>Tempel Data</strong><small>Salin baris langsung dari Excel.</small></div>
+                        <div><span>02</span><strong>Validasi</strong><small>Duplikat, tanggal, mata uang, dan nominal diperiksa.</small></div>
+                        <div><span>03</span><strong>Simpan Batch</strong><small>Data masuk ke cache lokal lalu sinkron ke cloud.</small></div>
                     </div>
-                    <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; gap:12px; flex-wrap:wrap;">
-                        <button class="btn btn-secondary" onclick="document.getElementById('excel-v2-area').value=''">🗑️ Bersihkan Area</button>
-                        <div style="display:flex; align-items:center; gap:10px; margin-left:auto;">
-                            <span id="daily-import-status" class="daily-import-status" aria-live="polite"></span>
-                            <button class="btn btn-primary" id="btn-process-excel-v2" style="padding: 12px 25px;" onclick="processExcelV2Data()">⚡ Proses & Tambahkan ke Rekapitulasi</button>
+                    <div class="daily-recap-input-card">
+                        <div class="daily-recap-input-head"><div><strong>Area Tempel Data Excel</strong><small>Satu baris Excel = satu claim baru.</small></div><button class="btn btn-secondary" type="button" onclick="document.getElementById('excel-v2-area').value=''; updateDailyRecapCounter();">Bersihkan</button></div>
+                        <textarea id="excel-v2-area" rows="11" oninput="updateDailyRecapCounter()" placeholder="Tempel baris data Excel di sini..."></textarea>
+                        <div class="daily-recap-footer">
+                            <div class="daily-recap-state"><span id="daily-recap-row-count">0 baris siap dibaca</span><span id="daily-import-status" class="daily-import-status" aria-live="polite"></span></div>
+                            <button class="btn btn-primary" id="btn-process-excel-v2" onclick="processExcelV2Data()">Proses & Tambahkan ke Rekapitulasi</button>
                         </div>
                     </div>
                 </div>
@@ -976,7 +1021,8 @@
                         <h3>⚠️ Pemantauan Revisi</h3>
                         <p style="font-size:12px; color:#666;">Menampilkan seluruh histori revisi lintas periode. Gunakan pagination untuk membuka data lama.</p>
                     </div>
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items:center;">
+                        <input type="text" id="search-revise" class="minimal-search-box" placeholder="Cari No. pengajuan, NIK, nama, tipe..." oninput="executeGlobalSearch('revise')" onkeydown="if(event.key==='Enter') executeGlobalSearch('revise')" style="min-width:250px;">
                         <button class="btn btn-secondary" id="btn-rev-list" onclick="toggleReviseView('list')" style="background:#0050A0; color:white;">Tampilan Daftar</button>
                         <button class="btn btn-secondary" id="btn-rev-folder" onclick="toggleReviseView('folder')">Tampilan Folder</button>
                         
@@ -1036,10 +1082,10 @@
                 <div id="revise-arsip-container">
                     <div style="background:#e9ecef; padding:12px 15px; border-radius:6px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; border: 1px solid #ccc;" onclick="toggleSection('arsip-content-main', this)">
                         <h4 style="color:#6c757d; margin:0;">📦 Arsip Monitoring</h4>
-                        <span class="toggle-icon" style="font-size:12px; color:#555; font-weight:bold;">▼ Minimize</span>
+                        <span class="toggle-icon" style="font-size:12px; color:#555; font-weight:bold;">▶ Perluas</span>
                     </div>
                     
-                    <div id="arsip-content-main" style="display:block; margin-top:10px;">
+                    <div id="arsip-content-main" style="display:none; margin-top:10px;">
                         <div id="revise-arsip-list-view">
                             <div class="table-responsive" style="border:none;">
                                 <table class="std-table">
@@ -1153,6 +1199,56 @@
                 <div id="rekap-folder-view" style="display:none; margin-top:20px;">
                     <!-- Diisi lewat JS -->
                 </div>
+            </div>
+
+            <!-- CLAIM DATA: IN PROCESS -->
+            <div id="menu-in-process" class="content-card">
+                <div class="header-panel" style="margin-bottom:10px; display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px; flex-wrap:wrap;">
+                        <div><h1 style="margin:0;">▶️ In Process</h1><p style="font-size:12px; color:#666; margin:2px 0 0;">Claim aktif yang masih diproses Accounting, termasuk data yang dikembalikan oleh Finance.</p></div>
+                        <input type="text" id="search-in-process" class="minimal-search-box" placeholder="🔍 Pencarian cepat" oninput="executeGlobalSearch('in-process')">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                        <select id="preset-period-in-process" class="compact-period-select" onchange="applyClaimPeriodPreset('in-process', this.value)" aria-label="Pilihan periode In Process">
+                            <option value="this_month" selected>Bulan Ini</option><option value="last_month">Bulan Lalu</option><option value="last_3_months">3 Bulan Terakhir</option><option value="all_time">Semua Waktu</option><option value="custom">Pilih Periode Manual</option>
+                        </select>
+                        <input type="text" id="filter-date-in-process" placeholder="📅 Filter Tgl Proses..." style="padding:6px 10px; border-radius:6px; border:1px solid #ccc; font-size:12px; width:220px; text-align:center; cursor:pointer;" readonly>
+                        <button class="btn btn-secondary" onclick="applyClaimPeriodPreset('in-process','all_time')" style="padding:6px; font-size:11px;">✖ Atur Ulang Waktu</button>
+                        <button class="btn btn-success" onclick="exportDataXLSX('summary','in-process')">📥 Ekspor Ringkasan</button>
+                    </div>
+                </div>
+                <div class="table-responsive" style="border:none;">
+                    <table class="std-table">
+                        <thead><tr><th>No. <span class="th-filter-icon" onclick="openExcelFilter(event,'noPR_extNo','in-process')">▼</span></th><th>Tgl Proses <span class="th-filter-icon" onclick="openExcelFilter(event,'tglProses','in-process')">▼</span></th><th>Tgl Submit <span class="th-filter-icon" onclick="openExcelFilter(event,'tglSubmit','in-process')">▼</span></th><th>NIK <span class="th-filter-icon" onclick="openExcelFilter(event,'nik','in-process')">▼</span></th><th>Karyawan <span class="th-filter-icon" onclick="openExcelFilter(event,'nama','in-process')">▼</span></th><th>Entitas <span class="th-filter-icon" onclick="openExcelFilter(event,'entitas','in-process')">▼</span></th><th>Tipe <span class="th-filter-icon" onclick="openExcelFilter(event,'tipe','in-process')">▼</span></th><th>Total Amount <span class="th-filter-icon" onclick="openExcelFilter(event,'totalHeader','in-process')">▼</span></th><th>Status <span class="th-filter-icon" onclick="openExcelFilter(event,'statusClaim','in-process')">▼</span></th></tr></thead>
+                        <tbody id="tbody-in-process"></tbody>
+                    </table>
+                </div>
+                <div class="pagination-container"><div>Tampilkan <select id="in-process-rows" onchange="window.inProcessRowsPerPage=parseInt(this.value); window.inProcessCurrentPage=1; renderInProcessTable();"><option value="10">10 baris</option><option value="20" selected>20 baris</option><option value="50">50 baris</option><option value="100">100 baris</option></select></div><div class="pagination-controls"><button class="btn btn-secondary" onclick="if(window.inProcessCurrentPage>1){window.inProcessCurrentPage--;renderInProcessTable();}">◀ Sebelumnya</button><span id="in-process-page-info" style="font-weight:bold; font-size:13px; color:#0050A0;">Halaman 1 / 1</span><button class="btn btn-secondary" onclick="window.inProcessCurrentPage++;renderInProcessTable();">Berikutnya ▶</button></div></div>
+            </div>
+
+            <!-- CLAIM DATA: CANCELED -->
+            <div id="menu-canceled" class="content-card">
+                <div class="header-panel" style="margin-bottom:10px; display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%; gap:12px; flex-wrap:wrap;">
+                        <div><h1 style="margin:0;">⛔ Canceled Claim</h1><p style="font-size:12px; color:#666; margin:2px 0 0;">Claim inactive. Nominal tetap tercatat di Rekapitulasi tetapi dikeluarkan dari Statistik dan Management Summary.</p></div>
+                        <input type="text" id="search-canceled" class="minimal-search-box" placeholder="🔍 Pencarian cepat" oninput="executeGlobalSearch('canceled')">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                        <select id="preset-period-canceled" class="compact-period-select" onchange="applyClaimPeriodPreset('canceled', this.value)" aria-label="Pilihan periode Canceled Claim">
+                            <option value="this_month" selected>Bulan Ini</option><option value="last_month">Bulan Lalu</option><option value="last_3_months">3 Bulan Terakhir</option><option value="all_time">Semua Waktu</option><option value="custom">Pilih Periode Manual</option>
+                        </select>
+                        <input type="text" id="filter-date-canceled" placeholder="📅 Filter Tgl Cancel..." style="padding:6px 10px; border-radius:6px; border:1px solid #ccc; font-size:12px; width:220px; text-align:center; cursor:pointer;" readonly>
+                        <button class="btn btn-secondary" onclick="applyClaimPeriodPreset('canceled','all_time')" style="padding:6px; font-size:11px;">✖ Atur Ulang Waktu</button>
+                        <button class="btn btn-success" onclick="exportDataXLSX('summary','canceled')">📥 Ekspor Ringkasan</button>
+                    </div>
+                </div>
+                <div class="table-responsive" style="border:none;">
+                    <table class="std-table">
+                        <thead><tr><th>No. <span class="th-filter-icon" onclick="openExcelFilter(event,'noPR_extNo','canceled')">▼</span></th><th>Tgl Cancel <span class="th-filter-icon" onclick="openExcelFilter(event,'canceledAtDate','canceled')">▼</span></th><th>PIC Cancel <span class="th-filter-icon" onclick="openExcelFilter(event,'canceledBy','canceled')">▼</span></th><th>Tgl Submit <span class="th-filter-icon" onclick="openExcelFilter(event,'tglSubmit','canceled')">▼</span></th><th>NIK <span class="th-filter-icon" onclick="openExcelFilter(event,'nik','canceled')">▼</span></th><th>Karyawan <span class="th-filter-icon" onclick="openExcelFilter(event,'nama','canceled')">▼</span></th><th>Entitas <span class="th-filter-icon" onclick="openExcelFilter(event,'entitas','canceled')">▼</span></th><th>Tipe <span class="th-filter-icon" onclick="openExcelFilter(event,'tipe','canceled')">▼</span></th><th>Amount <span class="th-filter-icon" onclick="openExcelFilter(event,'totalHeader','canceled')">▼</span></th><th>Status & Keterangan <span class="th-filter-icon" onclick="openExcelFilter(event,'statusClaim','canceled')">▼</span></th></tr></thead>
+                        <tbody id="tbody-canceled"></tbody>
+                    </table>
+                </div>
+                <div class="pagination-container"><div>Tampilkan <select id="canceled-rows" onchange="window.canceledRowsPerPage=parseInt(this.value); window.canceledCurrentPage=1; renderCanceledTable();"><option value="10">10 baris</option><option value="20" selected>20 baris</option><option value="50">50 baris</option><option value="100">100 baris</option></select></div><div class="pagination-controls"><button class="btn btn-secondary" onclick="if(window.canceledCurrentPage>1){window.canceledCurrentPage--;renderCanceledTable();}">◀ Sebelumnya</button><span id="canceled-page-info" style="font-weight:bold; font-size:13px; color:#0050A0;">Halaman 1 / 1</span><button class="btn btn-secondary" onclick="window.canceledCurrentPage++;renderCanceledTable();">Berikutnya ▶</button></div></div>
             </div>
 
             <!-- MENU 3: HISTORY CLAIM -->
@@ -1530,20 +1626,20 @@
 </div>
 
 <!-- MENU EXECUTIVE SUMMARY -->
-<div id="menu-executive" class="content-card stats-page exec-page">
-    <header class="stats-hero exec-hero">
-        <div class="stats-hero-icon" aria-hidden="true">◷</div>
-        <div class="stats-hero-copy">
-            <span class="stats-eyebrow">RINGKASAN EKSEKUTIF</span>
+<div id="menu-executive" class="content-card exec-page">
+    <header class="exec-hero">
+        <div class="exec-hero-icon" aria-hidden="true">👔</div>
+        <div class="exec-hero-copy">
+            <span class="exec-eyebrow">MANAGEMENT INSIGHT</span>
             <h3>Ringkasan Data Manajemen</h3>
-            <p>Bandingkan kinerja periode berjalan dengan periode sebelumnya, MTD, dan tahun lalu. Klik kartu indikator untuk membuka rincian datanya.</p>
+            <p>Ringkasan kinerja operasional, perbandingan periode, SLA, dan tren utama dalam satu tampilan.</p>
         </div>
-        <div class="stats-hero-mark" aria-hidden="true">👔</div>
+        <div class="exec-hero-mark" aria-hidden="true">📊</div>
     </header>
 
-    <section class="stats-toolbar" aria-label="Filter Ringkasan Manajemen">
-        <div class="stats-toolbar-title"><span aria-hidden="true">◷</span><div><strong>Pilih Periode</strong><small>Sesuaikan data yang ditampilkan</small></div></div>
-        <div class="stats-toolbar-controls">
+    <section class="exec-toolbar" aria-label="Filter Ringkasan Manajemen">
+        <div class="exec-toolbar-title"><span aria-hidden="true">◷</span><div><strong>Periode Analisis</strong><small>Atur rentang data manajemen</small></div></div>
+        <div class="exec-toolbar-controls">
             <select id="preset-exec" onchange="applyPresetExec(this.value)" aria-label="Preset periode Ringkasan Manajemen">
                 <option value="this_month">Bulan Ini</option>
                 <option value="last_month">Bulan Lalu</option>
@@ -1552,14 +1648,14 @@
                 <option value="this_year">Tahun Ini</option>
                 <option value="custom">📅 Pilih Periode Manual...</option>
             </select>
-            <input type="text" id="filter-date-exec" class="stats-date-input" placeholder="📅 Filter Rentang Waktu..." readonly>
-            <button class="btn btn-secondary stats-reset-button" onclick="document.getElementById('preset-exec').value='this_month'; applyPresetExec('this_month');" title="Atur ulang periode">↺ <span>Atur Ulang</span></button>
-            <button class="btn stats-export-button" onclick="exportExecutiveExcel()"><span aria-hidden="true">↧</span> Ekspor Laporan</button>
+            <input type="text" id="filter-date-exec" class="modern-flatpickr-input exec-date-input" placeholder="📅 Filter Rentang..." readonly>
+            <button class="btn btn-secondary exec-reset-button" onclick="document.getElementById('preset-exec').value='this_month'; applyPresetExec('this_month');">↺ <span>Atur Ulang</span></button>
+            <button class="btn exec-export-button" onclick="exportExecutiveExcel()"><span aria-hidden="true">↧</span> Ekspor Laporan</button>
         </div>
     </section>
-
+    
     <div id="exec-dashboard-content">
-        <div class="exec-loading">
+        <div class="exec-loading-state">
             <div class="spinner"></div>
             <span>Memuat Data...</span>
         </div>
@@ -1783,12 +1879,28 @@
             </div>
 
             <!-- MENU 7: MASTER USER (ADMIN ONLY) -->
+            <div id="menu-master-content" class="content-card">
+                <div class="content-editor-shell">
+                    <div class="content-editor-hero">
+                        <div><span class="content-editor-kicker">ADMIN CONTENT CONTROL</span><h1>Editor Teks Website</h1><p>Ubah teks antarmuka tanpa menyentuh source code. Override dapat dibuat terpisah untuk Bahasa Indonesia, English, dan 日本語.</p></div>
+                        <div class="content-editor-actions"><button class="btn btn-secondary" onclick="resetUiCopyEditorDraft()">Atur Ulang Draft</button><button class="btn btn-primary" id="btn-save-ui-copy" onclick="saveUiCopyOverrides()">Simpan Perubahan Teks</button></div>
+                    </div>
+                    <div class="content-editor-toolbar">
+                        <input id="ui-copy-search" type="search" placeholder="Cari teks, misalnya login, rekapitulasi, status..." oninput="renderUiCopyEditor()">
+                        <select id="ui-copy-language" onchange="renderUiCopyEditor()" aria-label="Bahasa yang diedit"><option value="id">Bahasa Indonesia</option><option value="en">English</option><option value="ja">日本語</option></select>
+                        <span id="ui-copy-meta">0 teks</span>
+                    </div>
+                    <div class="content-editor-note">Perubahan berlaku untuk semua perangkat setelah sinkronisasi Firestore. Kosongkan override untuk kembali menggunakan teks bawaan sistem.</div>
+                    <div id="ui-copy-editor-list" class="content-editor-list" data-i18n-skip="true"></div>
+                </div>
+            </div>
+
             <div id="menu-master-user" class="content-card">
                 <div class="header-panel">
                     <h1>📋 Pengguna & Log Aktivitas</h1>
                     <div><button class="btn btn-danger" onclick="bulkDeleteUser()">🗑️ Hapus Pilihan</button></div>
                 </div>
-                <p style="font-size:13px; color:#555; margin-bottom:20px;">Kelola peran pengguna Firebase. Pembuatan akun dan pengaturan ulang kata sandi tetap dilakukan melalui Firebase Authentication. Menu ini hanya tersedia bagi Admin.</p>
+                <p style="font-size:13px; color:#555; margin-bottom:20px;">Kelola peran pengguna Firebase. Role Accounting disimpan sebagai accounting. Perubahan kata sandi dilakukan oleh pengguna yang sedang login melalui menu profil.</p>
 
                 <div style="background: #f8fbff; padding: 15px; border-radius: 6px; border: 1px solid #d0e3f7; margin-bottom: 20px; display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
                     <div class="form-group" style="flex:1;">
@@ -1802,7 +1914,7 @@
                     <div class="form-group">
                         <label>Peran / Akses</label>
                         <select id="new-user-role">
-                            <option value="user">Accounting</option>
+                            <option value="accounting">Accounting</option>
                             <option value="finance">Finance (Alur Pembayaran)</option>
                             <option value="viewer">Viewer (Hanya Baca)</option>
                             <option value="admin">Admin</option>
@@ -1841,7 +1953,7 @@
                 <div class="activity-log-toolbar">
                     <input id="activity-log-search" type="text" placeholder="Cari user, aktivitas, No. Ref, atau ID claim..." oninput="resetActivityLogPage(); renderActivityLogs()">
                     <select id="activity-log-role-filter" onchange="resetActivityLogPage(); renderActivityLogs()" aria-label="Filter peran Log Aktivitas">
-                        <option value="all">Semua Peran</option><option value="admin">Admin</option><option value="user">Accounting</option><option value="finance">Finance</option><option value="viewer">Viewer</option>
+                        <option value="all">Semua Peran</option><option value="admin">Admin</option><option value="accounting">Accounting</option><option value="finance">Finance</option><option value="viewer">Viewer</option>
                     </select>
                     <select id="activity-log-category-filter" onchange="resetActivityLogPage(); renderActivityLogs()" aria-label="Filter kategori Log Aktivitas">
                         <option value="all">Semua Kategori</option><option value="claim">Klaim</option><option value="workflow">Alur Kerja</option><option value="adjustment">Penyesuaian</option><option value="import">Impor</option><option value="export">Ekspor</option><option value="master">Data Induk</option><option value="access">Akses &amp; Peran</option><option value="sla">SLA</option><option value="backup">Cadangan</option><option value="system">Sistem</option>
@@ -1920,7 +2032,7 @@
     import("https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js")
   ]);
   const { initializeApp } = firebaseAppModule;
-  const { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } = firebaseAuthModule;
+  const { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword, reauthenticateWithCredential, EmailAuthProvider } = firebaseAuthModule;
   const { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, addDoc, getDocs, query, orderBy, limit, where, onSnapshot, runTransaction, serverTimestamp } = firestoreModule;
 
   const firebaseConfig = {
@@ -1941,6 +2053,9 @@
   window.fbSignIn = signInWithEmailAndPassword;
 window.fbSignOut = signOut;
   window.fbOnAuthStateChanged = onAuthStateChanged;
+  window.fbUpdatePassword = updatePassword;
+  window.fbReauthenticateWithCredential = reauthenticateWithCredential;
+  window.fbEmailAuthProvider = EmailAuthProvider;
   
   // Alat tambahan untuk Database
   window.fbDoc = doc;
@@ -1958,8 +2073,8 @@ window.fbSignOut = signOut;
   window.fbRunTransaction = runTransaction;
   window.fbServerTimestamp = serverTimestamp;
   // Urutan ini wajib: Firebase siap -> core siap -> fitur utama siap.
-  await loadClassicScript('core.js');
-  await loadClassicScript('main.js');
+  await loadClassicScript('core.js?v=p20');
+  await loadClassicScript('main.js?v=p20');
   // Jika resource lambat dan event load sudah lewat, jalankan bootstrap satu kali.
   if(document.readyState === 'complete' && typeof window.onload === 'function') window.onload();
   } catch(error) {

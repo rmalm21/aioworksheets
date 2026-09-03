@@ -45,7 +45,7 @@ let currentDocTargetId = null;
         // kredensial tetap sepenuhnya dikelola Firebase Authentication.
         let masterUsers = [];
         let currentFirebaseUser = null;
-        const VALID_APP_ROLES = ['admin', 'user', 'finance', 'viewer'];
+        const VALID_APP_ROLES = ['admin', 'accounting', 'finance', 'viewer'];
         const APP_LOGIN_DOMAIN = '@aio.co.id';
 
         function getShortUsername(value) {
@@ -66,11 +66,12 @@ let currentDocTargetId = null;
             return String(value === null || value === undefined ? '' : value)
                 .replace(/\b([a-z0-9][a-z0-9._-]*)@aio\.co\.id\b/gi, '$1');
         }
-        const ACTOR_DISPLAY_FIELDS = new Set(['inputBy', 'postedBy', 'paymentBy', 'holdBy', 'returnedBy', '_updatedBy']);
+        const ACTOR_DISPLAY_FIELDS = new Set(['inputBy', 'postedBy', 'paymentBy', 'holdBy', 'returnedBy', 'canceledBy', '_updatedBy']);
         function isActorDisplayField(key) { return ACTOR_DISPLAY_FIELDS.has(key); }
 
-        const FINANCE_ALLOWED_MENUS = Object.freeze(['claim-rekap', 'waiting-approval', 'history', 'super-find']);
-        function canEditClaims() { return sessionRole === 'admin' || sessionRole === 'user'; }
+        const FINANCE_ALLOWED_MENUS = Object.freeze(['claim-rekap', 'waiting-approval', 'history', 'canceled', 'super-find']);
+        function normalizeAppRole(value) { const role = String(value || 'viewer').toLowerCase(); return role === 'user' ? 'accounting' : role; }
+        function canEditClaims() { return sessionRole === 'admin' || sessionRole === 'accounting'; }
         function isAppAdmin() { return sessionRole === 'admin'; }
         function isFinanceRole() { return sessionRole === 'finance'; }
         function canManageFinanceWorkflow() { return isAppAdmin() || isFinanceRole(); }
@@ -81,6 +82,8 @@ let currentDocTargetId = null;
         }
         function getCurrentActorUsername() { return getShortUsername(getCurrentActorIdentity()); }
         function isFinalClaimStatus(status) { return status === 'Posted' || status === 'Paid' || status === 'Hold'; }
+        function isCanceledClaim(item) { return !!item && (String(item.statusClaim || '') === 'Canceled' || item.isInactive === true); }
+        function isClaimActiveForAnalytics(item) { return !!item && !isCanceledClaim(item); }
         // History Claim hanya menampilkan claim yang SAAT INI masih berada di
         // alur pasca-RTP. Claim yang di-reverse atau dikembalikan ke Accounting
         // langsung keluar dari History, walaupun jejak auditnya tetap tersimpan.
@@ -106,12 +109,24 @@ let currentDocTargetId = null;
         }
         window.isCurrentHistoryClaim = isCurrentHistoryClaim;
         window.getClaimRtpDate = getClaimRtpDate;
+        function getCanceledClaimDate(item) {
+            if(!item) return null;
+            if(Number(item.canceledAtMs)) { const d = new Date(Number(item.canceledAtMs)); d.setHours(0,0,0,0); return Number.isNaN(d.getTime()) ? null : d; }
+            const token = String(item.canceledAt || '').replace(',', '').trim().split(/\s+/)[0];
+            return typeof parseReportingDate === 'function' ? parseReportingDate(token) : null;
+        }
+        function formatCanceledDate(item) {
+            const date = getCanceledClaimDate(item);
+            return date ? date.toLocaleDateString('id-ID', {day:'2-digit', month:'2-digit', year:'numeric'}) : '-';
+        }
+        window.getCanceledClaimDate = getCanceledClaimDate;
+        window.formatCanceledDate = formatCanceledDate;
         function hasEverReachedPosted(item) {
             if(!item) return false;
             if(item.postedAt || ['Posted', 'Paid', 'Hold'].includes(item.statusClaim)) return true;
             return Array.isArray(item.historyLog) && item.historyLog.some(log => /^(Posted|Paid|Hold|Returned by Finance|Cancelled Paid|Released Hold)/i.test(String(log && log.status || '')));
         }
-        function isClaimFinanciallyLocked(item) { return !!item && isFinalClaimStatus(item.statusClaim); }
+        function isClaimFinanciallyLocked(item) { return !!item && (isFinalClaimStatus(item.statusClaim) || isCanceledClaim(item)); }
         function getClaimStatusClass(status) {
             if(status === 'Paid') return 'status-paid';
             if(status === 'Hold') return 'status-hold';
@@ -119,6 +134,7 @@ let currentDocTargetId = null;
             if(status === 'Posted') return 'status-posted';
             if(status === 'Waiting Approval' || status === 'Confirm') return 'status-waiting';
             if(status === 'Revisi') return 'status-revise';
+            if(status === 'Canceled') return 'status-canceled';
             return 'status-process';
         }
         function requireClaimEditor() {
@@ -138,7 +154,7 @@ let currentDocTargetId = null;
                 const roleRef = window.fbDoc(window.firebaseDb, 'userRoles', user.uid);
                 const snap = await window.fbGetDoc(roleRef);
                 // Fail closed: akun tanpa dokumen role hanya boleh membaca.
-                const role = snap.exists() ? String(snap.data().role || '').toLowerCase() : 'viewer';
+                const role = normalizeAppRole(snap.exists() ? snap.data().role : 'viewer');
                 return VALID_APP_ROLES.includes(role) ? role : 'viewer';
             } catch (error) {
                 console.error('[Role] Gagal membaca role pengguna:', error);
@@ -151,10 +167,30 @@ let currentDocTargetId = null;
             if (typeof window.unsubRoles === 'function') return;
             const rolesRef = window.fbCollection(window.firebaseDb, 'userRoles');
             window.unsubRoles = window.fbOnSnapshot(rolesRef, (snapshot) => {
-                masterUsers = snapshot.docs.map(roleDoc => ({ uid: roleDoc.id, ...roleDoc.data() }));
+                masterUsers = snapshot.docs.map(roleDoc => {
+                    const data = roleDoc.data();
+                    const rawRole = String(data.role || 'viewer').toLowerCase();
+                    return { uid: roleDoc.id, ...data, _rawRole: rawRole, role: normalizeAppRole(rawRole) };
+                });
                 masterUsers.sort((a, b) => getShortUsername(a.username || a.email).localeCompare(getShortUsername(b.username || b.email)));
                 if (window.currentOpenMenu === 'master-user') renderMasterUser();
+                migrateLegacyUserRoles().catch(error => console.error('[Role] Migrasi legacy user gagal:', error));
             }, (error) => console.error('[Role] Gagal memuat directory role:', error));
+        }
+
+        let legacyRoleMigrationRunning = false;
+        async function migrateLegacyUserRoles() {
+            if(legacyRoleMigrationRunning || !isAppAdmin() || !window.firebaseDb || !window.fbSetDoc || !window.fbDoc) return;
+            const legacy = masterUsers.filter(user => user && user._rawRole === 'user' && user.uid);
+            if(!legacy.length) return;
+            legacyRoleMigrationRunning = true;
+            try {
+                await Promise.all(legacy.map(user => window.fbSetDoc(window.fbDoc(window.firebaseDb, 'userRoles', user.uid), {
+                    role:'accounting', updatedBy:sessionUser, updatedAtMs:Date.now()
+                }, { merge:true })));
+                logActivity(sessionUser, `Migrasi Role Firebase: ${legacy.length} user → accounting`, { category:'access' }).catch(() => {});
+                showToast(`${legacy.length} role legacy berhasil dimigrasikan menjadi Accounting.`, 'success');
+            } finally { legacyRoleMigrationRunning = false; }
         }
 
         // Activity Logs
@@ -320,6 +356,23 @@ let currentDocTargetId = null;
 
         window.addEventListener('online', () => { flushActivityLogOutbox().catch(() => {}); });
 
+        async function publishActivityLogCleanup(cutoffMs) {
+            if(!isAppAdmin() || !window.firebaseDb || !window.fbDoc || !window.fbGetDoc || !window.fbSetDoc) return;
+            const stateRef = window.fbDoc(window.firebaseDb, 'appData', 'activityLogState');
+            const current = await window.fbGetDoc(stateRef).catch(() => null);
+            const previous = current && current.exists() ? Number(current.data().cutoffMs) || 0 : 0;
+            const next = Math.max(previous, Number(cutoffMs) || 0);
+            await window.fbSetDoc(stateRef, { cutoffMs: next, updatedAtMs: Date.now(), updatedBy: getCurrentActorIdentity() }, { merge:true });
+        }
+
+        function applyActivityLogCleanupCutoff(cutoffMs) {
+            const cutoff = Number(cutoffMs) || 0;
+            if(cutoff <= 0) return;
+            cacheActivityLogs(activityLogs.filter(entry => Number(entry && entry.ts) >= cutoff));
+            cacheActivityLogOutbox(activityLogOutbox.filter(entry => Number(entry && entry.ts) >= cutoff));
+        }
+        window.applyActivityLogCleanupCutoff = applyActivityLogCleanupCutoff;
+
         function clearActivityLogs(days) {
             if(!requireAdmin()) return;
             customConfirm(days === 'all' ? 'Apakah Anda yakin ingin menghapus seluruh log aktivitas secara permanen?' : `Apakah Anda yakin ingin menghapus log yang berusia lebih dari ${days} hari?`, async () => {
@@ -337,8 +390,9 @@ let currentDocTargetId = null;
                         const completed = Math.min(snapshot.docs.length, start + 25);
                         if(progressId) window.updateGlobalDataProgress(progressId, snapshot.docs.length ? (completed / snapshot.docs.length) * 100 : 100, 'Membersihkan Activity Log', `${completed} dari ${snapshot.docs.length} log diproses...`);
                     }
-                    if(days === 'all') cacheActivityLogs([]);
-                    else cacheActivityLogs(activityLogs.filter(entry => Number(entry && entry.ts) >= cutoff));
+                    const cleanupCutoff = cutoff === null ? Date.now() : cutoff;
+                    await publishActivityLogCleanup(cleanupCutoff);
+                    applyActivityLogCleanupCutoff(cleanupCutoff);
                     if(progressId) window.finishGlobalDataProgress(progressId, 'Activity Log sudah dibersihkan', `${snapshot.docs.length} log selesai diproses.`);
                     showToast(`${snapshot.docs.length} log aktivitas berhasil dibersihkan.`, 'success');
                     logActivity(sessionUser, `Pembersihan Log Aktivitas: ${days === 'all' ? 'seluruh data' : `lebih lama dari ${days} hari`}`);
@@ -537,37 +591,19 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
         }
 
         // --- Custom Toast Notification ---
-        // options: { title, detail, icon } untuk notifikasi yang butuh judul
-        // dan keterangan tambahan (contoh: konfirmasi Posted).
-        function showToast(msg, type = 'success', options = {}) {
+        function showToast(msg, type = 'success') {
             let container = document.getElementById('toast-container');
             let toast = document.createElement('div');
             toast.className = 'toast ' + type;
-            if(options.title) toast.classList.add('toast-rich');
             toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
             toast.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
             const icon = document.createElement('span');
             icon.className = 'toast-icon';
             icon.setAttribute('aria-hidden', 'true');
-            icon.textContent = options.icon || (type === 'error' ? '!' : type === 'info' ? 'i' : '✓');
+            icon.textContent = type === 'error' ? '!' : type === 'info' ? 'i' : '✓';
             const copy = document.createElement('span');
             copy.className = 'toast-copy';
-            if(options.title) {
-                const heading = document.createElement('strong');
-                heading.className = 'toast-title';
-                heading.textContent = normalizeSystemMessageText(options.title);
-                copy.appendChild(heading);
-            }
-            const body = document.createElement('span');
-            body.className = 'toast-message';
-            body.textContent = normalizeSystemMessageText(msg);
-            copy.appendChild(body);
-            if(options.detail) {
-                const detail = document.createElement('small');
-                detail.className = 'toast-detail';
-                detail.textContent = normalizeSystemMessageText(options.detail);
-                copy.appendChild(detail);
-            }
+            copy.textContent = normalizeSystemMessageText(msg);
             const close = document.createElement('button');
             close.type = 'button';
             close.className = 'toast-close';
@@ -665,6 +701,8 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
         window.applyClaimPeriodPreset = function(module, preset) {
             const modules = {
                 rekap: { inputId:'filter-date-rekap', presetId:'preset-period-rekap', targetKey:'filterDatesRekap', render:() => { if(typeof rekapCurrentPage !== 'undefined') rekapCurrentPage = 1; if(typeof renderRekapTable === 'function') renderRekapTable(); } },
+                'in-process': { inputId:'filter-date-in-process', presetId:'preset-period-in-process', targetKey:'filterDatesInProcess', render:() => { window.inProcessCurrentPage = 1; if(typeof renderInProcessTable === 'function') renderInProcessTable(); } },
+                canceled: { inputId:'filter-date-canceled', presetId:'preset-period-canceled', targetKey:'filterDatesCanceled', render:() => { window.canceledCurrentPage = 1; if(typeof renderCanceledTable === 'function') renderCanceledTable(); } },
                 history: { inputId:'filter-date-history', presetId:'preset-period-history', targetKey:'filterDatesHistory', render:() => { if(typeof histCurrentPage !== 'undefined') histCurrentPage = 1; if(typeof renderHistoryTable === 'function') renderHistoryTable(); } },
                 waiting: { inputId:'filter-date-waiting', presetId:'preset-period-waiting', targetKey:'filterDatesWaiting', render:() => { window.waitingCurrentPage = 1; if(typeof renderWaitingTable === 'function') renderWaitingTable(); } },
                 'catatan-detail': { inputId:'filter-date-catatan-detail', presetId:'preset-period-catatan-detail', targetKey:'filterDatesCatatanDetail', render:() => { window.catatanDetailCurrentPage = 1; if(typeof renderCatatanDetailTable === 'function') renderCatatanDetailTable(); } },
@@ -726,6 +764,8 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
             window.filterDatesRevisi = [firstDay, lastDay];
             window.filterDatesPengaju = [firstDay, lastDay];
             window.filterDatesRekap = [firstDay, lastDay];
+            window.filterDatesInProcess = [firstDay, lastDay];
+            window.filterDatesCanceled = [firstDay, lastDay];
             window.filterDatesHistory = [firstDay, lastDay];
             window.filterDatesWaiting = [firstDay, lastDay];
 
@@ -761,6 +801,8 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
             if(document.getElementById('filter-pengaju-statistik')) ensureWorksheetCalendar("#filter-pengaju-statistik", { ...modernConfig, defaultDate: [firstDay, lastDay], onChange: function(selectedDates, dateStr, instance) { window.filterDatesPengaju = selectedDates; let preset = document.getElementById('preset-period-top-pengaju'); if(preset && instance.isOpen) preset.value = 'custom'; if(typeof renderTopPengaju === 'function') renderTopPengaju(); }});
             
             if(document.getElementById('filter-date-rekap')) ensureWorksheetCalendar("#filter-date-rekap", { ...modernConfig, defaultDate: [firstDay, lastDay], onChange: function(selectedDates, dateStr, instance) { window.filterDatesRekap = selectedDates; resetModulePagination('rekap'); let preset = document.getElementById('preset-period-rekap'); if(preset && instance.isOpen) preset.value = 'custom'; if(typeof renderRekapTable === 'function') renderRekapTable(); }});
+            if(document.getElementById('filter-date-in-process')) ensureWorksheetCalendar("#filter-date-in-process", { ...modernConfig, defaultDate: [firstDay, lastDay], onChange: function(selectedDates, dateStr, instance) { window.filterDatesInProcess = selectedDates; resetModulePagination('in-process'); let preset = document.getElementById('preset-period-in-process'); if(preset && instance.isOpen) preset.value = 'custom'; if(typeof renderInProcessTable === 'function') renderInProcessTable(); }});
+            if(document.getElementById('filter-date-canceled')) ensureWorksheetCalendar("#filter-date-canceled", { ...modernConfig, defaultDate: [firstDay, lastDay], onChange: function(selectedDates, dateStr, instance) { window.filterDatesCanceled = selectedDates; resetModulePagination('canceled'); let preset = document.getElementById('preset-period-canceled'); if(preset && instance.isOpen) preset.value = 'custom'; if(typeof renderCanceledTable === 'function') renderCanceledTable(); }});
             if(document.getElementById('filter-date-history')) ensureWorksheetCalendar("#filter-date-history", { ...modernConfig, defaultDate: [firstDay, lastDay], onChange: function(selectedDates, dateStr, instance) { window.filterDatesHistory = selectedDates; resetModulePagination('history'); let preset = document.getElementById('preset-period-history'); if(preset && instance.isOpen) preset.value = 'custom'; if(typeof renderHistoryTable === 'function') renderHistoryTable(); }});
             if(document.getElementById('filter-date-waiting')) ensureWorksheetCalendar("#filter-date-waiting", { ...modernConfig, defaultDate: [firstDay, lastDay], onChange: function(selectedDates, dateStr, instance) { window.filterDatesWaiting = selectedDates; resetModulePagination('waiting'); let preset = document.getElementById('preset-period-waiting'); if(preset && instance.isOpen) preset.value = 'custom'; if(typeof renderWaitingTable === 'function') window.renderWaitingTable(); }});
             window.filterDatesExec = [firstDay, lastDay];
@@ -826,10 +868,11 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
         }
         function setupUIForUser() {
             document.getElementById('logged-in-user').innerText = sessionUser;
-            document.getElementById('logged-in-role').innerText = ({ user:'ACCOUNTING', finance:'FINANCE', viewer:'VIEWER', admin:'ADMIN' }[sessionRole] || String(sessionRole || 'VIEWER').toUpperCase());
+            document.getElementById('logged-in-role').innerText = ({ accounting:'ACCOUNTING', finance:'FINANCE', viewer:'VIEWER', admin:'ADMIN' }[sessionRole] || String(sessionRole || 'VIEWER').toUpperCase());
             
             if(sessionRole === 'admin') {
                 document.getElementById('nav-master-user').style.display = 'flex';
+                const contentNav = document.getElementById('nav-master-content'); if(contentNav) contentNav.style.display = 'flex';
                 document.getElementById('dash-card-user').style.display = 'block';
                 
                 document.getElementById('gl-admin-actions').style.display = 'flex';
@@ -839,6 +882,7 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
                 document.getElementById('btn-del-kar').style.display = 'inline-block';
             } else {
                 document.getElementById('nav-master-user').style.display = 'none';
+                const contentNav = document.getElementById('nav-master-content'); if(contentNav) contentNav.style.display = 'none';
                 document.getElementById('dash-card-user').style.display = 'none';
 
                 document.getElementById('gl-admin-actions').style.display = 'none';
@@ -857,11 +901,15 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
                 document.querySelectorAll('.nav-menu > .nav-item, .nav-menu > .nav-sub-container').forEach(el => {
                     const allowed = viewerMode
                         ? el.id === 'nav-super-find'
-                        : ['nav-claim-rekap', 'nav-waiting-approval', 'nav-history', 'nav-super-find'].includes(el.id);
+                        : ['nav-claim-data-group', 'claim-data-dropdown', 'nav-claim-rekap', 'nav-super-find'].includes(el.id);
                     el.setAttribute('aria-hidden', allowed ? 'false' : 'true');
                 });
+                if(financeMode) {
+                    ['nav-in-process','nav-claim-revise'].forEach(id => { const el = document.getElementById(id); if(el) el.setAttribute('aria-hidden','true'); });
+                    ['nav-waiting-approval','nav-history','nav-canceled'].forEach(id => { const el = document.getElementById(id); if(el) el.setAttribute('aria-hidden','false'); });
+                }
             } else {
-                document.querySelectorAll('.nav-menu > .nav-item, .nav-menu > .nav-sub-container').forEach(el => el.removeAttribute('aria-hidden'));
+                document.querySelectorAll('.nav-menu > .nav-item, .nav-menu > .nav-sub-container, .nav-sub-item').forEach(el => el.removeAttribute('aria-hidden'));
             }
             ['btn-save-rekap','btn-save-quick','btn-add-row','btn-qk-add-adjust','btn-add-adjust'].forEach(id => {
                 let el = document.getElementById(id);
@@ -873,7 +921,44 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
             document.querySelectorAll('.admin-only-action').forEach(el => {
                 el.style.display = isAppAdmin() ? '' : 'none';
             });
+            if(isAppAdmin()) subscribeRoleDirectory();
         }
+
+        function openChangePasswordModal() {
+            if(!currentFirebaseUser) return showToast('Sesi pengguna belum siap.', 'error');
+            ['change-password-current','change-password-new','change-password-confirm'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+            document.getElementById('modal-change-password').style.display = 'flex';
+            setTimeout(() => document.getElementById('change-password-current')?.focus(), 50);
+        }
+        window.openChangePasswordModal = openChangePasswordModal;
+
+        async function changeCurrentUserPassword() {
+            if(!currentFirebaseUser || !window.fbUpdatePassword || !window.fbReauthenticateWithCredential || !window.fbEmailAuthProvider) return showToast('Fitur ubah password belum siap.', 'error');
+            const currentPassword = String(document.getElementById('change-password-current')?.value || '');
+            const nextPassword = String(document.getElementById('change-password-new')?.value || '');
+            const confirmPassword = String(document.getElementById('change-password-confirm')?.value || '');
+            if(!currentPassword || nextPassword.length < 8) return showToast('Password saat ini wajib diisi dan password baru minimal 8 karakter.', 'error');
+            if(nextPassword !== confirmPassword) return showToast('Konfirmasi password baru tidak sama.', 'error');
+            if(currentPassword === nextPassword) return showToast('Password baru harus berbeda dari password saat ini.', 'error');
+            const button = document.getElementById('btn-change-password');
+            const oldText = button ? button.innerText : '';
+            if(button) { button.disabled = true; button.innerText = 'Menyimpan...'; }
+            try {
+                const credential = window.fbEmailAuthProvider.credential(currentFirebaseUser.email, currentPassword);
+                await window.fbReauthenticateWithCredential(currentFirebaseUser, credential);
+                await window.fbUpdatePassword(currentFirebaseUser, nextPassword);
+                logActivity(sessionUser, 'Pengguna mengubah password akun', { category:'access' }).catch(() => {});
+                closeModal('modal-change-password');
+                showToast('Password berhasil diubah.', 'success');
+            } catch(error) {
+                console.error('[Password] Gagal mengubah password:', error);
+                const code = String(error && error.code || '');
+                if(code.includes('invalid-credential') || code.includes('wrong-password')) showToast('Password saat ini tidak sesuai.', 'error');
+                else if(code.includes('weak-password')) showToast('Password baru terlalu lemah.', 'error');
+                else showToast('Password gagal diubah. Silakan login ulang lalu coba kembali.', 'error');
+            } finally { if(button) { button.disabled=false; button.innerText=oldText || 'Simpan Password'; } }
+        }
+        window.changeCurrentUserPassword = changeCurrentUserPassword;
 
         function doLogout() {
     customConfirm('Apakah Anda yakin ingin keluar dari sistem?', async () => {
@@ -898,14 +983,15 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
             masterUsers.forEach((u, idx) => {
                 let isCurrentUser = currentFirebaseUser && u.uid === currentFirebaseUser.uid;
                 let disableCheckbox = isCurrentUser ? 'disabled' : '';
-                let roleBadgeClass = u.role === 'admin' ? 'status-posted' : (u.role === 'finance' ? 'status-paid' : (u.role === 'viewer' ? 'status-waiting' : 'status-process'));
+                let displayRole = normalizeAppRole(u.role);
+                let roleBadgeClass = displayRole === 'admin' ? 'status-posted' : (displayRole === 'finance' ? 'status-paid' : (displayRole === 'viewer' ? 'status-waiting' : 'status-process'));
                 
                 tbody.innerHTML += `<tr>
                     <td><input type="checkbox" class="user-checkbox" data-idx="${idx}" ${disableCheckbox}></td>
                     <td><button class="btn-icon" onclick="editUser(${idx})" title="Ubah">✏️</button></td>
                     <td><strong>${getShortUsernameHtml(u.username || u.email)}</strong>${isCurrentUser ? '<br><small>(akun aktif)</small>' : ''}</td>
                     <td style="color:#666; font-family:monospace; font-size:11px; word-break:break-all;">${u.uid}</td>
-                    <td><span class="badge ${roleBadgeClass}">${String(u.role || 'viewer').toUpperCase()}</span></td>
+                    <td><span class="badge ${roleBadgeClass}">${String(displayRole || 'viewer').toUpperCase()}</span></td>
                 </tr>`;
             });
             renderActivityLogs();
@@ -934,7 +1020,7 @@ function renderActivityLogs() {
     const syncFilter = String(document.getElementById('activity-log-sync-filter') && document.getElementById('activity-log-sync-filter').value || 'all');
     const filtered = activityLogs.filter(log => {
         const meta = getActivityLogMeta(log);
-        const role = String(log && log.actorRole || 'unknown').toLowerCase();
+        const role = normalizeAppRole(log && log.actorRole || 'unknown');
         if(roleFilter !== 'all' && role !== roleFilter) return false;
         if(categoryFilter !== 'all' && meta.category !== categoryFilter) return false;
         if(syncFilter !== 'all' && meta.syncKey !== syncFilter) return false;
@@ -959,7 +1045,7 @@ function renderActivityLogs() {
         tbody.innerHTML += `<tr>
             <td style="white-space:nowrap; font-size:11px;">${escapeActivityLogText(log.time || '-')}</td>
             <td><strong>${escapeActivityLogText(getShortUsername(log.user || 'Sistem'))}</strong></td>
-            <td><span class="activity-role-label">${escapeActivityLogText(log.actorRole || 'unknown')}</span></td>
+            <td><span class="activity-role-label">${escapeActivityLogText(normalizeAppRole(log.actorRole || 'unknown'))}</span></td>
             <td><span class="activity-category-badge">${escapeActivityLogText(meta.categoryLabel)}</span></td>
             <td>${escapeActivityLogText(meta.rawAction)}${claimHint}</td>
             <td><span class="activity-sync-badge ${meta.syncKey}">${meta.syncKey === 'synced' ? '✓' : (meta.syncKey === 'pending' ? '⏳' : '•')} ${escapeActivityLogText(meta.syncLabel)}</span></td>
@@ -996,7 +1082,7 @@ function openActivityLogDetail(eventId) {
     const putText = (id, value) => { const element = document.getElementById(id); if(element) element.textContent = String(value === null || value === undefined || value === '' ? '-' : value); };
     putText('activity-detail-time', log.time || '-');
     putText('activity-detail-user', getShortUsername(log.user || 'Sistem'));
-    putText('activity-detail-role', String(log.actorRole || 'unknown').toUpperCase());
+    putText('activity-detail-role', normalizeAppRole(log.actorRole || 'unknown').toUpperCase());
     putText('activity-detail-category', meta.categoryLabel);
     putText('activity-detail-sync', meta.syncLabel);
     putText('activity-detail-outcome', log.outcome === 'success' ? 'Berhasil' : (log.outcome || 'Tercatat'));
@@ -1122,27 +1208,23 @@ function sortDataArray(arr, order) {
         }
         setInterval(updateClock, 1000);
 
-        // --- Notifikasi RTP (Posted) ---
-        // Dulu berupa popup layar penuh; sekarang memakai kanal notifikasi yang
-        // sama dengan pesan lain, yaitu toast di sudut kanan bawah.
+        // --- Posted notification: gunakan toast konsisten di kanan bawah ---
         function showRTPAnimation() {
-            showToast('Data berhasil diubah menjadi Posted.', 'success', {
-                title: 'Dokumen RTP Selesai',
-                detail: 'Silakan cetak voucher dan serahkan dokumen RTP kepada Finance.'
-            });
+            showToast('Data berhasil diubah menjadi Posted.', 'success');
         }
-        window.showRTPAnimation = showRTPAnimation;
 
         // --- Excel-Like Filter Logic (NEW Checkbox Features) ---
         // Satu sumber filter/sort tabel utama.
-let tableFilters = { rekap: {}, history: {}, revise: {}, 'super-find': {}, karyawan: {} };
-let tableSorts = { rekap: {col:'id', dir:'DESC'}, history: {col:'id', dir:'DESC'}, revise: {col:'id', dir:'DESC'}, 'super-find': {col:'id', dir:'DESC'}, karyawan: {col:'nik', dir:'ASC'} };
+let tableFilters = { rekap: {}, history: {}, revise: {}, canceled: {}, 'in-process': {}, waiting: {}, 'super-find': {}, karyawan: {} };
+let tableSorts = { rekap: {col:'id', dir:'DESC'}, history: {col:'id', dir:'DESC'}, revise: {col:'id', dir:'DESC'}, canceled: {col:'canceledAtMs', dir:'DESC'}, 'in-process': {col:'id', dir:'DESC'}, waiting: {col:'id', dir:'DESC'}, 'super-find': {col:'id', dir:'DESC'}, karyawan: {col:'nik', dir:'ASC'} };
         let efActiveModule = null;
         let efActiveCol = null;
         let efUniqueValues = [];
 
 function getActiveModuleDateRange(module) {
     if(module === 'rekap') return window.filterDatesRekap;
+    if(module === 'in-process') return window.filterDatesInProcess;
+    if(module === 'canceled') return window.filterDatesCanceled;
     if(module === 'history') return window.filterDatesHistory;
     if(module === 'waiting') return window.filterDatesWaiting;
     if(module === 'super-find') return window.filterDatesSuperFind;
@@ -1170,7 +1252,9 @@ function filterRowsByActiveModuleScope(module, rows) {
     return scoped.filter(item => {
         const dateValue = module === 'history'
             ? (typeof getClaimRtpDate === 'function' ? getClaimRtpDate(item) : null)
-            : item && item[module === 'super-find' ? 'tglSubmit' : 'tglProses'];
+            : module === 'canceled'
+                ? (typeof getCanceledClaimDate === 'function' ? getCanceledClaimDate(item) : null)
+                : item && item[module === 'super-find' ? 'tglSubmit' : 'tglProses'];
         const parsed = typeof parseReportingDate === 'function' ? parseReportingDate(dateValue) : null;
         return !!(parsed && parsed.getTime() >= startMs && parsed.getTime() <= endMs);
     });
@@ -1194,6 +1278,8 @@ function getExcelFilterCellValue(item, key) {
                 ? new Date(Number(item.workflowTimestamps.completedAt)).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit', hour12:false}).replace(/\./g, ':')
                 : '-');
     } else if(key === 'paymentAtDate') value = typeof formatPaymentDate === 'function' ? formatPaymentDate(item) : '-';
+    else if(key === 'canceledAtDate') value = typeof formatCanceledDate === 'function' ? formatCanceledDate(item) : '-';
+    else if(key === 'canceledBy') value = typeof formatActorUsername === 'function' ? formatActorUsername(item && item.canceledBy) : getShortUsername(item && item.canceledBy);
     else if(key === 'totalHeader') value = typeof formatClaimMoney === 'function' ? formatClaimMoney(item) : Number(item && item.totalHeader) || 0;
     else if(key === 'slaDays' && typeof calculateSLADays === 'function') value = calculateSLADays(item) + ' Hari';
     else if(key === 'masukApproval') {
@@ -1210,6 +1296,8 @@ window.getExcelFilterCellValue = getExcelFilterCellValue;
     if(module === 'catatan-detail' && typeof getUniqueValuesCatatanDetail === 'function') return getUniqueValuesCatatanDetail(module, colKey);
     let baseData = dbRekap;
     if(module === 'history') baseData = dbRekap.filter(i => isCurrentHistoryClaim(i));
+    if(module === 'canceled') baseData = dbRekap.filter(i => isCanceledClaim(i));
+    if(module === 'in-process') baseData = dbRekap.filter(i => ['In Process','Returned by Finance'].includes(String(i.statusClaim || '')));
     if(module === 'revise') baseData = typeof getReviseBaseData === 'function' ? getReviseBaseData() : dbRekap.filter(i => i.statusClaim === 'Revisi' || i.statusClaim === 'Confirm');
     if(module === 'waiting') baseData = dbRekap.filter(i => i.statusClaim === 'Waiting Approval' || i.statusClaim === 'Confirm'); 
     
@@ -1235,7 +1323,7 @@ window.getExcelFilterCellValue = getExcelFilterCellValue;
     
     let valsArr = Array.from(vals);
     valsArr.sort((a, b) => {
-        if (colKey === 'tglProses' || colKey === 'tglSubmit' || colKey === 'postedAtDate' || colKey === 'paymentAtDate' || colKey === 'masukApproval') return parseDateString(a) - parseDateString(b);
+        if (colKey === 'tglProses' || colKey === 'tglSubmit' || colKey === 'postedAtDate' || colKey === 'paymentAtDate' || colKey === 'canceledAtDate' || colKey === 'masukApproval') return parseDateString(a) - parseDateString(b);
         if (colKey === 'totalHeader' || colKey === 'slaDays') return (parseFloat(a.replace(/[^0-9]/g, '')) || 0) - (parseFloat(b.replace(/[^0-9]/g, '')) || 0);
         return a.localeCompare(b);
     });
@@ -1261,7 +1349,7 @@ window.openExcelFilter = function(e, colKey, module) {
     </label>`;
 
     // --- LOGIC SMART FILTER BERTINGKAT (EXCEL-STYLE) ---
-    let isDateCol = (colKey === 'tglProses' || colKey === 'tglSubmit' || colKey === 'postedAtDate' || colKey === 'paymentAtDate' || colKey === 'masukApproval');
+    let isDateCol = (colKey === 'tglProses' || colKey === 'tglSubmit' || colKey === 'postedAtDate' || colKey === 'paymentAtDate' || colKey === 'canceledAtDate' || colKey === 'masukApproval');
     let useTree = false;
     let treeData = {};
     let emptyVals = [];
@@ -1337,12 +1425,12 @@ window.openExcelFilter = function(e, colKey, module) {
 
     modal.style.display = 'block';
 
-    let rect = e.target.getBoundingClientRect();
+    let rect = e.currentTarget ? e.currentTarget.getBoundingClientRect() : e.target.getBoundingClientRect();
     let modalHeight = modal.offsetHeight || 320; let modalWidth = modal.offsetWidth || 240;
-    let topPos = rect.bottom + window.scrollY + 5;
-    if (topPos + modalHeight > window.innerHeight) { topPos = rect.top + window.scrollY - modalHeight - 5; if (topPos < 0) topPos = 10; }
-    let leftPos = rect.left + window.scrollX;
-    if (leftPos + modalWidth > window.innerWidth) { leftPos = window.innerWidth - modalWidth - 15; if (leftPos < 0) leftPos = 10; }
+    let topPos = rect.bottom + 5;
+    if (topPos + modalHeight > window.innerHeight - 8) { topPos = rect.top - modalHeight - 5; if (topPos < 8) topPos = 8; }
+    let leftPos = rect.left;
+    if (leftPos + modalWidth > window.innerWidth - 8) { leftPos = window.innerWidth - modalWidth - 8; if (leftPos < 8) leftPos = 8; }
     modal.style.top = topPos + 'px'; modal.style.left = leftPos + 'px';
     setTimeout(() => searchInp.focus(), 50);
     e.stopPropagation();
@@ -1469,8 +1557,8 @@ window.syncAllTreeCb = function() {
 const colNamesTranslate = { 'masukApproval': 'Masuk Persetujuan', 'noPR_extNo': 'No. Ref', 'nik': 'NIK', 'nama': 'Nama Karyawan', 'entitas': 'Entitas', 'tipe': 'Tipe Pengajuan', 'tglProses': 'Tgl Proses', 'tglSubmit': 'Tgl Submit', 'slaDays': 'SLA', 'totalHeader': 'Total Amount', 'inputBy': 'Diinput Oleh', 'statusClaim': 'Status Data', 'postedAtDate': 'Tgl RTP', 'postedAtTime': 'Jam RTP', 'postedBy': 'PIC Posted', 'paymentAtDate': 'Tgl Pymnt', 'paymentBy': 'PIC Pymnt', 'paymentReference': 'Ref Pymnt', 'cc': 'Cost Center', 'lokasi': 'Lokasi Kerja', 'jabatan': 'Jabatan', 'departemen': 'Departemen' };
 
 function getFilterColumnLabel(module, key) {
-    // Label singkat pembayaran (Tgl Pymnt / PIC Pymnt / Ref Pymnt) kini
-    // dipakai seluruh modul, jadi tidak ada lagi pengecualian per modul.
+    if(module === 'rekap' && key === 'paymentAtDate') return 'Tgl Pymnt';
+    if(module === 'rekap' && key === 'paymentBy') return 'PIC Pymnt';
     return colNamesTranslate[key] || key;
 }
 
@@ -1514,6 +1602,8 @@ function updateFilterIconHighlight(module) {
         function refreshModuleTable(module) {
             resetModulePagination(module);
             if(module === 'rekap') renderRekapTable();
+            if(module === 'in-process' && typeof renderInProcessTable === 'function') renderInProcessTable();
+            if(module === 'canceled' && typeof renderCanceledTable === 'function') renderCanceledTable();
             if(module === 'history') renderHistoryTable();
             if(module === 'revise') renderReviseConfirm();
             if(module === 'super-find') renderSuperFindTable();
@@ -1523,7 +1613,7 @@ function updateFilterIconHighlight(module) {
 
 function getReviseBaseData() {
     return dbRekap.filter(item => {
-        if(item.statusClaim === 'In Process' || item.statusClaim === 'Waiting Approval') return false;
+        if(isCanceledClaim(item) || item.statusClaim === 'In Process' || item.statusClaim === 'Waiting Approval') return false;
         const isCurrentlyRevise = item.statusClaim === 'Revisi';
         const wasRevise = Array.isArray(item.historyLog)
             && item.historyLog.some(log => String(log.status || '').toLowerCase().includes('revisi'));
@@ -1552,7 +1642,7 @@ function getReviseBaseData() {
     if (searchInput && searchInput.value.trim() !== '') {
         let kw = searchInput.value.toLowerCase().trim();
         filtered = filtered.filter(item => {
-            let target = `${item.nik||''} ${item.nama||''} ${item.noPR||''} ${item.extNo||''} ${item.tipe||''} ${item.entitas||''} ${item.statusClaim||''} ${item.totalHeader||''}`.toLowerCase();
+            let target = `${item.nik||''} ${item.nama||''} ${item.noPR||''} ${item.extNo||''} ${item.tipe||''} ${item.entitas||''} ${item.statusClaim||''} ${item.totalHeader||''} ${item.reviseNote||''} ${item.cancelReason||''}`.toLowerCase();
             return target.includes(kw);
         });
     }
@@ -1564,13 +1654,13 @@ function getReviseBaseData() {
             if(sA < sB) return sortRule.dir === 'ASC' ? -1 : 1; if(sA > sB) return sortRule.dir === 'ASC' ? 1 : -1; return 0;
         }
         let valA = a[sortRule.col]; let valB = b[sortRule.col];
-        if(['noPR_extNo', 'postedAtDate', 'postedAtTime', 'paymentAtDate', 'masukApproval'].includes(sortRule.col) || isActorDisplayField(sortRule.col)) {
+        if(['noPR_extNo', 'postedAtDate', 'postedAtTime', 'paymentAtDate', 'canceledAtDate', 'masukApproval'].includes(sortRule.col) || isActorDisplayField(sortRule.col)) {
             valA = getExcelFilterCellValue(a, sortRule.col);
             valB = getExcelFilterCellValue(b, sortRule.col);
         }
         if(sortRule.col === 'id') { valA = parseInt(valA) || 0; valB = parseInt(valB) || 0; }
         else if(sortRule.col === 'totalHeader') { valA = Number(a.totalHeader) || 0; valB = Number(b.totalHeader) || 0; }
-        else if(['tglSubmit', 'tglProses', 'postedAtDate', 'paymentAtDate', 'masukApproval'].includes(sortRule.col)) { valA = parseDateString(valA); valB = parseDateString(valB); }
+        else if(['tglSubmit', 'tglProses', 'postedAtDate', 'paymentAtDate', 'canceledAtDate', 'masukApproval'].includes(sortRule.col)) { valA = parseDateString(valA); valB = parseDateString(valB); }
         else { valA = (valA||'').toString().toLowerCase().trim(); valB = (valB||'').toString().toLowerCase().trim(); }
 
         if(valA < valB) return sortRule.dir === 'ASC' ? -1 : 1;
@@ -1583,6 +1673,8 @@ function getFilteredRowsForSource(source) {
     let module = source;
     let baseData = dbRekap;
     if(source === 'history') baseData = dbRekap.filter(item => isCurrentHistoryClaim(item));
+    else if(source === 'canceled') baseData = dbRekap.filter(item => isCanceledClaim(item));
+    else if(source === 'in-process') baseData = dbRekap.filter(item => ['In Process','Returned by Finance'].includes(String(item.statusClaim || '')));
     else if(source === 'waiting') baseData = dbRekap.filter(item => item.statusClaim === 'Waiting Approval' || item.statusClaim === 'Confirm');
     else if(source === 'revise' || source === 'revise-active' || source === 'revise-arsip') {
         module = 'revise';
@@ -1607,6 +1699,8 @@ window.getScopedSelectedIds = getScopedSelectedIds;
 function resetModulePagination(module) {
     if(module === 'rekap' && typeof rekapCurrentPage !== 'undefined') rekapCurrentPage = 1;
     else if(module === 'history' && typeof histCurrentPage !== 'undefined') histCurrentPage = 1;
+    else if(module === 'in-process') window.inProcessCurrentPage = 1;
+    else if(module === 'canceled') window.canceledCurrentPage = 1;
     else if(module === 'waiting') window.waitingCurrentPage = 1;
     else if(module === 'revise') {
         if(typeof revActPage !== 'undefined') revActPage = 1;
@@ -1618,6 +1712,9 @@ window.resetModulePagination = resetModulePagination;
 window.executeGlobalSearch = function(module) {
     if (module === 'rekap') { rekapCurrentPage = 1; if (typeof renderRekapTable === 'function') renderRekapTable(); }
     else if (module === 'history') { histCurrentPage = 1; if (typeof renderHistoryTable === 'function') renderHistoryTable(); }
+    else if (module === 'revise') { if(typeof revActPage !== 'undefined') revActPage = 1; if(typeof revArsPage !== 'undefined') revArsPage = 1; if(typeof renderReviseConfirm === 'function') renderReviseConfirm(); }
+    else if (module === 'in-process') { window.inProcessCurrentPage = 1; if (typeof renderInProcessTable === 'function') renderInProcessTable(); }
+    else if (module === 'canceled') { window.canceledCurrentPage = 1; if (typeof renderCanceledTable === 'function') renderCanceledTable(); }
     else if (module === 'waiting') { window.waitingCurrentPage = 1; if (typeof renderWaitingTable === 'function') window.renderWaitingTable(); }
     else if (module === 'catatan-detail') { window.catatanDetailCurrentPage = 1; if (typeof renderCatatanDetailTable === 'function') renderCatatanDetailTable(); }
 };
@@ -1930,6 +2027,11 @@ function changeMenu(menuId, isBackAction = false) {
         isBackAction = true;
         window.menuHistoryStack = [];
     }
+    if(menuId === 'master-content' && !isAppAdmin()) {
+        showToast('Editor teks hanya dapat diakses Admin.', 'error');
+        menuId = 'home';
+        isBackAction = true;
+    }
     let filterModal = document.getElementById('excel-filter-modal');
     if(filterModal) filterModal.style.display = 'none';
     
@@ -1951,13 +2053,12 @@ function changeMenu(menuId, isBackAction = false) {
         
         // 3. Nyalakan warna menu di Sidebar kiri
         if(menuId === 'home') document.getElementById('nav-home').classList.add('active-menu');
-        if(menuId.includes('claim') && menuId !== 'claim-rekap') document.querySelector('#claim-dropdown').previousElementSibling.classList.add('active-menu');
+        if(menuId.startsWith('claim-') && !['claim-rekap','claim-revise'].includes(menuId)) document.querySelector('#claim-dropdown').previousElementSibling.classList.add('active-menu');
+        if(['in-process','claim-revise','waiting-approval','history','canceled'].includes(menuId)) document.querySelector('#claim-data-dropdown').previousElementSibling.classList.add('active-menu');
         if(menuId.includes('master')) document.querySelector('#master-dropdown').previousElementSibling.classList.add('active-menu');
-        if(menuId === 'history') document.getElementById('nav-history').classList.add('active-menu');
         if(menuId === 'super-find') document.getElementById('nav-super-find').classList.add('active-menu');
         if(menuId === 'claim-rekap') document.getElementById('nav-claim-rekap').classList.add('active-menu');
         if(menuId === 'statistik') document.getElementById('nav-statistik').classList.add('active-menu');
-        if(menuId === 'waiting-approval') document.getElementById('nav-waiting-approval').classList.add('active-menu');
 if(menuId === 'executive') document.getElementById('nav-executive').classList.add('active-menu');
         
         let subMenu = document.getElementById(`nav-${menuId}`); 
@@ -1973,8 +2074,16 @@ if(menuId === 'executive') document.getElementById('nav-executive').classList.ad
         // 4. Eksekusi render tabel/data sesuai menu yang dipilih
         if(menuId === 'claim-input' && currentEditingId === null) resetFormAdd();
         if(menuId === 'claim-quick' && currentEditingId === null) resetQuickForm();
-        if(menuId === 'claim-revise') { updateFilterIconHighlight('revise'); renderReviseConfirm(); }
+        if(menuId === 'claim-revise') {
+            const archiveContent = document.getElementById('arsip-content-main');
+            if(archiveContent) archiveContent.style.display = 'none';
+            const archiveToggle = document.querySelector('#revise-arsip-container .toggle-icon');
+            if(archiveToggle) archiveToggle.innerText = '▶ Perluas';
+            updateFilterIconHighlight('revise'); renderReviseConfirm();
+        }
         if(menuId === 'claim-rekap') { updateFilterIconHighlight('rekap'); renderRekapTable(); }
+        if(menuId === 'in-process' && typeof renderInProcessTable === 'function') renderInProcessTable();
+        if(menuId === 'canceled' && typeof renderCanceledTable === 'function') renderCanceledTable();
         if(menuId === 'history') { updateFilterIconHighlight('history'); renderHistoryTable(); }
         if(menuId === 'master-gl') renderMasterGL();
         if(menuId === 'master-karyawan') renderMasterKaryawan();
@@ -1985,6 +2094,7 @@ if(menuId === 'executive') document.getElementById('nav-executive').classList.ad
             subscribeRoleDirectory();
             if(typeof window.ensureActivityLogSubscription === 'function') window.ensureActivityLogSubscription();
         }
+        if(menuId === 'master-content' && typeof window.renderUiCopyEditor === 'function') window.renderUiCopyEditor();
         if(menuId === 'super-find') { updateFilterIconHighlight('super-find'); renderSuperFindTable(); }
         if(menuId === 'statistik' && typeof renderStatistikData === 'function') renderStatistikData();
         if(menuId === 'waiting-approval' && typeof window.renderWaitingTable === 'function') window.renderWaitingTable();
@@ -2100,7 +2210,8 @@ if(!masterKaryawan || masterKaryawan.length === 0) masterKaryawan = [{ nik: "999
         }
     }
     if(period !== 'all' && period !== 'custom' && typeof window.getReportingPresetRange === 'function') selectedRange = window.getReportingPresetRange(period);
-    const filteredClaims = period === 'all' ? dbRekap : (typeof window.filterClaimsByReportingRange === 'function' ? window.filterClaimsByReportingRange(dbRekap, selectedRange) : []);
+    const dashboardSource = dbRekap.filter(item => isClaimActiveForAnalytics(item));
+    const filteredClaims = period === 'all' ? dashboardSource : (typeof window.filterClaimsByReportingRange === 'function' ? window.filterClaimsByReportingRange(dashboardSource, selectedRange) : []);
 
     filteredClaims.forEach(d => {
             if(d.statusClaim === 'In Process') p++;
@@ -2436,6 +2547,7 @@ function toggleSelectAll(master, className) {
                     if(!data.historyLog) data.historyLog = [];
                     data.historyLog.push({status: "Adjustment Pilihan Dibatalkan", time: new Date().toLocaleString('id-ID', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}), by: sessionUser, note: `Revert ${indicesToUndo.length} item secara berurutan.`});
                     await saveDataToLocal({ claimIds: [data.id] });
+                    window.adjustmentStayClaimId = data.id;
                 } catch(error) {
                     if(window.restoreClaimsAfterConflict && await window.restoreClaimsAfterConflict(error)) return;
                     const restoreIdx = dbRekap.findIndex(item => item.id === backup.id);
@@ -2469,6 +2581,7 @@ function toggleSelectAll(master, className) {
                     const oldCurrency = normalizeCurrency(lastAdj.oldCurrency || lastAdj.currency || getClaimCurrency(data));
                     data.historyLog.push({status: "Adjustment Dibatalkan", time: new Date().toLocaleString('id-ID', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}), by: sessionUser, note: `Revert adjustment terakhir ke ${formatMoney(lastAdj.oldVal, oldCurrency)}.`});
                     await saveDataToLocal({ claimIds: [data.id] });
+                    window.adjustmentStayClaimId = data.id;
                 } catch(error) {
                     if(window.restoreClaimsAfterConflict && await window.restoreClaimsAfterConflict(error)) return;
                     const restoreIdx = dbRekap.findIndex(item => item.id === backup.id);
@@ -2500,6 +2613,7 @@ function toggleSelectAll(master, className) {
                     if(!data.historyLog) data.historyLog = [];
                     data.historyLog.push({status: "Semua Adjustment Dibatalkan", time: new Date().toLocaleString('id-ID', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}), by: sessionUser, note: `Seluruh adjustment dibalik berurutan dari yang paling akhir.`});
                     await saveDataToLocal({ claimIds: [data.id] });
+                    window.adjustmentStayClaimId = data.id;
                 } catch(error) {
                     if(window.restoreClaimsAfterConflict && await window.restoreClaimsAfterConflict(error)) return;
                     const restoreIdx = dbRekap.findIndex(item => item.id === backup.id);
@@ -3251,14 +3365,15 @@ function getAnalyticsRange(type) {
 }
 
 function filterAnalyticsByRange(items, range) {
+    const activeItems = (items || []).filter(item => typeof isClaimActiveForAnalytics === 'function' ? isClaimActiveForAnalytics(item) : String(item && item.statusClaim || '') !== 'Canceled');
     if(typeof window !== 'undefined' && typeof window.filterClaimsByReportingRange === 'function') {
-        return window.filterClaimsByReportingRange(items, range);
+        return window.filterClaimsByReportingRange(activeItems, range);
     }
-    if(!range || range.length !== 2) return [...(items || [])];
+    if(!range || range.length !== 2) return [...activeItems];
     const start = new Date(range[0]); const end = new Date(range[1]);
-    if(Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [...(items || [])];
+    if(Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [...activeItems];
     start.setHours(0,0,0,0); end.setHours(23,59,59,999);
-    return (items || []).filter(item => {
+    return activeItems.filter(item => {
         const parsed = parseDateString(item.tglSubmit || item.tglProses);
         const timestamp = parsed instanceof Date ? parsed.getTime() : Number(parsed);
         return Number.isFinite(timestamp) && timestamp >= start.getTime() && timestamp <= end.getTime();
@@ -3487,140 +3602,6 @@ window.openDeepDiveRapor = function(nik, nama) {
     if(typeof window.applyWorksheetTranslations === 'function') window.applyWorksheetTranslations(reportModal);
 };
 
-/* =========================================================
-   P13 — LAPISAN TEMA GRAFIK MODERN
-   ---------------------------------------------------------
-   Satu sumber warna, tipografi, tooltip, dan plugin untuk
-   seluruh grafik aplikasi (Statistik dan Ringkasan Manajemen)
-   supaya tampilannya konsisten dan mengikuti mode gelap.
-   ========================================================= */
-window.getChartTheme = function() {
-    const dark = document.body.classList.contains('dark-mode');
-    return {
-        dark,
-        text: dark ? '#a9c2d4' : '#6a8296',
-        strong: dark ? '#eaf3f9' : '#24475f',
-        grid: dark ? 'rgba(150,180,203,.15)' : 'rgba(20,84,130,.08)',
-        surface: dark ? '#162c3e' : '#ffffff',
-        tooltipBg: dark ? 'rgba(9,26,39,.96)' : 'rgba(13,44,68,.95)',
-        tooltipText: '#ffffff',
-        tooltipMuted: dark ? '#9fbdd2' : '#bcd6e7',
-        blue: '#1e8ed4',
-        blueDeep: '#0a5e9c',
-        blueSoft: dark ? 'rgba(30,142,212,.34)' : 'rgba(30,142,212,.30)',
-        green: '#14a97b',
-        amber: '#e2a03a',
-        red: '#df5c70',
-        slate: dark ? '#7d99ae' : '#a8bccc',
-        slateSoft: dark ? 'rgba(125,153,174,.35)' : 'rgba(168,188,204,.35)'
-    };
-};
-
-// Gradien vertikal untuk batang dan area. Dipanggil lewat callback scriptable
-// Chart.js sehingga chartArea sudah tersedia saat digambar.
-window.buildChartGradient = function(context, from, to) {
-    const { ctx, chartArea } = context.chart;
-    if(!chartArea) return from;
-    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-    gradient.addColorStop(0, from);
-    gradient.addColorStop(1, to);
-    return gradient;
-};
-
-// Tooltip modern: kartu gelap membulat, tanpa kotak warna kaku.
-window.buildChartTooltip = function(theme, extra = {}) {
-    return Object.assign({
-        backgroundColor: theme.tooltipBg,
-        titleColor: theme.tooltipText,
-        bodyColor: theme.tooltipMuted,
-        borderColor: 'rgba(255,255,255,.10)',
-        borderWidth: 1,
-        cornerRadius: 12,
-        padding: { top: 10, right: 13, bottom: 11, left: 13 },
-        displayColors: true,
-        boxWidth: 8,
-        boxHeight: 8,
-        boxPadding: 6,
-        usePointStyle: true,
-        titleFont: { size: 12, weight: '800' },
-        bodyFont: { size: 11, weight: '600' }
-    }, extra);
-};
-
-window.buildChartLegend = function(theme, extra = {}) {
-    return Object.assign({
-        position: 'bottom',
-        align: 'center',
-        labels: {
-            color: theme.text,
-            usePointStyle: true,
-            pointStyle: 'circle',
-            boxWidth: 8,
-            boxHeight: 8,
-            padding: 16,
-            font: { size: 11, weight: '700' }
-        }
-    }, extra);
-};
-
-// Teks di tengah grafik donat (persentase besar + keterangan kecil).
-window.chartCenterTextPlugin = {
-    id: 'chartCenterText',
-    afterDatasetsDraw(chart) {
-        const config = chart.options.plugins && chart.options.plugins.chartCenterText;
-        if(!config || !config.value) return;
-        const { ctx, chartArea } = chart;
-        if(!chartArea) return;
-        const x = (chartArea.left + chartArea.right) / 2;
-        const y = (chartArea.top + chartArea.bottom) / 2;
-        const family = (window.Chart && Chart.defaults.font.family) || 'sans-serif';
-        ctx.save();
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        if(config.label) {
-            ctx.font = `800 9px ${family}`;
-            ctx.fillStyle = config.labelColor || '#8aa3b6';
-            ctx.fillText(String(config.label).toUpperCase(), x, y - 22);
-        }
-        ctx.font = `900 30px ${family}`;
-        ctx.fillStyle = config.valueColor || '#24475f';
-        ctx.fillText(String(config.value), x, y + 2);
-        if(config.caption) {
-            ctx.font = `700 10px ${family}`;
-            ctx.fillStyle = config.captionColor || '#8aa3b6';
-            ctx.fillText(String(config.caption), x, y + 24);
-        }
-        ctx.restore();
-    }
-};
-
-// Placeholder rapi saat grafik tidak punya data sama sekali.
-window.chartEmptyStatePlugin = {
-    id: 'chartEmptyState',
-    afterDraw(chart) {
-        const config = chart.options.plugins && chart.options.plugins.chartEmptyState;
-        if(!config || !config.display) return;
-        const { ctx, chartArea } = chart;
-        if(!chartArea) return;
-        const family = (window.Chart && Chart.defaults.font.family) || 'sans-serif';
-        ctx.save();
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = `700 12px ${family}`;
-        ctx.fillStyle = config.color || '#8aa3b6';
-        ctx.fillText(config.text || 'Belum ada data pada periode ini.',
-            (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2);
-        ctx.restore();
-    }
-};
-
-// Dipanggil ulang setiap mode gelap berubah agar sumbu, grid, dan legenda
-// ikut menyesuaikan tanpa perlu memuat ulang halaman.
-window.refreshWorksheetCharts = function() {
-    if(window.currentOpenMenu === 'statistik' && typeof window.renderStatistikData === 'function') window.renderStatistikData();
-    if(window.currentOpenMenu === 'executive' && typeof window.renderExecutiveDashboard === 'function') window.renderExecutiveDashboard();
-};
-
 window.statLeaderboardSort = 'count_desc'; 
 window.toggleStatSort = function(type) {
     if (type === 'count') window.statLeaderboardSort = (window.statLeaderboardSort === 'count_desc') ? 'count_asc' : 'count_desc';
@@ -3637,10 +3618,9 @@ window.renderStatistikData = function() {
     let slaCount = { h: 0, k: 0, m: 0 };
 
     baseData.forEach(d => {
-        let g = getTrendGroupInfo(d.tglSubmit || d.tglProses, gMode); 
+        let g = getTrendGroupInfo(d.tglSubmit || d.tglProses, gMode);
         if(!trendMap[g.sortKey]) trendMap[g.sortKey] = { display: g.display, count: 0 };
         trendMap[g.sortKey].count++;
-
         let sla = calculateSLADays(d); totalSLA += sla; addAmountToCurrencyMap(totalNominal, d);
         const category = getSlaCategory(sla);
         if (category.key === 'green') slaCount.h++; else if (category.key === 'warning') slaCount.k++; else slaCount.m++;
@@ -3648,174 +3628,119 @@ window.renderStatistikData = function() {
 
     let avgSLA = totalDocs > 0 ? (totalSLA / totalDocs).toFixed(1) : 0;
     let elVol = document.getElementById('avg-vol'), elNom = document.getElementById('avg-nom'), elSla = document.getElementById('avg-sla');
-    if(elVol) elVol.innerText = totalDocs + " Dokumen"; if(elNom) elNom.innerHTML = formatCurrencyTotals(totalNominal, true); if(elSla) elSla.innerText = avgSLA + " Hari Kerja";
+    if(elVol) elVol.innerText = totalDocs + ' Dokumen';
+    if(elNom) elNom.innerHTML = formatCurrencyTotals(totalNominal, true);
+    if(elSla) elSla.innerText = avgSLA + ' Hari Kerja';
 
     let sKeys = Object.keys(trendMap).sort((a, b) => a.localeCompare(b));
-    
-    // --- SMART LIMITER UNTUK GRAFIK ---
-    // Jika data yang mau dirender melebihi 60 batang, potong dan ambil 60 data paling akhir (terbaru)
-    if (sKeys.length > 60) {
-        sKeys = sKeys.slice(-60);
-    }
-    
+    if (sKeys.length > 60) sKeys = sKeys.slice(-60);
     let tLabels = sKeys.map(k => trendMap[k].display);
     const translatedTrendLabels = tLabels.map(label => translateUiText(label));
     let tData = sKeys.map(k => trendMap[k].count);
     const slaSourceLabels = [`Sangat Baik (≤ ${window.slaSettings.greenMaxDays} Hari)`, `Perlu Perhatian (${window.slaSettings.greenMaxDays + 1}-${window.slaSettings.warningMaxDays} Hari)`, `Terlambat (> ${window.slaSettings.warningMaxDays} Hari)`];
     const slaDisplayLabels = slaSourceLabels.map(label => translateUiText(label));
 
-    const theme = window.getChartTheme();
-    const slaTotal = slaCount.h + slaCount.k + slaCount.m;
-    const slaAchievedPct = slaTotal > 0 ? Math.round(((slaCount.h + slaCount.k) / slaTotal) * 100) : 0;
-    const slaTargetPct = Number(window.slaSettings.achievementTargetPercent) || 90;
-
-    try {
-        if (window.chartTrendInstance) window.chartTrendInstance.destroy();
-        window.chartTrendInstance = new Chart(document.getElementById('chart-trend'), {
-            type: 'bar',
-            data: {
-                labels: translatedTrendLabels,
-                datasets: [{
-                    label: translateUiText('Volume Pengajuan'),
-                    data: tData,
-                    backgroundColor: context => window.buildChartGradient(context, theme.blue, theme.blueSoft),
-                    hoverBackgroundColor: context => window.buildChartGradient(context, theme.blueDeep, theme.blue),
-                    borderWidth: 0,
-                    borderRadius: { topLeft: 6, topRight: 6, bottomLeft: 2, bottomRight: 2 },
-                    borderSkipped: false,
-                    maxBarThickness: 46,
-                    categoryPercentage: 0.78,
-                    barPercentage: 0.86
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                layout: { padding: { top: 8, left: 2, right: 2 } },
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: window.buildChartTooltip(theme, {
-                        callbacks: { label: context => ' ' + translateUiText(`${context.parsed.y} Dokumen`) }
-                    }),
-                    chartEmptyState: { display: tData.length === 0, color: theme.text, text: translateUiText('Belum ada data pada periode ini.') }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        border: { display: false },
-                        grid: { color: theme.grid, drawTicks: false },
-                        ticks: { color: theme.text, padding: 10, precision: 0, font: { size: 10, weight: '700' } }
-                    },
-                    x: {
-                        border: { display: false },
-                        grid: { display: false },
-                        ticks: { color: theme.text, padding: 6, maxRotation: 0, autoSkipPadding: 14, font: { size: 10, weight: '700' } }
-                    }
-                },
-                onClick: (e, els) => { if(els.length) window.showChartBreakdown('trend', tLabels[els[0].index]); },
-                onHover: (e, els) => e.native.target.style.cursor = els.length ? 'pointer' : 'default'
-            },
-            plugins: [window.chartEmptyStatePlugin]
-        });
-
-        if (window.chartSlaInstance) window.chartSlaInstance.destroy();
-        window.chartSlaInstance = new Chart(document.getElementById('chart-sla'), {
-            type: 'doughnut',
-            data: {
-                labels: slaDisplayLabels,
-                datasets: [{
-                    data: [slaCount.h, slaCount.k, slaCount.m],
-                    backgroundColor: [theme.green, theme.amber, theme.red],
-                    hoverBackgroundColor: [theme.green, theme.amber, theme.red],
-                    borderColor: theme.surface,
-                    borderWidth: 3,
-                    borderRadius: 8,
-                    spacing: 2,
-                    hoverOffset: 8,
-                    hoverBorderColor: theme.surface
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '72%',
-                layout: { padding: 6 },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: window.buildChartTooltip(theme, {
-                        callbacks: {
-                            label: context => {
-                                const share = slaTotal > 0 ? Math.round((context.parsed / slaTotal) * 100) : 0;
-                                return ' ' + translateUiText(`${context.parsed} Dokumen`) + ` · ${share}%`;
-                            }
-                        }
-                    }),
-                    // Tanpa data, ruang tengah dipakai pesan kosong saja.
-                    chartCenterText: slaTotal === 0 ? null : {
-                        value: `${slaAchievedPct}%`,
-                        label: translateUiText('Pencapaian'),
-                        caption: translateUiText(`Target ${slaTargetPct}%`),
-                        valueColor: slaAchievedPct >= slaTargetPct ? theme.green : theme.red,
-                        labelColor: theme.text,
-                        captionColor: theme.text
-                    },
-                    chartEmptyState: { display: slaTotal === 0, color: theme.text, text: translateUiText('Belum ada data pada periode ini.') }
-                },
-                onClick: (e, els) => { if(els.length) window.showChartBreakdown('sla', slaSourceLabels[els[0].index]); },
-                onHover: (e, els) => e.native.target.style.cursor = els.length ? 'pointer' : 'default'
-            },
-            plugins: [window.chartCenterTextPlugin, window.chartEmptyStatePlugin]
-        });
-    } catch(e) {}
-
     let totalSLADocs = slaCount.h + slaCount.k + slaCount.m;
     let pctH = totalSLADocs > 0 ? Math.round((slaCount.h / totalSLADocs) * 100) : 0;
     let pctK = totalSLADocs > 0 ? Math.round((slaCount.k / totalSLADocs) * 100) : 0;
     let pctM = totalSLADocs > 0 ? Math.round((slaCount.m / totalSLADocs) * 100) : 0;
-    
     let pctAchieve = totalSLADocs > 0 ? Math.round(((slaCount.h + slaCount.k) / totalSLADocs) * 100) : 0;
     const companyTarget = Number(window.slaSettings.achievementTargetPercent) || 90;
     const nearTargetFloor = Math.max(0, companyTarget - 10);
-    let achieveColor = pctAchieve >= companyTarget ? '#28a745' : (pctAchieve >= nearTargetFloor ? '#ff9800' : '#dc3545');
+    let achieveColor = pctAchieve >= companyTarget ? '#15966b' : (pctAchieve >= nearTargetFloor ? '#d88a12' : '#c94f60');
     const achievementStatus = pctAchieve >= companyTarget ? 'Target tercapai' : 'Target belum tercapai';
+
+    try {
+        const trendCanvas = document.getElementById('chart-trend');
+        if (window.chartTrendInstance) window.chartTrendInstance.destroy();
+        if(trendCanvas) {
+            const trendCtx = trendCanvas.getContext('2d');
+            const trendGradient = trendCtx.createLinearGradient(0, 0, 0, 290);
+            trendGradient.addColorStop(0, 'rgba(8,127,189,.30)');
+            trendGradient.addColorStop(1, 'rgba(8,127,189,.025)');
+            window.chartTrendInstance = new Chart(trendCanvas, {
+                type: 'line',
+                data: { labels: translatedTrendLabels, datasets: [{
+                    label: translateUiText('Volume Pengajuan'), data: tData,
+                    borderColor: '#087fbd', backgroundColor: trendGradient, borderWidth: 3,
+                    fill: true, tension: .38, pointRadius: tData.length > 24 ? 0 : 3,
+                    pointHoverRadius: 6, pointBackgroundColor: '#ffffff', pointBorderColor: '#087fbd', pointBorderWidth: 2
+                }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { backgroundColor:'#0f2f46', titleColor:'#fff', bodyColor:'#d9edf7', padding:12, cornerRadius:10, displayColors:false }
+                    },
+                    scales: {
+                        y: { beginAtZero:true, ticks:{ precision:0, color:'#71869a', font:{size:10} }, grid:{ color:'rgba(103,139,162,.12)', drawBorder:false }, border:{display:false} },
+                        x: { ticks:{ color:'#71869a', maxRotation:0, autoSkip:true, maxTicksLimit:12, font:{size:10} }, grid:{display:false}, border:{display:false} }
+                    },
+                    onClick: (e, els) => { if(els.length) window.showChartBreakdown('trend', tLabels[els[0].index]); },
+                    onHover: (e, els) => e.native.target.style.cursor = els.length ? 'pointer' : 'default'
+                }
+            });
+        }
+
+        const slaCanvas = document.getElementById('chart-sla');
+        if (window.chartSlaInstance) window.chartSlaInstance.destroy();
+        if(slaCanvas) {
+            const centerLabelPlugin = {
+                id: 'slaCenterLabel',
+                afterDraw(chart) {
+                    const meta = chart.getDatasetMeta(0);
+                    if(!meta || !meta.data || !meta.data[0]) return;
+                    const {ctx} = chart;
+                    const x = meta.data[0].x, y = meta.data[0].y;
+                    ctx.save();
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#163c56'; ctx.font = `800 27px ${getComputedStyle(document.documentElement).getPropertyValue('--app-font-family') || 'sans-serif'}`;
+                    ctx.fillText(`${pctAchieve}%`, x, y - 5);
+                    ctx.fillStyle = '#7890a1'; ctx.font = '700 10px sans-serif';
+                    ctx.fillText(translateUiText('Pencapaian SLA'), x, y + 18);
+                    ctx.restore();
+                }
+            };
+            window.chartSlaInstance = new Chart(slaCanvas, {
+                type: 'doughnut',
+                data: { labels: slaDisplayLabels, datasets: [{
+                    data: [slaCount.h, slaCount.k, slaCount.m],
+                    backgroundColor: ['#1aa776', '#efb548', '#d85a69'],
+                    borderColor: ['#ffffff','#ffffff','#ffffff'], borderWidth: 4,
+                    borderRadius: 8, spacing: 2, hoverOffset: 7
+                }] },
+                plugins: [centerLabelPlugin],
+                options: {
+                    responsive: true, maintainAspectRatio: false, cutout: '73%',
+                    plugins: {
+                        legend: { position:'bottom', labels:{ usePointStyle:true, pointStyle:'circle', boxWidth:8, boxHeight:8, padding:15, color:'#5f788b', font:{size:10, weight:'700'} } },
+                        tooltip: { backgroundColor:'#0f2f46', padding:12, cornerRadius:10 }
+                    },
+                    onClick: (e, els) => { if(els.length) window.showChartBreakdown('sla', slaSourceLabels[els[0].index]); },
+                    onHover: (e, els) => e.native.target.style.cursor = els.length ? 'pointer' : 'default'
+                }
+            });
+        }
+    } catch(e) { console.warn('[Statistik] Grafik gagal dirender:', e); }
 
     let slaInfoEl = document.getElementById('sla-info-text');
     if (slaInfoEl) {
         if (totalSLADocs === 0) {
             slaInfoEl.innerHTML = '<div class="stats-empty-inline">Belum ada data pada periode ini.</div>';
         } else {
-            const slaLegendRows = [
-                { tone: 'green', label: `Sangat Baik (≤ ${window.slaSettings.greenMaxDays} Hari)`, count: slaCount.h, pct: pctH },
-                { tone: 'amber', label: `Perlu Perhatian (${window.slaSettings.greenMaxDays + 1}-${window.slaSettings.warningMaxDays} Hari)`, count: slaCount.k, pct: pctK },
-                { tone: 'red', label: `Terlambat (> ${window.slaSettings.warningMaxDays} Hari)`, count: slaCount.m, pct: pctM }
-            ];
             slaInfoEl.innerHTML = `
-                <div class="sla-legend">
-                    ${slaLegendRows.map(row => `
-                    <button type="button" class="sla-legend-row sla-tone-${row.tone}" onclick="showChartBreakdown('sla', '${row.label}')" title="Buka rincian klaim kategori ini">
-                        <span class="sla-legend-dot" aria-hidden="true"></span>
-                        <span class="sla-legend-name">${row.label}</span>
-                        <span class="sla-legend-count">${row.count} Dokumen</span>
-                        <span class="sla-legend-value">${row.pct}%</span>
-                        <span class="sla-legend-bar" aria-hidden="true"><i style="width:${row.pct}%;"></i></span>
-                    </button>`).join('')}
-                </div>
-                <button type="button" class="sla-achievement sla-achievement-${pctAchieve >= companyTarget ? 'on' : 'off'}" onclick="showChartBreakdown('sla_achieved', 'Sangat Baik + Perhatian')" title="Buka rincian klaim penyusun pencapaian SLA">
-                    <span class="sla-achievement-head">
-                        <span class="sla-achievement-label"><span aria-hidden="true">🏆</span> Pencapaian SLA</span>
-                        <span class="sla-achievement-badge" style="background:${achieveColor};">${pctAchieve}%</span>
-                    </span>
-                    <span class="sla-achievement-target">
-                        <span>Target perusahaan ${companyTarget}%</span>
-                        <span class="sla-achievement-status">${achievementStatus}</span>
-                    </span>
+                <button type="button" class="analytics-sla-line" onclick="showChartBreakdown('sla', 'Sangat Baik (≤ ${window.slaSettings.greenMaxDays} Hari)')"><span>🟢 Sangat Baik (≤ ${window.slaSettings.greenMaxDays} Hari):</span> <strong>${pctH}%</strong></button>
+                <button type="button" class="analytics-sla-line" onclick="showChartBreakdown('sla', 'Perlu Perhatian (${window.slaSettings.greenMaxDays + 1}-${window.slaSettings.warningMaxDays} Hari)')"><span>🟡 Perlu Perhatian (${window.slaSettings.greenMaxDays + 1}-${window.slaSettings.warningMaxDays} Hari):</span> <strong>${pctK}%</strong></button>
+                <button type="button" class="analytics-sla-line" onclick="showChartBreakdown('sla', 'Terlambat (> ${window.slaSettings.warningMaxDays} Hari)')"><span>🔴 Terlambat (> ${window.slaSettings.warningMaxDays} Hari):</span> <strong>${pctM}%</strong></button>
+                <button type="button" class="analytics-sla-line analytics-sla-achievement" onclick="showChartBreakdown('sla_achieved', 'Sangat Baik + Perhatian')">
+                    <span class="analytics-sla-achievement-main"><strong>🏆 Pencapaian SLA</strong><b style="--sla-achieve-color:${achieveColor};">${pctAchieve}%</b></span>
+                    <span class="analytics-sla-target">Target perusahaan ${companyTarget}% · ${achievementStatus}</span>
                 </button>
             `;
         }
     }
 
-    // Panggil tabel independen biar ngerender pakai kalendernya masing-masing
     if (typeof window.renderTopPengaju === 'function') window.renderTopPengaju();
     if (typeof window.renderTopRevisi === 'function') window.renderTopRevisi();
     if (typeof window.renderRaporIndividu === 'function') window.renderRaporIndividu();
@@ -3941,41 +3866,12 @@ const WORKSHEET_LANGUAGE_KEY = 'worksheet-interface-language';
 const WORKSHEET_SUPPORTED_LANGUAGES = ['id', 'en', 'ja'];
 const WORKSHEET_FONT_KEY = 'worksheet-interface-font';
 const WORKSHEET_SUPPORTED_FONTS = ['google-sans', 'inter', 'arial', 'segoe-ui'];
-// Emoji Windows 11 selalu berada di depan tumpukan font (termasuk untuk
-// label Chart.js yang digambar ke canvas), sementara font teksnya tetap
-// mengikuti pilihan pengguna.
-const WORKSHEET_EMOJI_FAMILY = '"Windows 11 Emoji"';
-const WORKSHEET_EMOJI_FALLBACK = '"Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji"';
-const withEmojiFamily = stack => `${WORKSHEET_EMOJI_FAMILY}, ${stack}, ${WORKSHEET_EMOJI_FALLBACK}, sans-serif`;
 const WORKSHEET_FONT_FAMILIES = Object.freeze({
-    'google-sans': withEmojiFamily('"Google Sans", Inter, "Segoe UI", Arial'),
-    inter: withEmojiFamily('Inter, "Segoe UI", Arial'),
-    arial: withEmojiFamily('Arial, Helvetica'),
-    'segoe-ui': withEmojiFamily('"Segoe UI", Tahoma, Arial')
+    'google-sans': '"Google Sans", Inter, "Segoe UI", Arial, sans-serif',
+    inter: 'Inter, "Segoe UI", Arial, sans-serif',
+    arial: 'Arial, Helvetica, sans-serif',
+    'segoe-ui': '"Segoe UI", Tahoma, Arial, sans-serif'
 });
-
-// Perangkat non-Windows tidak memiliki Segoe UI Emoji. Font tersebut milik
-// Microsoft sehingga tidak boleh disalurkan lewat CDN publik; sediakan
-// sendiri berkasnya lalu daftarkan lewat window.WORKSHEET_EMOJI_FONT_URL
-// (lihat assets/fonts/README.md). Bila tidak diisi, tidak ada permintaan
-// jaringan sama sekali dan emoji bawaan perangkat tetap dipakai.
-const WORKSHEET_EMOJI_UNICODE_RANGE = 'U+2139, U+20E3, U+2300-23FF, U+2600-27BF, U+2B00-2BFF, U+FE0E-FE0F, U+1F000-1FAFF';
-function loadWindowsEmojiWebfont() {
-    const source = window.WORKSHEET_EMOJI_FONT_URL;
-    if(!source || typeof window.FontFace !== 'function' || !document.fonts) return;
-    try {
-        const face = new FontFace('Windows 11 Emoji', `url("${source}")`, {
-            style: 'normal',
-            weight: '400',
-            display: 'swap',
-            unicodeRange: WORKSHEET_EMOJI_UNICODE_RANGE
-        });
-        face.load()
-            .then(loaded => { document.fonts.add(loaded); refreshWorksheetChartFonts(); })
-            .catch(() => {});
-    } catch (_) {}
-}
-window.loadWindowsEmojiWebfont = loadWindowsEmojiWebfont;
 const WORKSHEET_TRANSLATION_ROWS = [
     ['Worksheet Klaim - Operasional & Pelaporan', 'Claim Worksheet — Operations & Reporting', '申請ワークシート — 業務・レポート'],
     ['CLAIM WORKSHEET', 'CLAIM WORKSHEET', '申請ワークシート'],
@@ -4115,9 +4011,9 @@ const WORKSHEET_TRANSLATION_ROWS = [
     ['Nomor Referensi', 'Reference Number', '参照番号'],
     ['Tanggal Submit', 'Submission Date', '申請日'],
     ['Tanggal Proses', 'Processing Date', '処理日'],
-    ['Tanggal Pembayaran', 'Payment Date', '支払日'],
-    ['PIC Pembayaran', 'Payment PIC', '支払担当者'],
-    ['Referensi Pembayaran', 'Payment Reference', '支払参照番号'],
+    ['Tgl Pymnt', 'Payment Date', '支払日'],
+    ['PIC Pymnt', 'Payment PIC', '支払担当者'],
+    ['Ref Pymnt', 'Payment Reference', '支払参照番号'],
     ['Amount', 'Amount', '金額'],
     ['Jumlah', 'Quantity', '件数'],
     ['Peringkat', 'Rank', '順位'],
@@ -4189,25 +4085,7 @@ const WORKSHEET_TRANSLATION_ROWS = [
     ['Total Dokumen Posted (Selesai)', 'Total Posted Documents (Completed)', '計上済み書類合計（完了）'],
     ['Total Dokumen Direvisi', 'Total Revised Documents', '修正書類合計'],
     ['Analisis Perbandingan Tren (CP dan PP)', 'Trend Comparison Analysis (CP and PP)', 'トレンド比較分析（CP・PP）'],
-    ['RINGKASAN EKSEKUTIF', 'EXECUTIVE SUMMARY', 'エグゼクティブサマリー'],
-    ['Bandingkan kinerja periode berjalan dengan periode sebelumnya, MTD, dan tahun lalu. Klik kartu indikator untuk membuka rincian datanya.', 'Compare the current period against the previous period, MTD, and last year. Click an indicator card to open its underlying data.', '当期を前期・MTD・前年と比較します。指標カードをクリックすると明細を開きます。'],
-    ['Preset periode Ringkasan Manajemen', 'Management Summary period preset', '経営サマリーの期間プリセット'],
-    ['Periode Analisis (CP)', 'Analysis Period (CP)', '分析期間（CP）'],
-    ['Total Dokumen Dibandingkan', 'Total Documents Compared', '比較対象書類数'],
-    ['Buka data pendukung →', 'Open supporting data →', '根拠データを開く →'],
-    ['Klik untuk membuka data pendukung', 'Click to open the supporting data', 'クリックして根拠データを開く'],
-    ['Buka Detail Analitik →', 'Open Analytics Detail →', '分析詳細を開く →'],
-    ['Tepat Waktu (CP)', 'On Time (CP)', '期限内（CP）'],
-    ['Kasus Revisi (CP)', 'Revision Cases (CP)', '修正件数（CP）'],
-    ['Analisis Perbandingan Tren', 'Trend Comparison Analysis', 'トレンド比較分析'],
-    ['Periode aktif dibandingkan periode sebelumnya', 'Current period compared with the previous period', '当期と前期の比較'],
-    ['CP, MTD, dan periode sama tahun lalu', 'CP, MTD, and the same period last year', 'CP・MTD・前年同期'],
-    ['Dok', 'Docs', '件'],
     ['Distribusi Pencapaian SLA', 'SLA Achievement Distribution', 'SLA達成分布'],
-    ['Pencapaian SLA', 'SLA Achievement', 'SLA達成率'],
-    ['Pencapaian', 'Achievement', '達成率'],
-    ['Buka rincian klaim kategori ini', 'Open the claim details for this category', 'このカテゴリの申請明細を開く'],
-    ['Buka rincian klaim penyusun pencapaian SLA', 'Open the claims behind the SLA achievement', 'SLA達成の根拠となる申請を開く'],
     ['Berikut adalah rincian kecepatan proses berdasarkan filter periode yang Anda pilih:', 'The following processing-speed details follow your selected period filter:', '選択した期間フィルターに基づく処理速度の詳細です：'],
     ['Rasio Dokumen Revisi', 'Revision Document Ratio', '修正書類比率'],
     ['Perbandingan jumlah dokumen yang bermasalah terhadap total pengajuan di periode ini:', 'Comparison of issue documents against total claims in this period:', 'この期間の申請総数に対する問題書類数の比較：'],
@@ -4280,9 +4158,6 @@ const WORKSHEET_TRANSLATION_ROWS = [
     ['Tersimpan di perangkat', 'Saved on Device', '端末に保存済み'],
     ['Semua perubahan sudah tersinkron', 'All Changes Synchronized', 'すべての変更を同期しました'],
     ['Data berhasil disimpan', 'Data saved successfully', 'データを保存しました'],
-    ['Dokumen RTP Selesai', 'RTP Document Completed', 'RTP書類完了'],
-    ['Data berhasil diubah menjadi Posted.', 'The record has been changed to Posted.', 'データを計上済みに変更しました。'],
-    ['Silakan cetak voucher dan serahkan dokumen RTP kepada Finance.', 'Please print the voucher and hand the RTP document to Finance.', 'バウチャーを印刷し、RTP書類を財務部へ提出してください。'],
     ['Data tersimpan', 'Data saved', 'データを保存しました'],
     ['File Excel berhasil disiapkan.', 'The Excel file is ready.', 'Excelファイルを作成しました。'],
     ['Rentang tanggal tidak valid.', 'The date range is invalid.', '期間が無効です。'],
@@ -4452,9 +4327,8 @@ const WORKSHEET_ADDITIONAL_TRANSLATION_ROWS = [
     ['Arsip Monitoring', 'Monitoring Archive', 'モニタリング保管'],
     ['Hapus Seluruh Tampilan', 'Delete All Displayed Data', '表示データをすべて削除'],
     ['Total Amount', 'Total Amount', '金額合計'],
-    ['Tgl Pymnt', 'Pymnt Date', '支払日'],
-    ['PIC Pymnt', 'Pymnt PIC', '支払担当者'],
-    ['Ref Pymnt', 'Pymnt Ref', '支払参照'],
+    ['Tgl Pymnt', 'Payment Date', '支払日'],
+    ['PIC Pymnt', 'Payment PIC', '支払担当者'],
     ['Diinput Oleh', 'Entered By', '入力者'],
     ['Status Data', 'Data Status', 'データステータス'],
     ['Klaim yang saat ini telah mencapai RTP: Posted, Paid, atau Hold.', 'Claims that have reached RTP: Posted, Paid, or Hold.', 'RTP到達済みの申請：計上済み、支払済み、または保留。'],
@@ -4759,12 +4633,347 @@ const WORKSHEET_ADDITIONAL_TRANSLATION_ROWS = [
     ['Filter:', 'Filter:', 'フィルター：']
 ];
 
-const WORKSHEET_TRANSLATIONS = Object.freeze([...WORKSHEET_TRANSLATION_ROWS, ...WORKSHEET_ADDITIONAL_TRANSLATION_ROWS].reduce((catalog, row) => {
+const WORKSHEET_P18_TRANSLATION_ROWS = [
+    ['Claim Data', 'Claim Data', '申請データ'],
+    ['In Process', 'In Process', '処理中'],
+    ['Pending Approval', 'Pending Approval', '承認待ち'],
+    ['Claim History', 'Claim History', '申請履歴'],
+    ['Canceled Claim', 'Canceled Claim', '取消済み申請'],
+    ['Editor Teks', 'Text Editor', 'テキスト編集'],
+    ['Editor Teks Website', 'Website Text Editor', 'Webサイトテキスト編集'],
+    ['ADMIN CONTENT CONTROL', 'ADMIN CONTENT CONTROL', '管理者コンテンツ管理'],
+    ['Ubah teks antarmuka tanpa menyentuh source code. Override dapat dibuat terpisah untuk Bahasa Indonesia, English, dan 日本語.', 'Edit interface copy without changing source code. Overrides can be maintained separately for Bahasa Indonesia, English, and 日本語.', 'ソースコードを変更せずにUIテキストを編集できます。インドネシア語・英語・日本語ごとに上書きを管理できます。'],
+    ['Atur Ulang Draft', 'Reset Draft', '下書きをリセット'],
+    ['Simpan Perubahan Teks', 'Save Text Changes', 'テキスト変更を保存'],
+    ['Cari teks, misalnya login, rekapitulasi, status...', 'Search text, for example login, recapitulation, status...', 'ログイン、集計、ステータスなどのテキストを検索...'],
+    ['Bahasa yang diedit', 'Editing language', '編集する言語'],
+    ['Perubahan berlaku untuk semua perangkat setelah sinkronisasi Firestore. Kosongkan override untuk kembali menggunakan teks bawaan sistem.', 'Changes apply to all devices after Firestore synchronization. Clear an override to return to the system default text.', 'Firestore同期後、変更はすべての端末に反映されます。上書きを空にすると既定テキストに戻ります。'],
+    ['Status & Linimasa Klaim', 'Claim Status & Timeline', '申請ステータスとタイムライン'],
+    ['CLAIM WORKFLOW', 'CLAIM WORKFLOW', '申請ワークフロー'],
+    ['Pantau posisi klaim, ubah status, dan telusuri seluruh catatan proses dalam satu tampilan.', 'Track the claim position, change status, and review the full process trail in one view.', '申請の現在位置、ステータス変更、処理履歴を一つの画面で確認できます。'],
+    ['Status Saat Ini', 'Current Status', '現在のステータス'],
+    ['Pilih Status Tujuan', 'Select Target Status', '変更先ステータスを選択'],
+    ['Pilih satu tindakan yang diizinkan untuk peran Anda.', 'Choose an action allowed for your role.', '権限に応じて許可された操作を選択してください。'],
+    ['Waktu Kejadian Historis', 'Historical Event Time', '履歴イベント時刻'],
+    ['Kosongkan kolom ini untuk menggunakan waktu saat ini secara otomatis.', 'Leave this field blank to use the current time automatically.', '空欄の場合は現在時刻を自動使用します。'],
+    ['Hapus waktu', 'Clear time', '時刻をクリア'],
+    ['Tahap Tindak Lanjut', 'Follow-up Stage', 'フォローアップ段階'],
+    ['Catatan Proses', 'Process Notes', '処理メモ'],
+    ['Tuliskan keterangan untuk PIC.', 'Enter notes for the PIC.', '担当者向けのメモを入力してください。'],
+    ['Alasan Cancel', 'Cancellation Reason', '取消理由'],
+    ['Claim menjadi inactive dan tidak masuk Statistik/Management Summary. Status dapat dikembalikan ke In Process bila claim perlu diproses kembali.', 'The claim becomes inactive and is excluded from Statistics/Management Summary. It can be returned to In Process if processing needs to resume.', '申請は無効となり統計・管理サマリーから除外されます。必要に応じて処理中へ戻せます。'],
+    ['Riwayat Perubahan Status', 'Status Change History', 'ステータス変更履歴'],
+    ['Jejak status dan penyesuaian tersusun kronologis', 'Status and adjustment trail in chronological order', 'ステータスと調整履歴を時系列で表示'],
+    ['Batalkan Status Terakhir', 'Undo Last Status', '直前のステータスを取消'],
+    ['Rekap Harian', 'Daily Recap', '日次集計'],
+    ['DAILY IMPORT', 'DAILY IMPORT', '日次インポート'],
+    ['Tempel data dari Excel Admin, validasi otomatis, lalu simpan batch claim baru tanpa mengganggu pekerjaan yang sedang dibuka.', 'Paste data from the Admin Excel file, validate it automatically, then save a batch of new claims without interrupting the work currently open.', '管理用Excelからデータを貼り付け、自動検証後、現在の作業を中断せずに新規申請を一括保存します。'],
+    ['Format Kolom', 'Column Format', '列フォーマット'],
+    ['Tahapan Rekap Harian', 'Daily Recap Steps', '日次集計の手順'],
+    ['Tempel Data', 'Paste Data', 'データ貼付'],
+    ['Salin baris langsung dari Excel.', 'Copy rows directly from Excel.', 'Excelから行を直接コピーします。'],
+    ['Validasi', 'Validate', '検証'],
+    ['Duplikat, tanggal, mata uang, dan nominal diperiksa.', 'Duplicates, dates, currencies, and amounts are checked.', '重複、日付、通貨、金額を検証します。'],
+    ['Simpan Batch', 'Save Batch', '一括保存'],
+    ['Data masuk ke cache lokal lalu sinkron ke cloud.', 'Data is saved to local cache and then synchronized to the cloud.', 'ローカルキャッシュへ保存後、クラウドへ同期します。'],
+    ['Area Tempel Data Excel', 'Excel Paste Area', 'Excel貼付エリア'],
+    ['Satu baris Excel = satu claim baru.', 'One Excel row = one new claim.', 'Excel 1行 = 新規申請1件です。'],
+    ['Proses & Tambahkan ke Rekapitulasi', 'Process & Add to Recapitulation', '処理して集計へ追加'],
+    ['0 baris siap dibaca', '0 rows ready to read', '読み取り可能な行 0件'],
+    ['Claim aktif yang masih diproses Accounting, termasuk data yang dikembalikan oleh Finance.', 'Active claims still being processed by Accounting, including claims returned by Finance.', '経理で処理中の有効な申請（財務から返却されたものを含む）。'],
+    ['Claim inactive. Nominal tetap tercatat di Rekapitulasi tetapi dikeluarkan dari Statistik dan Management Summary.', 'Inactive claims. Amounts remain recorded in Recapitulation but are excluded from Statistics and Management Summary.', '無効な申請です。金額は集計に残りますが、統計と管理サマリーから除外されます。'],
+    ['Status & Keterangan', 'Status & Notes', 'ステータス・備考'],
+    ['Tgl Cancel', 'Cancel Date', '取消日'],
+    ['PIC Cancel', 'Cancel PIC', '取消担当者'],
+    ['Alasan Cancel', 'Cancellation Reason', '取消理由'],
+    ['Detail Catatan', 'Note Details', 'メモ詳細'],
+    ['Kembalikan ke In Process', 'Return to In Process', '処理中へ戻す'],
+    ['Claim canceled dapat diproses kembali melalui status In Process.', 'A canceled claim can be processed again by returning it to In Process.', '取消済み申請は処理中へ戻すことで再処理できます。'],
+    ['Status berhasil dikembalikan ke In Process.', 'Status was returned to In Process.', 'ステータスを処理中へ戻しました。'],
+    ['Alasan reverse cancel wajib diisi.', 'A reason for reversing the cancellation is required.', '取消解除の理由を入力してください。'],
+    ['Alasan Mengaktifkan Kembali', 'Reactivation Reason', '再有効化理由'],
+    ['Tuliskan alasan claim diproses kembali.', 'Enter why the claim is being processed again.', '申請を再処理する理由を入力してください。'],
+    ['Menampilkan seluruh histori revisi lintas periode. Gunakan pagination untuk membuka data lama.', 'Shows the complete revision history across periods. Use pagination to view older data.', '期間をまたぐすべての修正履歴を表示します。古いデータはページ送りで確認できます。'],
+    ['Pemantauan Revisi', 'Revision Monitoring', '修正モニタリング'],
+    ['Pemantauan Aktif', 'Active Monitoring', '有効モニタリング'],
+    ['Arsip Monitoring', 'Monitoring Archive', 'モニタリングアーカイブ'],
+    ['Perluas', 'Expand', '展開'],
+    ['Minimize', 'Minimize', '最小化'],
+    ['Tampilan Daftar', 'List View', '一覧表示'],
+    ['Tampilan Folder', 'Folder View', 'フォルダー表示'],
+    ['Ubah Pilihan ke Posted', 'Change Selected to Posted', '選択項目を計上済みに変更'],
+    ['Hapus Semua Data Aktif', 'Delete All Active Data', '有効データをすべて削除'],
+    ['Ekspor Ringkasan', 'Export Summary', 'サマリーを出力'],
+    ['Ekspor Detail', 'Export Details', '詳細を出力'],
+    ['Pencarian cepat', 'Quick search', 'クイック検索'],
+    ['Cari No. pengajuan, NIK, nama, tipe...', 'Search claim no., NIK, name, type...', '申請番号、NIK、氏名、種別を検索...'],
+    ['Detail Catatan Cancel', 'Cancellation Note Details', '取消メモ詳細'],
+    ['Detail Catatan Aktivasi Kembali', 'Reactivation Note Details', '再有効化メモ詳細'],
+    ['Tidak ada claim aktif pada filter ini.', 'No active claims match this filter.', 'このフィルターに一致する有効な申請はありません。'],
+    ['Tidak ada claim canceled pada filter ini.', 'No canceled claims match this filter.', 'このフィルターに一致する取消済み申請はありません。'],
+    ['Perubahan dan adjustment berhasil disimpan. Data tetap terbuka.', 'Changes and adjustments were saved. The current claim remains open.', '変更と調整を保存しました。現在の申請画面を開いたままにします。'],
+    ['Status sedang disimpan. Mohon tunggu.', 'The status is being saved. Please wait.', 'ステータスを保存しています。しばらくお待ちください。'],
+    ['Perubahan status ini tidak diizinkan untuk peran Anda.', 'This status change is not allowed for your role.', 'このステータス変更は現在の権限では許可されていません。'],
+    ['Alasan revisi wajib diisi.', 'A revision reason is required.', '修正理由を入力してください。'],
+    ['Alasan cancel wajib diisi.', 'A cancellation reason is required.', '取消理由を入力してください。'],
+    ['Referensi pembayaran wajib diisi sebelum status diubah menjadi Paid.', 'A payment reference is required before changing the status to Paid.', 'Paidへ変更する前に支払参照番号を入力してください。'],
+    ['Alasan atau catatan Finance wajib diisi untuk tindakan ini.', 'A Finance reason or note is required for this action.', 'この操作にはFinanceの理由またはメモが必要です。'],
+    ['Tanggal/jam perubahan status tidak valid.', 'The status change date/time is invalid.', 'ステータス変更日時が無効です。'],
+    ['Menyimpan...', 'Saving...', '保存中...'],
+    ['Draft editor teks dikembalikan ke versi tersimpan.', 'The text editor draft was restored to the saved version.', 'テキスト編集の下書きを保存済みの状態へ戻しました。'],
+    ['Editor teks hanya dapat disimpan Admin.', 'Only Admin can save website text changes.', 'Webサイトテキストの変更を保存できるのはAdminのみです。'],
+    ['Perubahan teks berhasil disimpan dan berlaku lintas perangkat.', 'Text changes were saved and will apply across devices.', 'テキスト変更を保存しました。すべての端末へ反映されます。'],
+    ['Perubahan teks gagal disimpan. Periksa izin Firebase Admin.', 'Text changes could not be saved. Check the Admin Firebase permissions.', 'テキスト変更を保存できませんでした。AdminのFirebase権限を確認してください。'],
+    ['Tidak ada teks yang cocok.', 'No matching text was found.', '一致するテキストがありません。'],
+    ['Override aktif', 'Override active', '上書き有効'],
+    ['Teks bawaan sistem', 'System default', 'システム既定'],
+    ['Bersihkan', 'Clear', 'クリア'],
+    ['CLAIM NOTE', 'CLAIM NOTE', '申請メモ'],
+    ['Detail Catatan', 'Note Details', 'メモ詳細'],
+    ['Oleh:', 'By:', '担当：'],
+    ['Status', 'Status', 'ステータス'],
+    ['Penyesuaian', 'Adjustment', '調整'],
+    ['Revisi', 'Revision', '修正'],
+    ['Ubah Password', 'Change Password', 'パスワード変更'],
+    ['Untuk keamanan, masukkan password saat ini lalu password baru. Perubahan berlaku langsung pada Firebase Authentication untuk akun yang sedang login.', 'For security, enter the current password and then the new password. The change applies immediately to the signed-in Firebase Authentication account.', 'セキュリティのため、現在のパスワードと新しいパスワードを入力してください。変更はログイン中のFirebase Authenticationアカウントへ直ちに適用されます。'],
+    ['Simpan Password', 'Save Password', 'パスワードを保存'],
+    ['Claim canceled dapat diproses kembali melalui status In Process. Riwayat cancel tetap tersimpan pada linimasa.', 'A canceled claim can be processed again by returning it to In Process. The cancellation history remains in the timeline.', '取消済み申請は処理中へ戻すことで再処理できます。取消履歴はタイムラインに残ります。'],
+    ['Ringkasan kinerja operasional, perbandingan periode, SLA, dan tren utama dalam satu tampilan.', 'Operational performance, period comparisons, SLA, and key trends in one view.', '業務実績、期間比較、SLA、主要トレンドを一つの画面で確認できます。'],
+    ['Periode Analisis', 'Analysis Period', '分析期間'],
+    ['Atur rentang data manajemen', 'Set the management data range', '管理データの期間を設定'],
+    ['Filter Ringkasan Manajemen', 'Management Summary Filter', '管理サマリーフィルター'],
+    ['Preset periode Ringkasan Manajemen', 'Management Summary period preset', '管理サマリー期間プリセット'],
+    ['Kelola peran pengguna Firebase. Role Accounting disimpan sebagai accounting. Perubahan kata sandi dilakukan oleh pengguna yang sedang login melalui menu profil.', 'Manage Firebase user roles. The Accounting role is stored as accounting. Password changes are performed by the signed-in user through the profile menu.', 'Firebaseユーザー権限を管理します。Accounting権限はaccountingとして保存されます。パスワード変更はログイン中のユーザーがプロフィールメニューから行います。'],
+    ['Hapus > 1 Hari', 'Delete > 1 Day', '1日超を削除'],
+    ['Hapus > 3 Hari', 'Delete > 3 Days', '3日超を削除'],
+    ['Hapus > 7 Hari', 'Delete > 7 Days', '7日超を削除'],
+    ['Pilih status tujuan', 'Select target status', '変更先ステータスを選択'],
+    ['Contoh: double pengajuan, pengajuan tidak jadi diproses, atau alasan lain yang dapat diaudit.', 'Example: duplicate submission, submission no longer needs processing, or another auditable reason.', '例：重複申請、処理不要となった申請、または監査可能なその他の理由。'],
+    ['Tempel baris data Excel di sini...', 'Paste Excel rows here...', 'Excelの行をここに貼り付け...'],
+    ['Pilihan periode In Process', 'In Process period options', '処理中の期間選択'],
+    ['Pilihan periode Canceled Claim', 'Canceled Claim period options', '取消済み申請の期間選択'],
+    ['Filter Tgl Cancel...', 'Filter Cancel Date...', '取消日を絞り込み...'],
+    ['Atur ulang filter Top Revisi', 'Reset Top Revision filter', '修正上位フィルターをリセット'],
+    ['Atur ulang filter Top Pengaju', 'Reset Top Claimant filter', '申請者上位フィルターをリセット']
+];
+
+const WORKSHEET_P19_TRANSLATION_ROWS = [
+    ['Akun ini hanya memiliki akses baca.', 'This account has read-only access.', 'このアカウントは閲覧のみ可能です。'],
+    ['Tindakan ini hanya dapat dilakukan Admin.', 'This action can only be performed by Admin.', 'この操作はAdminのみ実行できます。'],
+    ['Log aktivitas pada cloud gagal dibersihkan.', 'Cloud activity logs could not be cleared.', 'クラウドの操作ログを削除できませんでした。'],
+    ['Akun GL tidak boleh mengandung angka.', 'The GL account must not contain numbers.', 'GLアカウントに数字は使用できません。'],
+    ['✅ Perubahan baru disimpan; data yang tidak berubah dilewati. (Shift+S)', '✅ New changes were saved; unchanged data was skipped. (Shift+S)', '✅ 新しい変更を保存しました。変更のないデータはスキップしました。（Shift+S）'],
+    ['Sesi pengguna belum siap.', 'The user session is not ready yet.', 'ユーザーセッションの準備ができていません。'],
+    ['Fitur ubah password belum siap.', 'The password change feature is not ready yet.', 'パスワード変更機能の準備ができていません。'],
+    ['Password saat ini wajib diisi dan password baru minimal 8 karakter.', 'Enter the current password and a new password of at least 8 characters.', '現在のパスワードと8文字以上の新しいパスワードを入力してください。'],
+    ['Konfirmasi password baru tidak sama.', 'The new password confirmation does not match.', '新しいパスワードの確認入力が一致しません。'],
+    ['Password baru harus berbeda dari password saat ini.', 'The new password must be different from the current password.', '新しいパスワードは現在のパスワードと異なるものにしてください。'],
+    ['Password berhasil diubah.', 'Password changed successfully.', 'パスワードを変更しました。'],
+    ['Password saat ini tidak sesuai.', 'The current password is incorrect.', '現在のパスワードが正しくありません。'],
+    ['Password baru terlalu lemah.', 'The new password is too weak.', '新しいパスワードが弱すぎます。'],
+    ['Password gagal diubah. Silakan login ulang lalu coba kembali.', 'The password could not be changed. Sign in again and try once more.', 'パスワードを変更できませんでした。再ログインしてもう一度お試しください。'],
+    ['Detail log aktivitas tidak ditemukan.', 'Activity log details were not found.', '操作ログの詳細が見つかりません。'],
+    ['Nama pengguna (minimal dua karakter), Firebase UID, dan peran wajib valid.', 'Username (at least two characters), Firebase UID, and role must be valid.', 'ユーザー名（2文字以上）、Firebase UID、権限を正しく入力してください。'],
+    ['Firebase belum siap.', 'Firebase is not ready yet.', 'Firebaseの準備ができていません。'],
+    ['Peran pengguna berhasil disimpan.', 'The user role was saved successfully.', 'ユーザー権限を保存しました。'],
+    ['Peran gagal disimpan. Pastikan akun yang aktif memiliki peran Admin.', 'The role could not be saved. Make sure the active account has the Admin role.', '権限を保存できませんでした。現在のアカウントがAdmin権限を持っていることを確認してください。'],
+    ['Peran pengguna berhasil dihapus.', 'The user role was removed successfully.', 'ユーザー権限を削除しました。'],
+    ['Peran pengguna gagal dihapus.', 'The user role could not be removed.', 'ユーザー権限を削除できませんでした。'],
+    ['Data berhasil diubah menjadi Posted.', 'The data was successfully changed to Posted.', 'データをPostedへ変更しました。'],
+    ['Pilih minimal satu filter atau gunakan tombol Bersihkan.', 'Select at least one filter or use the Clear button.', '少なくとも1つのフィルターを選択するか、クリアボタンを使用してください。'],
+    ['Format tanggal tidak sesuai. Gunakan format DD/MM/YYYY.', 'Invalid date format. Use DD/MM/YYYY.', '日付形式が正しくありません。DD/MM/YYYYを使用してください。'],
+    ['Editor teks hanya dapat diakses Admin.', 'The text editor can only be accessed by Admin.', 'テキストエディターはAdminのみ利用できます。'],
+    ['Referensi dokumen berhasil disimpan.', 'Document references were saved successfully.', '書類参照番号を保存しました。'],
+    ['Tidak terdapat data untuk dihapus.', 'There is no data to delete.', '削除するデータがありません。'],
+    ['Penyimpanan lokal gagal; data dikembalikan.', 'Local save failed; the data was restored.', 'ローカル保存に失敗したため、データを元に戻しました。'],
+    ['Data terkunci (Posted/Paid/Hold) bersifat baca-saja.', 'Locked data (Posted/Paid/Hold) is read-only.', 'ロック済みデータ（Posted/Paid/Hold）は閲覧のみ可能です。'],
+    ['Pembatalan penyesuaian masih diproses.', 'The adjustment reversal is still being processed.', '調整の取消処理中です。'],
+    ['Penyimpanan lokal gagal; data dikembalikan seperti semula.', 'Local save failed; the data was restored to its previous state.', 'ローカル保存に失敗したため、データを元の状態へ戻しました。'],
+    ['Penyesuaian yang dipilih berhasil dibatalkan.', 'The selected adjustments were successfully reversed.', '選択した調整を取り消しました。'],
+    ['Tidak terdapat riwayat penyesuaian.', 'There is no adjustment history.', '調整履歴がありません。'],
+    ['Penyesuaian berhasil dibatalkan.', 'The adjustment was successfully reversed.', '調整を取り消しました。'],
+    ['Penyimpanan lokal massal gagal; data dikembalikan seperti semula.', 'Bulk local save failed; the data was restored to its previous state.', '一括ローカル保存に失敗したため、データを元の状態へ戻しました。'],
+    ['Seluruh penyesuaian berhasil dibatalkan.', 'All adjustments were successfully reversed.', 'すべての調整を取り消しました。'],
+    ['NIK dan nama wajib diisi.', 'NIK and name are required.', 'NIKと氏名は必須です。'],
+    ['Data karyawan berhasil disimpan.', 'Employee data was saved successfully.', '従業員データを保存しました。'],
+    ['Data karyawan berhasil dihapus.', 'Employee data was deleted successfully.', '従業員データを削除しました。'],
+    ['Data GL tersebut telah tersedia.', 'That GL data already exists.', 'そのGLデータは既に登録されています。'],
+    ['Data GL berhasil disimpan.', 'GL data was saved successfully.', 'GLデータを保存しました。'],
+    ['Data GL berhasil dihapus.', 'GL data was deleted successfully.', 'GLデータを削除しました。'],
+    ['Data berhasil disalin ke papan klip.', 'Data was copied to the clipboard.', 'データをクリップボードへコピーしました。'],
+    ['Data berhasil ditempel pada area yang dipilih.', 'Data was pasted into the selected area.', '選択した領域へデータを貼り付けました。'],
+    ['Data berhasil ditempel.', 'Data was pasted successfully.', 'データを貼り付けました。'],
+    ['Status pertama tidak dapat dibatalkan.', 'The first status cannot be undone.', '最初のステータスは取り消せません。'],
+    ['Pembatalan status gagal disimpan ke perangkat.', 'The status reversal could not be saved on this device.', 'ステータス取消を端末へ保存できませんでした。'],
+    ['Status terakhir berhasil dibatalkan.', 'The latest status was successfully undone.', '直前のステータスを取り消しました。'],
+    ['Laporan Excel berhasil diunduh.', 'The Excel report was downloaded successfully.', 'Excelレポートをダウンロードしました。'],
+    ['Data header belum lengkap atau nominal bernilai nol.', 'Header data is incomplete or the amount is zero.', 'ヘッダーデータが未完了、または金額が0です。'],
+    ['Perubahan formulir harus disimpan oleh Accounting atau Admin terlebih dahulu.', 'Form changes must first be saved by Accounting or Admin.', 'フォーム変更は先にAccountingまたはAdminが保存してください。'],
+    ['Impor sebelumnya masih sedang diproses.', 'The previous import is still being processed.', '前回のインポート処理がまだ完了していません。'],
+    ['Area input masih kosong. Silakan tempel data Excel terlebih dahulu.', 'The input area is empty. Paste the Excel data first.', '入力欄が空です。先にExcelデータを貼り付けてください。'],
+    ['Format matriks data tidak sesuai. Mohon periksa kembali.', 'The data matrix format is invalid. Please check it again.', 'データ行列の形式が正しくありません。再確認してください。'],
+    ['Impor gagal disimpan. Data tidak dimasukkan ke Rekapitulasi.', 'The import could not be saved. No data was added to Recapitulation.', 'インポートを保存できませんでした。データは集計へ追加されていません。'],
+    ['Pilih minimal satu data yang akan diubah menjadi Posted.', 'Select at least one record to change to Posted.', 'Postedへ変更するデータを1件以上選択してください。'],
+    ['Tanggal atau jam perubahan massal ke Posted tidak valid.', 'The date or time for the bulk Posted change is invalid.', 'Posted一括変更の日時が無効です。'],
+    ['Perubahan status massal gagal disimpan pada perangkat.', 'The bulk status change could not be saved on this device.', 'ステータス一括変更を端末へ保存できませんでした。'],
+    ['Tidak ada data terpilih yang dapat diubah menjadi Posted.', 'None of the selected data can be changed to Posted.', '選択したデータにPostedへ変更できるものがありません。'],
+    ['Pembatalan massal hanya berlaku untuk status Posted. Paid/Hold wajib dikoreksi satu per satu dengan alasan audit.', 'Bulk reversal only applies to Posted. Paid/Hold must be corrected individually with an audit reason.', '一括取消はPostedのみ対象です。Paid/Holdは監査理由を付けて1件ずつ修正してください。'],
+    ['Pembatalan massal gagal disimpan pada perangkat; data telah dikembalikan.', 'The bulk reversal could not be saved on this device; the data was restored.', '一括取消を端末へ保存できなかったため、データを元に戻しました。'],
+    ['Status Posted pada data terpilih berhasil dibatalkan.', 'Posted status was successfully reversed for the selected data.', '選択したデータのPostedステータスを取り消しました。'],
+    ['Pilih minimal satu data untuk dihapus.', 'Select at least one record to delete.', '削除するデータを1件以上選択してください。'],
+    ['Penghapusan massal gagal disimpan lokal; data dikembalikan.', 'Bulk deletion could not be saved locally; the data was restored.', '一括削除をローカル保存できなかったため、データを元に戻しました。'],
+    ['Data yang dipilih berhasil dihapus.', 'The selected data was deleted successfully.', '選択したデータを削除しました。'],
+    ['Pilih minimal satu data revisi untuk dihapus.', 'Select at least one revision record to delete.', '削除する修正データを1件以上選択してください。'],
+    ['Silakan simpan data sebagai Draft terlebih dahulu sebelum melakukan penyesuaian.', 'Save the data as Draft before making an adjustment.', '調整を行う前にデータをDraftとして保存してください。'],
+    ['Penyesuaian sebelumnya masih dalam proses penyimpanan.', 'The previous adjustment is still being saved.', '前回の調整を保存中です。'],
+    ['Nominal dan alasan wajib diisi.', 'Amount and reason are required.', '金額と理由は必須です。'],
+    ['Penyesuaian menyebabkan total header bernilai nol atau negatif sehingga tidak dapat disimpan.', 'The adjustment would make the header total zero or negative, so it cannot be saved.', '調整後のヘッダー合計が0以下になるため保存できません。'],
+    ['Penyesuaian gagal disimpan pada perangkat.', 'The adjustment could not be saved on this device.', '調整を端末へ保存できませんでした。'],
+    ['Penyesuaian berhasil disimpan. Silakan lanjutkan input atau tekan Esc untuk menutup.', 'The adjustment was saved. Continue editing or press Esc to close.', '調整を保存しました。入力を続けるか、Escで閉じてください。'],
+    ['Membuka rincian data berdasarkan urutan yang dipilih.', 'Opening data details in the selected order.', '選択した順序でデータ詳細を開きます。'],
+    ['Silakan pilih rentang Tanggal Submit terlebih dahulu.', 'Select the Submit Date range first.', '先に提出日の期間を選択してください。'],
+    ['Silakan masukkan NIK, nama, atau nomor dokumen terlebih dahulu.', 'Enter an NIK, name, or document number first.', '先にNIK、氏名、または書類番号を入力してください。'],
+    ['Pilihan lama berada di luar periode/filter aktif. Pilih ulang data yang ingin diekspor.', 'The previous selection is outside the active period/filter. Select the data to export again.', '以前の選択は現在の期間・フィルター外です。出力するデータを選び直してください。'],
+    ['Mode ekspor tidak dikenali.', 'The export mode is not recognized.', '出力モードを認識できません。'],
+    ['Masukkan nomor referensi atau NIK terlebih dahulu.', 'Enter a reference number or NIK first.', '先に参照番号またはNIKを入力してください。'],
+    ['Baris yang telah memiliki penyesuaian harus dinetralkan terlebih dahulu (Amount Klaim = Amount Nota), kemudian jalankan penyesuaian.', 'Rows with an existing adjustment must first be neutralized (Claim Amount = Receipt Amount), then run the adjustment.', '既に調整がある行は先に中立化（申請金額＝領収書金額）してから調整を実行してください。'],
+    ['Tidak terdapat perbedaan antara Amount Nota dan Amount Klaim untuk disesuaikan.', 'There is no difference between Receipt Amount and Claim Amount to adjust.', '領収書金額と申請金額に調整対象の差額がありません。'],
+    ['Penyelesaian dilakukan melalui menu Status setelah rincian berstatus Final.', 'Completion is performed through the Status menu after the details are Final.', '明細がFinalになった後、Statusメニューから完了処理を行ってください。'],
+    ['Rincian gagal disimpan pada perangkat.', 'The details could not be saved on this device.', '明細を端末へ保存できませんでした。'],
+    ['Rincian belum dapat dihapus karena masih terdapat penyesuaian aktif. Netralkan Amount Klaim, kemudian jalankan penyesuaian terlebih dahulu.', 'The details cannot be deleted while an active adjustment remains. Neutralize the Claim Amount, then process the adjustment first.', '有効な調整が残っているため明細を削除できません。申請金額を中立化し、先に調整を処理してください。'],
+    ['Penghapusan detail gagal disimpan lokal; data dikembalikan.', 'Detail deletion could not be saved locally; the data was restored.', '明細削除をローカル保存できなかったため、データを元に戻しました。'],
+    ['Rincian pengajuan berhasil dihapus.', 'The claim details were deleted successfully.', '申請明細を削除しました。'],
+    ['Belum terdapat data yang tersimpan.', 'There is no saved data yet.', '保存済みデータはまだありません。'],
+    ['Rincian nota berhasil diekspor ke Excel.', 'Receipt details were exported to Excel successfully.', '領収書明細をExcelへ出力しました。'],
+    ['Kolom Alasan Revisi wajib diisi sebelum status diubah menjadi Revisi.', 'The Revision Reason field is required before changing the status to Revision.', 'ステータスを修正へ変更する前に修正理由を入力してください。'],
+    ['Apakah Anda yakin ingin menghapus peran yang dipilih? Akun Firebase tidak akan dihapus, tetapi aksesnya akan kembali menjadi Viewer (hanya baca).', 'Are you sure you want to remove the selected role? The Firebase account will not be deleted, but its access will return to Viewer (read-only).', '選択した権限を削除しますか？Firebaseアカウントは削除されませんが、アクセス権はViewer（閲覧のみ）へ戻ります。'],
+    ['Apakah Anda yakin ingin membatalkan penyesuaian terakhir?', 'Are you sure you want to reverse the latest adjustment?', '直前の調整を取り消しますか？'],
+    ['⚠️ Apakah Anda yakin ingin membatalkan seluruh penyesuaian sekaligus? Sistem akan membatalkannya satu per satu mulai dari transaksi terakhir.', '⚠️ Are you sure you want to reverse all adjustments? The system will reverse them one by one starting from the latest transaction.', '⚠️ すべての調整を取り消しますか？最新の取引から1件ずつ取り消します。'],
+    ['Apakah Anda yakin ingin menghapus data karyawan yang dipilih?', 'Are you sure you want to delete the selected employee data?', '選択した従業員データを削除しますか？'],
+    ['Apakah Anda yakin ingin menghapus data GL yang dipilih?', 'Are you sure you want to delete the selected GL data?', '選択したGLデータを削除しますか？'],
+    ['Apakah Anda yakin ingin membatalkan status terakhir? Jejak sebelumnya tetap disimpan untuk keperluan audit.', 'Are you sure you want to undo the latest status? The previous trail will remain stored for audit purposes.', '直前のステータスを取り消しますか？以前の履歴は監査用に保持されます。'],
+    ['Data telah berstatus Final. Apakah Anda yakin ingin mengembalikan rincian ini ke status Draft?', 'The data is Final. Are you sure you want to return these details to Draft?', 'データはFinalです。この明細をDraftへ戻しますか？'],
+    ['Apakah Anda yakin ingin menghapus seluruh rincian nota ini?', 'Are you sure you want to delete all of these receipt details?', 'この領収書明細をすべて削除しますか？'],
+    ['⏳ Membaca Data...', '⏳ Reading Data...', '⏳ データ読込中...'],
+    ['⚡ Proses & Masuk Rekapitulasi', '⚡ Process & Add to Recapitulation', '⚡ 処理して集計へ追加'],
+    ['Ubah kata sandi', 'Change password', 'パスワードを変更'],
+    ['Pemulihan dibatalkan.', 'Recovery was canceled.', '復元をキャンセルしました。'],
+    ['File cadangan ditolak.', 'The backup file was rejected.', 'バックアップファイルを受け付けられませんでした。'],
+    ['Format JSON tidak valid.', 'The JSON format is invalid.', 'JSON形式が無効です。'],
+    ['Pengguna lain telah lebih dahulu mengubah data yang sama. Versi cloud terbaru dipertahankan agar tidak tertimpa. Silakan periksa kembali klaim terkait sebelum menyimpan ulang.', 'Another user changed the same data first. The latest cloud version was kept to prevent overwriting. Review the related claims before saving again.', '別のユーザーが同じデータを先に変更しました。上書きを防ぐため最新のクラウド版を保持しています。再保存する前に該当申請を確認してください。'],
+    ['...dan lainnya', '...and more', '…ほか'],
+    ['⚠ PERINGATAN ⚠', '⚠ WARNING ⚠', '⚠ 警告 ⚠'],
+    ['Apakah Anda yakin ingin menghapus seluruh data yang tampil sesuai filter secara permanen?', 'Are you sure you want to permanently delete all data currently shown by the filter?', '現在のフィルターで表示されている全データを完全に削除しますか？'],
+    ['Dihapus: 0', 'Deleted: 0', '削除：0'],
+    ['Tidak berubah:', 'Unchanged:', '変更なし：'],
+    ['Diperbarui:', 'Updated:', '更新：'],
+    ['Baru:', 'New:', '新規：'],
+    ['Data saat ini yang tidak ada dalam cadangan tetap disimpan:', 'Current data not included in the backup will be retained:', 'バックアップに含まれない現在のデータは保持されます：'],
+    ['Data saat ini yang tetap dipertahankan:', 'Current data that will be retained:', '保持される現在のデータ：'],
+    ['Posted/Paid/Hold yang dilindungi dan tidak ditimpa:', 'Protected Posted/Paid/Hold records that will not be overwritten:', '保護され上書きされないPosted/Paid/Hold：']
+];
+
+const WORKSHEET_P20_TRANSLATION_ROWS = [
+    ['Minimal satu baris detail wajib diisi.', 'At least one detail row is required.', '明細を1行以上入力してください。'],
+    ['NIK dan nama belum lengkap.', 'NIK and name are incomplete.', 'NIKと氏名が未入力です。'],
+    ['Nomor referensi belum diisi.', 'The reference number has not been entered.', '参照番号が未入力です。'],
+    ['Tanggal proses/submit tidak valid.', 'The process/submit date is invalid.', '処理日・提出日が無効です。'],
+    ['Total header harus lebih dari 0.', 'The header total must be greater than 0.', 'ヘッダー合計は0より大きい必要があります。'],
+    ['Mata uang belum valid.', 'The currency is invalid.', '通貨が無効です。'],
+    ['Minimal satu line item wajib tersedia.', 'At least one line item is required.', '明細行を1件以上入力してください。'],
+    ['Total header belum sama dengan total line item.', 'The header total does not match the line item total.', 'ヘッダー合計と明細行合計が一致していません。'],
+    ['Data uji belum valid. Tanggal selesai harus sama atau setelah tanggal submit.', 'The test data is invalid. The completion date must be on or after the submit date.', 'テストデータが無効です。完了日は提出日以降にしてください。'],
+    ['Tidak ada data historis.', 'There is no historical data.', '履歴データがありません。'],
+    ['🎉 Kosong! Tidak ada dokumen yang menunggu approval.', '🎉 Clear! There are no documents waiting for approval.', '🎉 対象なし！承認待ちの書類はありません。'],
+    ['Tidak ada histori data revisi/confirm yang aktif.', 'There is no active revision/confirmation history.', '有効な修正・確認履歴はありません。'],
+    ['Belum ada data yang diarsipkan.', 'There is no archived data yet.', 'アーカイブ済みデータはまだありません。'],
+    ['Nonaktifkan claim dan keluarkan dari statistik', 'Deactivate the claim and exclude it from statistics', '申請を無効化し統計から除外'],
+    ['Ubah status klaim', 'Change claim status', '申請ステータスを変更'],
+    ['Alasan Hold', 'Hold Reason', 'Hold理由'],
+    ['Alasan Pengembalian ke Accounting', 'Reason for Return to Accounting', 'Accounting返却理由'],
+    ['Alasan Pembatalan Paid', 'Paid Cancellation Reason', 'Paid取消理由'],
+    ['Catatan Pelepasan Hold', 'Hold Release Note', 'Hold解除メモ'],
+    ['Pembatalan Paid menghapus pembayaran aktif, tetapi referensi dan alasannya tetap tersimpan dalam linimasa.', 'Canceling Paid removes the active payment, but its reference and reason remain in the timeline.', 'Paid取消では有効な支払情報を解除しますが、参照番号と理由はタイムラインに保持されます。'],
+    ['Revisi - Cleared', 'Revision - Cleared', '修正 - 解消'],
+    ['Belum terdapat cadangan lokal.', 'There is no local backup yet.', 'ローカルバックアップはまだありません。'],
+    ['Cadangan lokal gagal dibaca.', 'The local backup could not be read.', 'ローカルバックアップを読み込めませんでした。'],
+    ['Perangkat dan cloud sudah sinkron.', 'The device and cloud are synchronized.', '端末とクラウドは同期済みです。'],
+    ['File lama/tanpa hash; validasi struktur tetap dijalankan.', 'Legacy/no-hash file; structural validation will still run.', '旧形式またはハッシュなしのファイルです。構造検証は続行します。'],
+    ['Browser tidak mendukung pemeriksaan hash.', 'The browser does not support hash verification.', 'このブラウザはハッシュ検証に対応していません。'],
+    ['Hash SHA-256 cocok.', 'SHA-256 hash matches.', 'SHA-256ハッシュが一致しました。'],
+    ['Hash SHA-256 tidak cocok; file mungkin berubah/rusak.', 'SHA-256 hash does not match; the file may have changed or be corrupted.', 'SHA-256ハッシュが一致しません。ファイルが変更または破損している可能性があります。'],
+    ['File format lama diterima dan akan dinormalisasi ke schema 2.', 'The legacy file format was accepted and will be normalized to schema 2.', '旧形式ファイルを受け付け、schema 2へ正規化します。'],
+    ['Apakah Anda ingin melakukan pemulihan dengan mode gabung/perbarui tanpa penghapusan?', 'Do you want to restore using merge/update mode without deleting data?', '削除を行わず、結合・更新モードで復元しますか？'],
+    ['Jumlah Claim', 'Claim Count', '申請件数'],
+    ['Periode Tgl Submit', 'Submit Date Period', '提出日期間'],
+    ['Top Revisi', 'Top Revisions', '修正上位'],
+    ['Tidak ada data', 'No data', 'データなし'],
+    ['Biarkan kosong untuk Live Time (Saat Ini)', 'Leave blank to use Live Time (Now)', '空欄の場合は現在時刻を使用'],
+    ['Periode Sama Tahun Lalu (SPLY)', 'Same Period Last Year (SPLY)', '前年同期（SPLY）'],
+    ['Ringkasan Eksekutif', 'Executive Summary', 'エグゼクティブサマリー'],
+    ['Insight SLA dan revisi', 'SLA and revision insights', 'SLA・修正インサイト'],
+    ['Pilih Manual...', 'Select Manually...', '手動で選択...'],
+    ['Detail kosong (Sudah Posted)', 'No details (Already Posted)', '明細なし（Posted済み）'],
+    ['Status klaim', 'Claim status', '申請ステータス'],
+    ['Tulis catatan...', 'Write a note...', 'メモを入力...'],
+    ['Masukkan deskripsi', 'Enter description', '説明を入力'],
+    ['Hapus Rincian Nota', 'Delete Receipt Details', '領収書明細を削除'],
+    ['No Pengajuan', 'Claim No.', '申請番号'],
+    ['Menunggu Pencarian', 'Waiting for Search', '検索待ち'],
+    ['Silakan pilih periode tanggal submit dan ketik kata kunci NIK/Nama, lalu tekan tombol Cari Data.', 'Select a submit-date period and enter an NIK/name keyword, then press Search Data.', '提出日の期間を選び、NIK・氏名のキーワードを入力して「データ検索」を押してください。'],
+    ['Cadangan tidak valid:', 'Invalid backup:', 'バックアップが無効です：'],
+    ['Rincian belum dapat difinalisasi:', 'Details cannot be finalized yet:', '明細をまだFinalにできません：']
+];
+
+const WORKSHEET_TRANSLATIONS = Object.freeze([...WORKSHEET_TRANSLATION_ROWS, ...WORKSHEET_ADDITIONAL_TRANSLATION_ROWS, ...WORKSHEET_P18_TRANSLATION_ROWS, ...WORKSHEET_P19_TRANSLATION_ROWS, ...WORKSHEET_P20_TRANSLATION_ROWS].reduce((catalog, row) => {
     catalog[row[0]] = { en: row[1], ja: row[2] };
     return catalog;
 }, {}));
 
 const WORKSHEET_DYNAMIC_TRANSLATIONS = [
+    { re: /^Apakah Anda ingin memulihkan cadangan (.+) dengan mode aman\?$/i, en: m => `Do you want to restore backup ${m[1]} using safe mode?`, ja: m => `バックアップ ${m[1]} を安全モードで復元しますか？` },
+    { re: /^Claim urutan (\d+): ID kosong\/tidak valid\.$/i, en: m => `Claim ${m[1]}: ID is empty/invalid.`, ja: m => `申請${m[1]}：IDが空または無効です。` },
+    { re: /^Claim ID (.+) muncul lebih dari sekali\.$/i, en: m => `Claim ID ${m[1]} appears more than once.`, ja: m => `申請ID ${m[1]} が重複しています。` },
+    { re: /^Claim (.+): totalHeader harus angka nol atau positif\.$/i, en: m => `Claim ${m[1]}: totalHeader must be zero or positive.`, ja: m => `申請 ${m[1]}：totalHeaderは0以上である必要があります。` },
+    { re: /^Claim (.+): kode mata uang tidak valid\.$/i, en: m => `Claim ${m[1]}: invalid currency code.`, ja: m => `申請 ${m[1]}：通貨コードが無効です。` },
+    { re: /^Baris (\d+): deskripsi wajib diisi\.$/i, en: m => `Row ${m[1]}: description is required.`, ja: m => `${m[1]}行目：説明は必須です。` },
+    { re: /^Baris (\d+): tanggal transaksi tidak valid\.$/i, en: m => `Row ${m[1]}: transaction date is invalid.`, ja: m => `${m[1]}行目：取引日が無効です。` },
+    { re: /^Baris (\d+): Amount Nota harus lebih dari 0\.$/i, en: m => `Row ${m[1]}: Receipt Amount must be greater than 0.`, ja: m => `${m[1]}行目：領収書金額は0より大きい必要があります。` },
+    { re: /^Baris (\d+): Amount Claim tidak boleh negatif\.$/i, en: m => `Row ${m[1]}: Claim Amount cannot be negative.`, ja: m => `${m[1]}行目：申請金額を負数にはできません。` },
+    { re: /^Total detail efektif (.+) belum sama dengan header (.+)\.$/i, en: m => `Effective detail total ${m[1]} does not match header ${m[2]}.`, ja: m => `有効明細合計 ${m[1]} がヘッダー ${m[2]} と一致していません。` },
+    { re: /^(\d+) role legacy berhasil dimigrasikan menjadi Accounting\.$/i, en: m => `${m[1]} legacy roles were migrated to Accounting.`, ja: m => `${m[1]}件の旧権限をAccountingへ移行しました。` },
+    { re: /^(\d+) log aktivitas berhasil dibersihkan\.$/i, en: m => `${m[1]} activity logs were cleared.`, ja: m => `${m[1]}件の操作ログを削除しました。` },
+    { re: /^(\d+) data berhasil dihapus\.$/i, en: m => `${m[1]} records were deleted.`, ja: m => `${m[1]}件のデータを削除しました。` },
+    { re: /^Impor selesai\. (\d+) data baru ditambahkan dan (\d+) data lama dilewati\.$/i, en: m => `Import complete. ${m[1]} new records were added and ${m[2]} existing records were skipped.`, ja: m => `インポート完了。新規${m[1]}件を追加し、既存${m[2]}件をスキップしました。` },
+    { re: /^(\d+) data GL berhasil diimpor\.$/i, en: m => `${m[1]} GL records were imported.`, ja: m => `${m[1]}件のGLデータをインポートしました。` },
+    { re: /^Peringatan:\s*Terdapat (\d+) data yang memerlukan tindak lanjut lebih dari tiga hari\.$/i, en: m => `Warning: ${m[1]} records require follow-up for more than three days.`, ja: m => `警告：${m[1]}件のデータが3日を超えてフォローアップ待ちです。` },
+    { re: /^Pemulihan selesai:\s*(\d+) data baru, (\d+) data dipulihkan, dan tidak ada data yang dihapus\.$/i, en: m => `Recovery complete: ${m[1]} new records, ${m[2]} restored, and no data deleted.`, ja: m => `復元完了：新規${m[1]}件、復元${m[2]}件、削除0件。` },
+    { re: /^Gagal memproses\. Seluruh (\d+) data tersebut sudah terdaftar di sistem\.$/i, en: m => `Processing failed. All ${m[1]} records are already registered in the system.`, ja: m => `処理できませんでした。${m[1]}件すべてが既に登録されています。` },
+    { re: /^(.+) Sinkronisasi cloud berjalan\.$/i, en: m => `${m[1]} Cloud synchronization is in progress.`, ja: m => `${m[1]} クラウド同期中です。` },
+    { re: /^(\d+) data yang dipilih berhasil dihapus\.$/i, en: m => `${m[1]} selected records were deleted.`, ja: m => `選択した${m[1]}件のデータを削除しました。` },
+    { re: /^Mode perhitungan SLA berhasil diubah menjadi (.+)\.$/i, en: m => `SLA calculation mode was changed to ${m[1]}.`, ja: m => `SLA計算モードを${m[1]}へ変更しました。` },
+    { re: /^(\d+) penyesuaian berhasil dicatat\.$/i, en: m => `${m[1]} adjustments were recorded.`, ja: m => `${m[1]}件の調整を記録しました。` },
+    { re: /^Rincian berhasil disimpan sebagai (.+)\.$/i, en: m => `Details were saved as ${m[1]}.`, ja: m => `明細を${m[1]}として保存しました。` },
+    { re: /^Data (.+) belum dapat diselesaikan:$/i, en: m => `Data ${m[1]} cannot be completed yet:`, ja: m => `データ ${m[1]} はまだ完了できません：` },
+    { re: /^Konflik terdeteksi pada (\d+) klaim\.$/i, en: m => `A conflict was detected in ${m[1]} claims.`, ja: m => `${m[1]}件の申請で競合を検出しました。` },
+    { re: /^(\d+) data belum dapat diselesaikan\. Perbaiki dahulu:$/i, en: m => `${m[1]} records cannot be completed yet. Fix them first:`, ja: m => `${m[1]}件のデータはまだ完了できません。先に修正してください：` },
+    { re: /^Apakah Anda yakin ingin membatalkan (\d+) penyesuaian yang dipilih\?$/i, en: m => `Are you sure you want to reverse ${m[1]} selected adjustments?`, ja: m => `選択した${m[1]}件の調整を取り消しますか？` },
+    { re: /^Apakah Anda yakin ingin membatalkan status Posted dan mengembalikan data ini ke '(.+)'\?$/i, en: m => `Are you sure you want to undo Posted and return this data to '${m[1]}'?`, ja: m => `Postedを取り消してこのデータを「${m[1]}」へ戻しますか？` },
+    { re: /^Apakah Anda yakin ingin membatalkan status Posted pada (\d+) data dan mengembalikannya ke In Process\?$/i, en: m => `Are you sure you want to undo Posted for ${m[1]} records and return them to In Process?`, ja: m => `${m[1]}件のPostedを取り消して処理中へ戻しますか？` },
+    { re: /^Apakah Anda yakin ingin menghapus (\d+) data yang dipilih secara permanen\?$/i, en: m => `Are you sure you want to permanently delete ${m[1]} selected records?`, ja: m => `選択した${m[1]}件のデータを完全に削除しますか？` },
+    { re: /^Apakah Anda yakin ingin menghapus (\d+) data revisi\/konfirmasi yang dipilih secara permanen dari database\?$/i, en: m => `Are you sure you want to permanently delete ${m[1]} selected revision/confirmation records from the database?`, ja: m => `選択した修正・確認データ${m[1]}件をデータベースから完全に削除しますか？` },
+    { re: /^Sistem menemukan (\d+) perubahan penyesuaian\. Nilai tambahan yang akan diterapkan: (.+)\. Apakah proses dilanjutkan\?$/i, en: m => `The system found ${m[1]} adjustment changes. Additional amount to apply: ${m[2]}. Continue?`, ja: m => `調整変更を${m[1]}件検出しました。適用する追加金額：${m[2]}。続行しますか？` },
+    { re: /^Baru:\s*(\d+)$/i, en: m => `New: ${m[1]}`, ja: m => `新規：${m[1]}` },
+    { re: /^Diperbarui:\s*(\d+)$/i, en: m => `Updated: ${m[1]}`, ja: m => `更新：${m[1]}` },
+    { re: /^Tidak berubah:\s*(\d+)$/i, en: m => `Unchanged: ${m[1]}`, ja: m => `変更なし：${m[1]}` },
+    { re: /^Posted\/Paid\/Hold yang dilindungi dan tidak ditimpa:\s*(\d+)$/i, en: m => `Protected Posted/Paid/Hold records not overwritten: ${m[1]}`, ja: m => `保護され上書きされないPosted/Paid/Hold：${m[1]}` },
+    { re: /^Data saat ini yang tidak ada dalam cadangan tetap disimpan:\s*(\d+)$/i, en: m => `Current data not in the backup retained: ${m[1]}`, ja: m => `バックアップ外で保持される現在データ：${m[1]}` },
+    { re: /^Data saat ini yang tetap dipertahankan:\s*(\d+)$/i, en: m => `Current data retained: ${m[1]}`, ja: m => `保持される現在データ：${m[1]}` },
+    { re: /^(\d+) baris siap dibaca$/i, en: m => `${m[1]} rows ready to read`, ja: m => `読み取り可能な行 ${m[1]}件` },
+    { re: /^(\d+) teks$/i, en: m => `${m[1]} texts`, ja: m => `${m[1]}件のテキスト` },
+    { re: /^Belum Seimbang \(Selisih:\s*(.+)$/i, en: m => `Not Balanced (Difference: ${m[1]}`, ja: m => `不一致（差額：${m[1]}` },
+    { re: /^Detail Catatan:\s*(.+)$/i, en: m => `Note Details: ${m[1]}`, ja: m => `メモ詳細：${m[1]}` },
+    { re: /^Oleh:\s*(.+)$/i, en: m => `By: ${m[1]}`, ja: m => `担当：${m[1]}` },
     { re: /^(\d+) baris$/i, en: m => `${m[1]} rows`, ja: m => `${m[1]}行` },
     { re: /^(\d+) data$/i, en: m => `${m[1]} records`, ja: m => `${m[1]}件` },
     { re: /^(\d+) Dok$/i, en: m => `${m[1]} Docs`, ja: m => `${m[1]}件` },
@@ -4793,10 +5002,6 @@ const WORKSHEET_DYNAMIC_TRANSLATIONS = [
     { re: /^Memperbarui cloud (\d+)\/(\d+)$/i, en: m => `Updating cloud ${m[1]}/${m[2]}`, ja: m => `クラウド更新 ${m[1]}/${m[2]}` },
     { re: /^Ekspor Excel berhasil: (\d+) klaim dan (\d+) baris\.$/i, en: m => `Excel export completed: ${m[1]} claims and ${m[2]} rows.`, ja: m => `Excel出力完了：申請${m[1]}件、${m[2]}行。` },
     { re: /^Target perusahaan (\d+)%$/i, en: m => `Company target ${m[1]}%`, ja: m => `会社目標 ${m[1]}%` },
-    { re: /^Target (\d+)%$/i, en: m => `Target ${m[1]}%`, ja: m => `目標 ${m[1]}%` },
-    { re: /^Sebelumnya ([\d.,]+) Dok$/i, en: m => `Previously ${m[1]} Docs`, ja: m => `前期 ${m[1]}件` },
-    { re: /^([\d.,]+) \/ ([\d.,]+) Dokumen$/i, en: m => `${m[1]} / ${m[2]} Documents`, ja: m => `${m[1]} / ${m[2]}件` },
-    { re: /^([\d.,]+) Dokumen$/i, en: m => `${m[1]} Documents`, ja: m => `${m[1]}件` },
     { re: /^Terlambat (\d+) hari$/i, en: m => `${m[1]} days late`, ja: m => `${m[1]}日遅延` },
     { re: /^Dokumen tertahan >\s*(\d+) Hari$/i, en: m => `Documents pending > ${m[1]} Days`, ja: m => `${m[1]}日超の保留書類` },
     { re: /^Sangat Baik \(≤\s*(\d+) Hari\)$/i, en: m => `Excellent (≤ ${m[1]} Days)`, ja: m => `良好（${m[1]}日以内）` },
@@ -4832,6 +5037,18 @@ const WORKSHEET_DATE_WORDS = {
     }
 };
 
+let worksheetUiCopyOverrides = {};
+let worksheetUiCopyEditorDraft = null;
+let worksheetUiCopyUnsubscribe = null;
+
+function getWorksheetCopyOverride(source, language) {
+    const key = String(source === null || source === undefined ? '' : source).trim();
+    const row = worksheetUiCopyOverrides && worksheetUiCopyOverrides[key];
+    if(!row || typeof row !== 'object') return null;
+    const value = row[language];
+    return typeof value === 'string' && value.trim() !== '' ? value : null;
+}
+
 let worksheetLanguage = (() => {
     try {
         const saved = localStorage.getItem(WORKSHEET_LANGUAGE_KEY);
@@ -4850,12 +5067,17 @@ const worksheetTranslationQueue = new Set();
 
 function translateWorksheetCoreText(text, language = worksheetLanguage) {
     const source = String(text === null || text === undefined ? '' : text);
-    if(language === 'id' || !source.trim()) return source;
+    if(!source.trim()) return source;
+    const directOverride = getWorksheetCopyOverride(source.trim(), language);
+    if(directOverride !== null) return directOverride;
+    if(language === 'id') return source;
     const exact = WORKSHEET_TRANSLATIONS[source.trim()];
     if(exact && exact[language]) return exact[language];
 
     const decorated = source.trim().match(/^([^A-Za-z0-9]*)([\s\S]+)$/);
     if(decorated && decorated[1]) {
+        const bodyOverride = getWorksheetCopyOverride(decorated[2].trim(), language);
+        if(bodyOverride !== null) return `${decorated[1]}${bodyOverride}`;
         const bodyTranslation = WORKSHEET_TRANSLATIONS[decorated[2].trim()];
         if(bodyTranslation && bodyTranslation[language]) return `${decorated[1]}${bodyTranslation[language]}`;
         for(const pattern of WORKSHEET_DYNAMIC_TRANSLATIONS) {
@@ -4879,7 +5101,7 @@ function translateWorksheetCoreText(text, language = worksheetLanguage) {
 
 function translateUiText(value, language = worksheetLanguage) {
     const source = String(value === null || value === undefined ? '' : value);
-    if(language === 'id' || !source.trim()) return source;
+    if(!source.trim()) return source;
     const leading = (source.match(/^\s*/) || [''])[0];
     const trailing = (source.match(/\s*$/) || [''])[0];
     const core = source.slice(leading.length, source.length - trailing.length);
@@ -5036,22 +5258,153 @@ window.getWorksheetFont = () => worksheetFont;
 
 function initializeWorksheetFont() {
     setAppFont(worksheetFont, { persist:false });
-    loadWindowsEmojiWebfont();
     if(document.fonts && typeof document.fonts.load === 'function') {
         const activeFamily = WORKSHEET_FONT_FAMILIES[worksheetFont];
         document.fonts.load(`600 16px ${activeFamily}`).then(refreshWorksheetChartFonts).catch(() => {});
     }
 }
 
+function getBaseWorksheetTranslation(source, language) {
+    const key = String(source || '').trim();
+    if(language === 'id') return key;
+    const row = WORKSHEET_TRANSLATIONS[key];
+    return row && row[language] ? row[language] : key;
+}
+
+function getUiCopyCatalogSources() {
+    return Object.keys(WORKSHEET_TRANSLATIONS).filter(Boolean).sort((a,b) => a.localeCompare(b, 'id'));
+}
+
+function escapeUiCopyHtml(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function ensureUiCopyEditorDraft() {
+    if(!worksheetUiCopyEditorDraft) worksheetUiCopyEditorDraft = JSON.parse(JSON.stringify(worksheetUiCopyOverrides || {}));
+    return worksheetUiCopyEditorDraft;
+}
+
+window.setUiCopyDraftValue = function(encodedSource, language, value) {
+    if(!isAppAdmin()) return;
+    const source = decodeURIComponent(encodedSource);
+    const draft = ensureUiCopyEditorDraft();
+    const base = getBaseWorksheetTranslation(source, language);
+    if(!String(value).trim() || String(value) === String(base)) {
+        if(draft[source]) {
+            delete draft[source][language];
+            if(!Object.keys(draft[source]).length) delete draft[source];
+        }
+    } else {
+        if(!draft[source]) draft[source] = {};
+        draft[source][language] = String(value);
+    }
+    const row = document.querySelector(`[data-ui-copy-row="${CSS.escape(encodedSource)}"]`);
+    if(row) row.classList.toggle('is-overridden', !!(draft[source] && draft[source][language]));
+};
+
+window.resetUiCopySingle = function(encodedSource) {
+    if(!isAppAdmin()) return;
+    const source = decodeURIComponent(encodedSource);
+    const language = document.getElementById('ui-copy-language')?.value || 'id';
+    const draft = ensureUiCopyEditorDraft();
+    if(draft[source]) {
+        delete draft[source][language];
+        if(!Object.keys(draft[source]).length) delete draft[source];
+    }
+    window.renderUiCopyEditor();
+};
+
+window.renderUiCopyEditor = function() {
+    if(!isAppAdmin()) return;
+    const list = document.getElementById('ui-copy-editor-list');
+    if(!list) return;
+    const query = String(document.getElementById('ui-copy-search')?.value || '').trim().toLowerCase();
+    const language = document.getElementById('ui-copy-language')?.value || 'id';
+    const draft = ensureUiCopyEditorDraft();
+    let sources = getUiCopyCatalogSources();
+    if(query) sources = sources.filter(source => {
+        const base = getBaseWorksheetTranslation(source, language);
+        const override = draft[source] && draft[source][language] || '';
+        return `${source} ${base} ${override}`.toLowerCase().includes(query);
+    });
+    const totalMatches = sources.length;
+    sources = sources.slice(0, 300);
+    const meta = document.getElementById('ui-copy-meta');
+    if(meta) meta.textContent = translateUiText(`${totalMatches} teks${totalMatches > 300 ? ' · tampil 300' : ''}`, worksheetLanguage);
+    if(!sources.length) {
+        list.innerHTML = `<div style="padding:28px;text-align:center;color:#8295a3;font-size:12px;">${escapeUiCopyHtml(translateUiText('Tidak ada teks yang cocok.', worksheetLanguage))}</div>`;
+        return;
+    }
+    list.innerHTML = sources.map(source => {
+        const encoded = encodeURIComponent(source);
+        const base = getBaseWorksheetTranslation(source, language);
+        const override = draft[source] && draft[source][language];
+        const value = override !== undefined ? override : base;
+        const overridden = override !== undefined;
+        const stateLabel = translateUiText(overridden ? 'Override aktif' : 'Teks bawaan sistem', worksheetLanguage);
+        const resetLabel = translateUiText('Atur Ulang', worksheetLanguage);
+        return `<div class="ui-copy-row${overridden ? ' is-overridden' : ''}" data-ui-copy-row="${escapeUiCopyHtml(encoded)}">
+            <div class="ui-copy-source"><strong>${escapeUiCopyHtml(source)}</strong><small>${escapeUiCopyHtml(stateLabel)} · Source ID</small></div>
+            <textarea oninput="setUiCopyDraftValue('${escapeUiCopyHtml(encoded)}','${language}',this.value)">${escapeUiCopyHtml(value)}</textarea>
+            <button type="button" class="btn btn-secondary ui-copy-reset" onclick="resetUiCopySingle('${escapeUiCopyHtml(encoded)}')">${escapeUiCopyHtml(resetLabel)}</button>
+        </div>`;
+    }).join('');
+};
+
+window.resetUiCopyEditorDraft = function() {
+    if(!isAppAdmin()) return;
+    worksheetUiCopyEditorDraft = JSON.parse(JSON.stringify(worksheetUiCopyOverrides || {}));
+    window.renderUiCopyEditor();
+    showToast('Draft editor teks dikembalikan ke versi tersimpan.', 'info');
+};
+
+window.saveUiCopyOverrides = async function() {
+    if(!isAppAdmin()) return showToast('Editor teks hanya dapat disimpan Admin.', 'error');
+    if(!window.firebaseDb || !window.fbDoc || !window.fbSetDoc) return showToast('Firebase belum siap.', 'error');
+    const button = document.getElementById('btn-save-ui-copy');
+    const original = button ? button.textContent : '';
+    if(button) { button.disabled = true; button.textContent = 'Menyimpan...'; }
+    try {
+        const overrides = JSON.parse(JSON.stringify(ensureUiCopyEditorDraft()));
+        await window.fbSetDoc(window.fbDoc(window.firebaseDb, 'appData', 'uiTextSettings'), {
+            overrides,
+            updatedAtMs: Date.now()
+        });
+        worksheetUiCopyOverrides = overrides;
+        worksheetUiCopyEditorDraft = JSON.parse(JSON.stringify(overrides));
+        setAppLanguage(worksheetLanguage, { persist:false });
+        showToast('Perubahan teks berhasil disimpan dan berlaku lintas perangkat.', 'success');
+        logActivity(sessionUser, 'Pembaruan Editor Teks Website').catch(() => {});
+    } catch(error) {
+        console.error('[UI Copy] Gagal menyimpan:', error);
+        showToast('Perubahan teks gagal disimpan. Periksa izin Firebase Admin.', 'error');
+    } finally {
+        if(button) { button.disabled = false; button.textContent = original; }
+    }
+};
+
+function subscribeUiCopySettings() {
+    if(worksheetUiCopyUnsubscribe || !window.firebaseDb || !window.fbDoc || !window.fbOnSnapshot) return;
+    const ref = window.fbDoc(window.firebaseDb, 'appData', 'uiTextSettings');
+    worksheetUiCopyUnsubscribe = window.fbOnSnapshot(ref, snap => {
+        const data = snap.exists() ? snap.data() : {};
+        worksheetUiCopyOverrides = data && data.overrides && typeof data.overrides === 'object' ? data.overrides : {};
+        worksheetUiCopyEditorDraft = null;
+        setAppLanguage(worksheetLanguage, { persist:false });
+        if(window.currentOpenMenu === 'master-content') window.renderUiCopyEditor();
+    }, error => console.warn('[UI Copy] Listener belum tersedia:', error));
+}
+
 function initializeWorksheetLanguage() {
+    subscribeUiCopySettings();
     document.addEventListener('click', event => {
         const languageButton = event.target.closest('[data-language-switch] [data-language]');
         if(!languageButton) return;
         setAppLanguage(languageButton.dataset.language);
     });
     const observer = new MutationObserver(records => {
-        // Bahasa Indonesia adalah source asli, sehingga render normal tidak perlu dipindai ulang.
-        if(worksheetLanguage === 'id') return;
+        // Tetap pindai Bahasa Indonesia karena Admin dapat membuat override copy ID.
         records.forEach(record => {
             if(record.type === 'characterData') scheduleWorksheetTranslation(record.target);
             if(record.type === 'attributes') scheduleWorksheetTranslation(record.target);
@@ -5424,3 +5777,5 @@ if(document.readyState === 'loading') {
 } else {
     initializeWorksheetInterface();
 }
+
+
