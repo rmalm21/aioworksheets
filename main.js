@@ -2077,66 +2077,166 @@ window.renderCanceledTable = function() {
     }).join('');
 };
 
-        function renderRekapTable() {
-            let tbodyRekap = document.getElementById('tbody-main-rekap');
-            tbodyRekap.innerHTML = '';
+        // --- REKAP PAGINATION & 2 VIEWS RENDER ---
+        // Status halaman Rekapitulasi. Dideklarasikan di scope global classic script
+        // agar renderRekapTable(), pagination, dan reset filter memakai state yang sama.
+        let rekapCurrentPage = 1;
+        let rekapRowsPerPage = 20;
+        window.getRekapPageState = () => ({ page: rekapCurrentPage, rows: rekapRowsPerPage });
 
-            let filteredArr = getFilteredAndSortedData('rekap', dbRekap);
+        function changeRekapRows() {
+            const select = document.getElementById('rekap-rows-per-page');
+            rekapRowsPerPage = Math.max(1, parseInt(select && select.value, 10) || 20);
+            rekapCurrentPage = 1;
+            renderRekapTable();
+        }
+        function nextRekapPage() { rekapCurrentPage++; renderRekapTable(); }
+        function prevRekapPage() { if(rekapCurrentPage > 1) { rekapCurrentPage--; renderRekapTable(); } }
+        window.changeRekapRows = changeRekapRows;
+        window.nextRekapPage = nextRekapPage;
+        window.prevRekapPage = prevRekapPage;
+
+        function toggleRekapView(mode) {
+            const listView = document.getElementById('rekap-list-view');
+            const folderView = document.getElementById('rekap-folder-view');
+            const listBtn = document.getElementById('btn-rekap-list');
+            const folderBtn = document.getElementById('btn-rekap-folder');
+            if(!listView || !folderView) return;
+            const useFolder = mode === 'folder';
+            listView.style.display = useFolder ? 'none' : 'block';
+            folderView.style.display = useFolder ? 'block' : 'none';
+            if(listBtn) listBtn.className = useFolder ? 'btn btn-secondary' : 'btn btn-primary';
+            if(folderBtn) folderBtn.className = useFolder ? 'btn btn-primary' : 'btn btn-secondary';
+            if(useFolder) renderRekapFolder(getFilteredAndSortedData('rekap', dbRekap));
+        }
+        window.toggleRekapView = toggleRekapView;
+
+        // Baris aksi dipakai bersama oleh tampilan daftar dan tampilan folder
+        // supaya kedua tampilan tidak pernah berbeda aturan hak akses.
+        function buildRekapActionCell(item) {
+            const locked = isClaimFinanciallyLocked(item);
+            let detailBtn;
+            if(item.detailNota) {
+                detailBtn = `<button class="btn rekap-mini-btn is-ready" onclick="searchAndLoadDetail(${item.id})" title="${translateUiText('Lihat Rincian Nota')}">🧾</button>`;
+            } else if(!locked && canEditClaims()) {
+                detailBtn = `<button class="btn rekap-mini-btn is-add" onclick="searchAndLoadDetail(${item.id})" title="${translateUiText('Buat Rincian Nota')}">➕</button>`;
+            } else {
+                detailBtn = `<button class="btn rekap-mini-btn is-disabled" title="${translateUiText('Detail kosong (Sudah Posted)')}" disabled>🧾</button>`;
+            }
+            if(locked) return `<button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="${translateUiText('Lihat data')}">👁️</button> ${detailBtn}`;
+            const editBtn = canEditClaims()
+                ? `<button class="btn-icon" onclick="openEditRoute(${item.id})" title="${translateUiText('Ubah data')}">✏️</button>`
+                : `<button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="${translateUiText('Lihat data')}">👁️</button>`;
+            const deleteBtn = isAppAdmin()
+                ? `<button class="btn-icon" style="color:#dc3545;" onclick="deleteClaim(${item.id})" title="${translateUiText('Hapus')}">🗑️</button>`
+                : '';
+            return `${editBtn} ${deleteBtn} ${detailBtn}`;
+        }
+
+        function buildRekapTypeCell(item) {
+            const type = escapeTimelineText(item.tipe || '-');
+            if(!item.extNo) return type;
+            return `${type}<br><span class="rekap-ext-badge">🔢 ${translateUiText('No')}: ${escapeTimelineText(item.extNo)}</span>`;
+        }
+
+        function renderRekapFolder(filteredData) {
+            const container = document.getElementById('rekap-folder-view');
+            if(!container) return;
+            const rows = Array.isArray(filteredData) ? filteredData : [];
+            if(rows.length === 0) {
+                container.innerHTML = `<p class="rekap-folder-empty">${translateUiText('Tidak ada data rekapitulasi.')}</p>`;
+                return;
+            }
+
+            const groups = {};
+            rows.forEach(row => {
+                const parts = row.tglProses ? String(row.tglProses).split('/') : [];
+                const key = parts.length === 3 ? `${parts[2]} - ${parts[1]}` : translateUiText('Tanpa Tanggal Proses');
+                (groups[key] = groups[key] || []).push(row);
+            });
+
+            const headerCells = [
+                ['Aksi', ''], ['No.', 'noPR_extNo'], ['NIK', 'nik'], ['Nama Karyawan', 'nama'],
+                ['Entitas', 'entitas'], ['Tipe Pengajuan', 'tipe'], ['Tgl Proses', 'tglProses'],
+                ['Tgl Submit', 'tglSubmit'], ['SLA', 'slaDays'], ['Total Amount', 'totalHeader'],
+                ['Tgl Pymnt', 'paymentAtDate'], ['PIC Pymnt', 'paymentBy'], ['Diinput Oleh', 'inputBy'],
+                ['Status Data', 'statusClaim']
+            ].map(([label, key]) => key
+                ? `<th>${translateUiText(label)} <span class="th-filter-icon" onclick="openExcelFilter(event, '${key}', 'rekap')">▼</span></th>`
+                : `<th width="70">${translateUiText(label)}</th>`).join('');
+
+            container.innerHTML = Object.keys(groups).sort((a, b) => b.localeCompare(a)).map(key => {
+                const body = groups[key].map(item => `<tr>
+                        <td>${buildRekapActionCell(item)}</td>
+                        <td><strong>${escapeTimelineText(item.noPR || item.extNo || '-')}</strong></td>
+                        <td>${escapeTimelineText(item.nik || '-')}</td>
+                        <td><strong>${escapeTimelineText(item.nama || '-')}</strong></td>
+                        <td><span class="badge status-revise">${escapeTimelineText(item.entitas || '-')}</span></td>
+                        <td>${buildRekapTypeCell(item)}</td>
+                        <td>${escapeTimelineText(item.tglProses || '-')}</td>
+                        <td>${escapeTimelineText(item.tglSubmit || '-')}</td>
+                        <td style="text-align:center;">${renderSLABadge(item)}</td>
+                        <td><strong class="rekap-amount">${formatClaimMoney(item)}</strong></td>
+                        <td>${escapeTimelineText(formatPaymentDate(item))}</td>
+                        <td>${formatActorUsernameHtml(item.paymentBy)}</td>
+                        <td><span class="rekap-input-by">${formatActorUsernameHtml(item.inputBy)}</span></td>
+                        <td>${buildClaimStatusBadge(item)}</td>
+                    </tr>`).join('');
+                return `<div class="folder-group"><div class="folder-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">📁 ${translateUiText('Bulan/Tahun Proses')}: ${escapeTimelineText(key)} <span>(${groups[key].length} ${translateUiText('Item')})</span></div><div class="folder-content" style="display:none;"><div class="table-responsive" style="border:none;"><table class="std-table"><thead><tr>${headerCells}</tr></thead><tbody>${body}</tbody></table></div></div></div>`;
+            }).join('');
+        }
+        window.renderRekapFolder = renderRekapFolder;
+
+        function renderRekapTable() {
+            const tbodyRekap = document.getElementById('tbody-main-rekap');
+            if(!tbodyRekap) return;
+
+            const filteredArr = getFilteredAndSortedData('rekap', dbRekap);
 
             // Hindari membangun ratusan baris folder ketika pengguna sedang memakai list view.
-            if(document.getElementById('rekap-folder-view').style.display !== 'none') renderRekapFolder(filteredArr);
+            const folderView = document.getElementById('rekap-folder-view');
+            if(folderView && folderView.style.display !== 'none') renderRekapFolder(filteredArr);
 
-            let totalRows = filteredArr.length;
-            let maxPage = Math.ceil(totalRows / rekapRowsPerPage) || 1;
+            const totalRows = filteredArr.length;
+            const maxPage = Math.ceil(totalRows / rekapRowsPerPage) || 1;
             if(rekapCurrentPage > maxPage) rekapCurrentPage = maxPage;
             if(rekapCurrentPage < 1) rekapCurrentPage = 1;
 
-            let pageInfo = document.getElementById('rekap-page-info');
-            if(pageInfo) pageInfo.innerText = `Halaman ${rekapCurrentPage} dari ${maxPage} (${totalRows} Data)`;
+            const pageInfo = document.getElementById('rekap-page-info');
+            if(pageInfo) pageInfo.innerText = `${translateUiText('Halaman')} ${rekapCurrentPage} ${translateUiText('dari')} ${maxPage} (${totalRows} ${translateUiText('Data')})`;
 
-            let startIdx = (rekapCurrentPage - 1) * rekapRowsPerPage;
-            let pagedData = filteredArr.slice(startIdx, startIdx + rekapRowsPerPage);
+            const startIdx = (rekapCurrentPage - 1) * rekapRowsPerPage;
+            const pagedData = filteredArr.slice(startIdx, startIdx + rekapRowsPerPage);
 
-            const rowsHtml = pagedData.map(item => {
-                let ent = item.entitas || '-'; 
-let sClass = getClaimStatusClass(item.statusClaim);
-                
-                let detailBtn = '';
-if (item.detailNota) {
-    detailBtn = `<button class="btn" style="background:#d4edda; color:#155724; border:1px solid #c3e6cb; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Lihat Rincian Nota">🧾</button>`;
-} else if (!isClaimFinanciallyLocked(item) && canEditClaims()) {
-    detailBtn = `<button class="btn" style="background:#eef4fc; color:#0050A0; border:1px solid #cce0f5; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Buat Rincian Nota">➕</button>`;
-} else {
-    detailBtn = `<button class="btn" style="background:#f8f9fa; color:#6c757d; border:1px solid #dee2e6; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; opacity:0.6; cursor:not-allowed; margin-left:4px;" title="Detail kosong (Sudah Posted)" disabled>🧾</button>`;
-}
+            if(pagedData.length === 0) {
+                tbodyRekap.innerHTML = `<tr><td colspan="15" class="table-empty-state">${translateUiText('Tidak ada data rekapitulasi pada periode ini.')}</td></tr>`;
+                return;
+            }
 
-let actionBtns = isClaimFinanciallyLocked(item) 
-    ? `<button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="Lihat data">👁️</button> ${detailBtn}` 
-    : `${canEditClaims() ? `<button class="btn-icon" onclick="openEditRoute(${item.id})" title="Ubah data">✏️</button>` : `<button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="Lihat data">👁️</button>`} ${isAppAdmin() ? `<button class="btn-icon" style="color:#dc3545;" onclick="deleteClaim(${item.id})" title="Hapus">🗑️</button>` : ''} ${detailBtn}`;
-                let btnStatus = buildClaimStatusBadge(item);
-let adjBadge = (item.adjustments && item.adjustments.length > 0) ? `<br><span style="font-size:10px; color:#dc3545; font-weight:bold;">[Disesuaikan]</span>` : '';
-let tipeInfo = item.tipe + (item.extNo ? `<br><span class="badge status-process" style="font-size:10px; font-weight:bold; background:#0050A0; color:white; padding:2px 4px; margin-top:3px; display:inline-block;">🔢 No: ${item.extNo}</span>` : '');
-
+            tbodyRekap.innerHTML = pagedData.map(item => {
+                const adjBadge = (item.adjustments && item.adjustments.length > 0)
+                    ? `<br><span class="rekap-adjust-badge">[${translateUiText('Disesuaikan')}]</span>`
+                    : '';
                 return `<tr>
                     <td class="selection-only-column"><input type="checkbox" class="rekap-checkbox" data-id="${item.id}"></td>
-                    <td>${actionBtns}</td>
-                    <td><strong>${item.noPR || item.extNo || '-'}</strong></td>
-                    <td>${item.nik}</td>
-                    <td><strong>${item.nama}</strong></td>
-                    <td><span class="badge status-revise">${ent}</span></td>
-                    <td>${tipeInfo}</td>
-                    <td>${item.tglProses || '-'}</td>
-                    <td>${item.tglSubmit}</td>
+                    <td>${buildRekapActionCell(item)}</td>
+                    <td><strong>${escapeTimelineText(item.noPR || item.extNo || '-')}</strong></td>
+                    <td>${escapeTimelineText(item.nik || '-')}</td>
+                    <td><strong>${escapeTimelineText(item.nama || '-')}</strong></td>
+                    <td><span class="badge status-revise">${escapeTimelineText(item.entitas || '-')}</span></td>
+                    <td>${buildRekapTypeCell(item)}</td>
+                    <td>${escapeTimelineText(item.tglProses || '-')}</td>
+                    <td>${escapeTimelineText(item.tglSubmit || '-')}</td>
                     <td style="text-align:center;">${renderSLABadge(item)}</td>
                     <td>${formatClaimMoney(item)}${adjBadge}</td>
-                    <td>${formatPaymentDate(item)}</td>
+                    <td>${escapeTimelineText(formatPaymentDate(item))}</td>
                     <td>${formatActorUsernameHtml(item.paymentBy)}</td>
-                    <td><span style="font-size:11px;color:#666;">${formatActorUsernameHtml(item.inputBy)}</span></td>
-                    <td>${btnStatus}</td>
+                    <td><span class="rekap-input-by">${formatActorUsernameHtml(item.inputBy)}</span></td>
+                    <td>${buildClaimStatusBadge(item)}</td>
                 </tr>`;
-            });
-            tbodyRekap.innerHTML = rowsHtml.join('');
+            }).join('');
         }
+        window.renderRekapTable = renderRekapTable;
         function deleteClaim(id) {
             if(!requireAdmin()) return;
             customConfirm("Apakah Anda yakin ingin menghapus data klaim ini secara permanen?", async () => {

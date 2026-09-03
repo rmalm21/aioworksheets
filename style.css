@@ -4473,3 +4473,50 @@ body.dark-mode .note-detail-footer { border-color:#30495a; }
     .status-modal-footer { flex-direction:column-reverse; }
     .status-modal-footer .btn { width:100%; }
 }
+
+/* =========================================================
+   P21 — REKAPITULASI TABLE / FOLDER VIEW PRIMITIVES
+   ========================================================= */
+.table-empty-state {
+    padding: 34px 18px !important;
+    color: #7c8ea0;
+    font-size: var(--ws-font-md) !important;
+    font-style: italic;
+    text-align: center;
+}
+.rekap-folder-empty { padding: 26px 4px; color: #7c8ea0; font-size: var(--ws-font-md); font-style: italic; }
+.rekap-mini-btn {
+    margin-left: 4px;
+    padding: 2px 6px !important;
+    border-radius: 5px;
+    font-size: var(--ws-font-xs) !important;
+    font-weight: 700;
+    line-height: 1.5;
+    cursor: pointer;
+}
+.rekap-mini-btn.is-ready { border: 1px solid #c3e6cb; background: #d4edda; color: #155724; }
+.rekap-mini-btn.is-add { border: 1px solid #cce0f5; background: #eef4fc; color: #0050A0; }
+.rekap-mini-btn.is-disabled { border: 1px solid #dee2e6; background: #f8f9fa; color: #6c757d; opacity: .6; cursor: not-allowed; }
+.rekap-ext-badge {
+    display: inline-block;
+    margin-top: 3px;
+    padding: 2px 5px;
+    border-radius: 5px;
+    background: #0050A0;
+    color: #fff;
+    font-size: var(--ws-font-xs);
+    font-weight: 700;
+}
+.rekap-amount { color: #0050A0; }
+.rekap-input-by { color: #6b7f91; font-size: var(--ws-font-xs); }
+.rekap-adjust-badge { color: #dc3545; font-size: var(--ws-font-xs); font-weight: 700; }
+
+body.dark-mode .table-empty-state,
+body.dark-mode .rekap-folder-empty { color: #93a7b8; }
+body.dark-mode .rekap-mini-btn.is-ready { border-color: #2f6b48; background: #16341f; color: #9fe0b6; }
+body.dark-mode .rekap-mini-btn.is-add { border-color: #2d5578; background: #14293c; color: #8fc6f2; }
+body.dark-mode .rekap-mini-btn.is-disabled { border-color: #3a4b5a; background: #1b2937; color: #7d8f9e; }
+body.dark-mode .rekap-ext-badge { background: #1f5f96; color: #e6f2fb; }
+body.dark-mode .rekap-amount { color: #7cc4f0; }
+body.dark-mode .rekap-input-by { color: #93a7b8; }
+body.dark-mode .rekap-adjust-badge { color: #f19aa5; }
