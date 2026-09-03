@@ -735,6 +735,7 @@
 
             <!-- MENU 1: INPUT DATA -->
             <div id="menu-claim-input" class="content-card">
+                <div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
                 <div class="unified-form-box">
                     <div class="header-actions">
                         <h3 id="form-title" style="color: #0050A0;">📝 Form Input Data Jurnal</h3>
@@ -772,7 +773,7 @@
                                     <option value="AUD">AUD</option><option value="MYR">MYR</option><option value="KRW">KRW</option>
                                 </select>
                                 <input type="text" id="hdr-amount-total" placeholder="0" oninput="formatRupiahInput(this); calculateBalance()" onkeydown="handleHeaderEnter(event)" style="flex:1;">
-                                <button type="button" class="btn btn-danger" id="btn-add-adjust" style="display:none; padding:8px 12px; font-weight:bold;" onclick="openModalAddAdjust()">⚖️ + Penyesuaian</button>
+                                <button type="button" class="write-action btn btn-danger" id="btn-add-adjust" style="display:none; padding:8px 12px; font-weight:bold;" onclick="openModalAddAdjust()">⚖️ + Penyesuaian</button>
 <button type="button" class="btn btn-warning" id="btn-view-adjust" style="display:none; padding:8px 12px; font-weight:bold;" onclick="openAdjustHistory()">
 <span id="adjust-badge" class="badge" style="background:#dc3545; color:white; border-radius:50%; padding:2px 5px; font-size:10px; margin-right:4px;"></span> Riwayat Penyesuaian</button>
                                 <button type="button" class="btn btn-success" style="padding: 8px 15px; font-weight: 900;" onclick="autoBalanceHeader()" title="Samakan Total Header dengan Total Baris">HITUNG</button>
@@ -802,8 +803,8 @@
 
                 <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap:10px;">
                     <div>
-                        <button class="btn btn-secondary" id="btn-add-row" onclick="addNewLineRow()">+ Tambah Baris</button>
-                        <button class="btn btn-danger" id="btn-del-row" onclick="deleteSelectedRows()" style="display:none; margin-left:10px;">🗑️ Hapus Baris Centang</button>
+                        <button class="write-action btn btn-secondary" id="btn-add-row" onclick="addNewLineRow()">+ Tambah Baris</button>
+                        <button class="write-action btn btn-danger" id="btn-del-row" onclick="deleteSelectedRows()" style="display:none; margin-left:10px;">🗑️ Hapus Baris Centang</button>
                     </div>
                     <div style="display:flex; align-items:center;">
                         <span id="selection-sum-badge" style="display:none; background:#17a2b8; color:white; padding:4px 8px; border-radius:4px; font-size:11px; margin-right:15px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">∑ Pilihan: IDR 0</span>
@@ -812,12 +813,13 @@
                 </div>
                 <div style="margin-top: 25px; border-top: 1px solid #e0e0e0; padding-top: 20px; display: flex; justify-content: space-between; align-items: center;">
                     <button class="btn btn-info" id="btn-simulate" style="padding: 12px 20px;" onclick="openSimulate()">📊 Simulasi Jurnal</button>
-                    <button class="btn btn-primary" id="btn-save-rekap" style="padding: 12px 30px;" onclick="saveRekap()">💾 Simpan Data (Ctrl+S)</button>
+                    <button class="write-action btn btn-primary" id="btn-save-rekap" style="padding: 12px 30px;" onclick="saveRekap()">💾 Simpan Data (Ctrl+S)</button>
                 </div>
             </div>
 
             <!-- MENU 1.5: QUICK INPUT -->
             <div id="menu-claim-quick" class="content-card">
+                <div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
                 <div class="unified-form-box">
                     <div class="header-actions" style="margin-bottom: 20px;">
                         <h3 style="color: #0050A0;">⚡ Form Input Cepat (Tanpa Detail Baris)</h3>
@@ -860,7 +862,7 @@
                                     <option value="AUD">AUD</option><option value="MYR">MYR</option><option value="KRW">KRW</option>
                                 </select>
                                 <input type="text" id="qk-amount" placeholder="0" oninput="formatRupiahInput(this)" style="flex:1;">
-                                <button type="button" class="btn btn-danger" id="btn-qk-add-adjust" style="display:none; padding:8px 12px; font-weight:bold;" onclick="openModalAddAdjust()">⚖️ + Penyesuaian</button>
+                                <button type="button" class="write-action btn btn-danger" id="btn-qk-add-adjust" style="display:none; padding:8px 12px; font-weight:bold;" onclick="openModalAddAdjust()">⚖️ + Penyesuaian</button>
 <button type="button" class="btn btn-warning" id="btn-qk-view-adjust" style="display:none; padding:8px 12px; font-weight:bold;" onclick="openAdjustHistory()">
 <span id="qk-adjust-badge" class="badge" style="background:#dc3545; color:white; border-radius:50%; padding:2px 5px; font-size:10px; margin-right:4px;"></span> Riwayat Penyesuaian</button>
                             </div>
@@ -873,12 +875,13 @@
                         <textarea id="qk-notes" rows="2" placeholder="Catatan opsional"></textarea>
                     </div>
                     <div style="margin-top: 25px; text-align: right;">
-                        <button class="btn btn-primary" id="btn-save-quick" style="padding: 12px 30px;" onclick="saveQuickRekap()">💾 Simpan Data (Ctrl+S)</button>
+                        <button class="write-action btn btn-primary" id="btn-save-quick" style="padding: 12px 30px;" onclick="saveQuickRekap()">💾 Simpan Data (Ctrl+S)</button>
                     </div>
                 </div>
             </div>
 
 <div id="menu-claim-excel-v2" class="content-card">
+<div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
                 <div class="daily-recap-shell">
                     <div class="daily-recap-hero">
                         <div><span class="daily-recap-kicker">DAILY IMPORT</span><h2>Rekap Harian</h2><p>Tempel data dari Excel Admin, validasi otomatis, lalu simpan batch claim baru tanpa mengganggu pekerjaan yang sedang dibuka.</p></div>
@@ -894,7 +897,7 @@
                         <textarea id="excel-v2-area" rows="11" oninput="updateDailyRecapCounter()" placeholder="Tempel baris data Excel di sini..."></textarea>
                         <div class="daily-recap-footer">
                             <div class="daily-recap-state"><span id="daily-recap-row-count">0 baris siap dibaca</span><span id="daily-import-status" class="daily-import-status" aria-live="polite"></span></div>
-                            <button class="btn btn-primary" id="btn-process-excel-v2" onclick="processExcelV2Data()">Proses & Tambahkan ke Rekapitulasi</button>
+                            <button class="write-action btn btn-primary" id="btn-process-excel-v2" onclick="processExcelV2Data()">Proses & Tambahkan ke Rekapitulasi</button>
                         </div>
                     </div>
                 </div>
@@ -902,6 +905,7 @@
 
 <!-- MENU 1.7: DETAIL PENGAJUAN (NOTA) -->
 <div id="menu-claim-detail" class="content-card">
+<div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
     <div class="unified-form-box">
         <div class="header-actions">
             <h3 style="color: #0050A0;">🧾 Form Detail Pengajuan</h3>
@@ -976,8 +980,8 @@
 
             <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap:10px;">
                 <div style="display:flex; gap:10px;">
-                    <button class="btn btn-secondary" id="btn-det-add-row" onclick="addNewDetailRow()">+ Tambah Baris</button>
-                    <button class="btn btn-danger" id="btn-det-del-row" onclick="deleteSelectedDetailRows()" style="display:none;">🗑️ Hapus Baris</button>
+                    <button class="write-action btn btn-secondary" id="btn-det-add-row" onclick="addNewDetailRow()">+ Tambah Baris</button>
+                    <button class="write-action btn btn-danger" id="btn-det-del-row" onclick="deleteSelectedDetailRows()" style="display:none;">🗑️ Hapus Baris</button>
                 </div>
                 <div style="display:flex; align-items:center; gap:15px;">
                     <button class="btn btn-warning" id="btn-det-adjust" style="display:none; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2);" onclick="executeDetailAdjustments()">⚖️ Sesuaikan Selisih Baris</button>
@@ -990,11 +994,11 @@
                     <button class="btn btn-secondary" onclick="closeDetailModule()">✖ Tutup</button>
                     <button class="btn btn-info" onclick="openDetailSimulate()">📊 Simulasi Jurnal</button>
                     <button class="btn btn-success" onclick="exportDetailExcel()">📥 Ekspor Excel</button>
-                    <button class="btn btn-danger" id="btn-det-delete" onclick="deleteDetailData()">🗑️ Hapus Detail Pengajuan</button>
+                    <button class="write-action btn btn-danger" id="btn-det-delete" onclick="deleteDetailData()">🗑️ Hapus Detail Pengajuan</button>
                 </div>
                 <div style="display:flex; gap:10px;" id="det-action-buttons">
-                    <button class="btn btn-secondary" onclick="saveDetailData('Draft')">💾 Simpan sebagai Draft</button>
-                    <button class="btn btn-primary" style="background:#28a745; border-color:#1e7e34;" onclick="saveDetailData('Final')">✅ Finalisasi</button>
+                    <button class="write-action btn btn-secondary" onclick="saveDetailData('Draft')">💾 Simpan sebagai Draft</button>
+                    <button class="write-action btn btn-primary" style="background:#28a745; border-color:#1e7e34;" onclick="saveDetailData('Final')">✅ Finalisasi</button>
                 </div>
             </div>
         </div>
@@ -1112,7 +1116,7 @@
                                 <table class="std-table">
                                     <thead>
                                         <tr>
-                                            <th width="30"><input type="checkbox" onclick="toggleSelectAll(this, 'revise-active-checkbox')"></th>
+                                            <th width="30" class="selection-only-column"><input type="checkbox" onclick="toggleSelectAll(this, 'revise-active-checkbox')"></th>
                                             <th width="70">Aksi</th>
 <th width="80">No. <span class="th-filter-icon" onclick="openExcelFilter(event, 'noPR_extNo', 'revise')">▼</span></th>
 <th style="text-align:center;">SLA <span class="th-filter-icon" onclick="openExcelFilter(event, 'slaDays', 'revise')">▼</span></th>
@@ -1156,7 +1160,7 @@
                                 <table class="std-table">
                                     <thead>
                                         <tr>
-                                            <th width="30"><input type="checkbox" onclick="toggleSelectAll(this, 'revise-arsip-checkbox')"></th>
+                                            <th width="30" class="selection-only-column"><input type="checkbox" onclick="toggleSelectAll(this, 'revise-arsip-checkbox')"></th>
                                             <th width="70">Aksi</th>
 <th width="80">No. <span class="th-filter-icon" onclick="openExcelFilter(event, 'noPR_extNo', 'revise')">▼</span></th>
 <th style="text-align:center;">SLA <span class="th-filter-icon" onclick="openExcelFilter(event, 'slaDays', 'revise')">▼</span></th>
@@ -1544,9 +1548,10 @@
 
             <!-- MENU 4: MASTER GL ACCOUNT -->
             <div id="menu-master-gl" class="content-card">
+                <div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
                 <div class="header-panel">
                     <h1>⚙️ Data Induk GL Account</h1>
-                    <div><button class="btn btn-danger" id="btn-del-gl" onclick="bulkDeleteGL()">🗑️ Hapus Pilihan</button></div>
+                    <div><button class="write-action btn btn-danger" id="btn-del-gl" onclick="bulkDeleteGL()">🗑️ Hapus Pilihan</button></div>
                 </div>
                 
                 <p style="font-size:12px; color:#666; margin-bottom:15px;">Tambahkan tipe pengajuan dan nama GL. Tipe pengajuan dapat dimasukkan secara manual apabila belum tersedia dalam daftar.</p>
@@ -1570,7 +1575,7 @@
                         <label>Nama GL Account</label>
                         <input type="text" id="new-gl-nama" placeholder="Contoh: Bensin" oninput="this.value = toTitleCase(this.value)">
                     </div>
-                    <button class="btn btn-primary" id="btn-save-gl" onclick="saveGLMaster()">+ Tambah</button>
+                    <button class="write-action btn btn-primary" id="btn-save-gl" onclick="saveGLMaster()">+ Tambah</button>
                     <div class="upload-btn-wrapper"><button class="btn btn-success">📁 Impor Excel</button><input type="file" accept=".xls,.xlsx" onchange="importGLExcel(event)" /></div>
                 </div>
 
@@ -1589,12 +1594,13 @@
 
             <!-- MENU 5: MASTER DATA KARYAWAN -->
             <div id="menu-master-karyawan" class="content-card">
+                <div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
                 <div class="header-panel">
                     <div>
                         <h1 style="margin-bottom:5px;">⚙️ Data Induk Karyawan</h1>
                         <p style="font-size:12px; color:#155724; background:#d4edda; padding:6px 10px; border-radius:4px; border:1px solid #c3e6cb; font-weight:bold; display:inline-block; margin:0;">🕒 Pembaruan Terakhir: <span id="txt-last-kar-upd">-</span></p>
                     </div>
-                    <div><button class="btn btn-danger" id="btn-del-kar" onclick="bulkDeleteKaryawan()">🗑️ Hapus Pilihan</button></div>
+                    <div><button class="write-action btn btn-danger" id="btn-del-kar" onclick="bulkDeleteKaryawan()">🗑️ Hapus Pilihan</button></div>
                 </div>
                 
                 <div style="background: #f8fbff; padding: 15px; border-radius: 6px; border: 1px solid #d0e3f7; margin-bottom: 20px; display:flex; gap:10px; align-items:flex-end; flex-wrap: wrap;">
@@ -1609,7 +1615,7 @@
                     <div class="form-group"><label>Lokasi Kerja</label><input type="text" id="new-kar-lokasi" placeholder="Masukkan lokasi"></div>
                     <div class="form-group"><label>Jabatan</label><input type="text" id="new-kar-jabatan" placeholder="Masukkan jabatan"></div>
                     <div class="form-group"><label>Departemen</label><input type="text" id="new-kar-dept" placeholder="Masukkan departemen"></div>
-                    <button class="btn btn-primary" id="btn-save-kar" onclick="saveKaryawan()">+ Tambah</button>
+                    <button class="write-action btn btn-primary" id="btn-save-kar" onclick="saveKaryawan()">+ Tambah</button>
                     <div class="upload-btn-wrapper"><button class="btn btn-success">📁 Impor Excel</button><input type="file" accept=".xls,.xlsx" onchange="importKaryawanExcel(event)" /></div>
                 </div>
 
@@ -1645,6 +1651,7 @@
 
             <!-- MENU 6: SYSTEM BACKUP -->
             <div id="menu-master-backup" class="content-card">
+                <div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
                 <div class="header-panel">
                     <h1>⚙️ Basis Data & Cadangan Sistem</h1>
                     <button class="btn btn-primary" onclick="forceBackup()">💾 Buat Cadangan Sekarang</button>
@@ -1927,6 +1934,7 @@
 </div>
             <!-- MASTER KALENDER SLA -->
             <div id="menu-master-calendar" class="content-card">
+                <div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
                 <div class="sla-calendar-page">
                     <div class="sla-calendar-hero">
                         <div class="sla-calendar-hero-copy">
@@ -1935,8 +1943,8 @@
                             <p>Kelola hari libur dan parameter perhitungan SLA. Perubahan hanya dapat dilakukan oleh Admin dan dapat diuji sebelum diterapkan.</p>
                         </div>
                         <div id="sla-calendar-admin-actions" class="sla-calendar-actions">
-                            <button class="btn btn-secondary" onclick="addSlaHolidayRow()">＋ Tambah Tanggal</button>
-                            <button class="btn btn-primary" onclick="saveSlaCalendar()">💾 Simpan Perubahan</button>
+                            <button class="write-action btn btn-secondary" onclick="addSlaHolidayRow()">＋ Tambah Tanggal</button>
+                            <button class="write-action btn btn-primary" onclick="saveSlaCalendar()">💾 Simpan Perubahan</button>
                         </div>
                     </div>
 
@@ -1985,7 +1993,7 @@
                                 <div class="form-group"><label>Merah Dimulai pada Hari ke-</label><input id="sla-setting-red-start" type="number" value="8" readonly title="Nilai ini otomatis satu hari setelah batas maksimum kuning."></div>
                                 <div class="form-group"><label>Target SLA Perusahaan (%)</label><input id="sla-setting-achievement-target" type="number" min="1" max="100" value="90"></div>
                                 <div class="form-group sla-weekend-group"><label>Hari yang dianggap akhir pekan</label><div><label><input class="sla-weekend-checkbox" type="checkbox" value="6"> Sabtu</label><label><input class="sla-weekend-checkbox" type="checkbox" value="0"> Minggu</label></div></div>
-                                <button class="btn btn-primary" onclick="saveSlaSettings()">💾 Simpan Mesin SLA</button>
+                                <button class="write-action btn btn-primary" onclick="saveSlaSettings()">💾 Simpan Mesin SLA</button>
                                 <small id="sla-settings-meta">Menggunakan konfigurasi awal sistem.</small>
                             </div>
                             <div class="sla-engine-test">

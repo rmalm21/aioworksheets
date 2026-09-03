@@ -69,12 +69,16 @@ let currentDocTargetId = null;
         const ACTOR_DISPLAY_FIELDS = new Set(['inputBy', 'postedBy', 'paymentBy', 'holdBy', 'returnedBy', 'canceledBy', '_updatedBy']);
         function isActorDisplayField(key) { return ACTOR_DISPLAY_FIELDS.has(key); }
 
-        const FINANCE_ALLOWED_MENUS = Object.freeze(['claim-rekap', 'waiting-approval', 'history', 'canceled', 'super-find']);
         function normalizeAppRole(value) { const role = String(value || 'viewer').toLowerCase(); return role === 'user' ? 'accounting' : role; }
         function canEditClaims() { return sessionRole === 'admin' || sessionRole === 'accounting'; }
         function isAppAdmin() { return sessionRole === 'admin'; }
         function isFinanceRole() { return sessionRole === 'finance'; }
         function canManageFinanceWorkflow() { return isAppAdmin() || isFinanceRole(); }
+        // Finance melihat layar yang sama dengan Accounting, tetapi seluruhnya
+        // hanya-baca. Satu-satunya perubahan data yang boleh dilakukan Finance
+        // adalah alur pembayaran pada claim yang sudah ada (Paid, Hold, Return,
+        // Batal Bayar, Lepas Hold) lewat modal Status & Linimasa.
+        function isReadOnlyRole() { return isFinanceRole() || sessionRole === 'viewer'; }
         function canMarkClaimPaid() { return canManageFinanceWorkflow(); }
         function canCreateActivityLog() { return VALID_APP_ROLES.includes(sessionRole); }
         function getCurrentActorIdentity() {
@@ -896,25 +900,28 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
             const financeMode = sessionRole === 'finance';
             document.body.classList.toggle('viewer-mode', viewerMode);
             document.body.classList.toggle('finance-mode', financeMode);
-            if(viewerMode || financeMode) {
+            document.body.classList.toggle('read-only-mode', isReadOnlyRole());
+            if(viewerMode) {
                 window.menuHistoryStack = [];
                 document.querySelectorAll('.nav-menu > .nav-item, .nav-menu > .nav-sub-container').forEach(el => {
-                    const allowed = viewerMode
-                        ? el.id === 'nav-super-find'
-                        : ['nav-claim-data-group', 'claim-data-dropdown', 'nav-claim-rekap', 'nav-super-find'].includes(el.id);
-                    el.setAttribute('aria-hidden', allowed ? 'false' : 'true');
+                    el.setAttribute('aria-hidden', el.id === 'nav-super-find' ? 'false' : 'true');
                 });
-                if(financeMode) {
-                    ['nav-in-process','nav-claim-revise'].forEach(id => { const el = document.getElementById(id); if(el) el.setAttribute('aria-hidden','true'); });
-                    ['nav-waiting-approval','nav-history','nav-canceled'].forEach(id => { const el = document.getElementById(id); if(el) el.setAttribute('aria-hidden','false'); });
-                }
             } else {
+                // Finance memakai navigasi penuh seperti Accounting; pembatasannya
+                // ada pada aksi tulis, bukan pada daftar menu.
                 document.querySelectorAll('.nav-menu > .nav-item, .nav-menu > .nav-sub-container, .nav-sub-item').forEach(el => el.removeAttribute('aria-hidden'));
             }
             ['btn-save-rekap','btn-save-quick','btn-add-row','btn-qk-add-adjust','btn-add-adjust'].forEach(id => {
                 let el = document.getElementById(id);
-                if (el) el.style.display = (viewerMode || financeMode) ? 'none' : '';
+                if (el) el.style.display = isReadOnlyRole() ? 'none' : '';
             });
+            document.querySelectorAll('.write-action').forEach(el => {
+                el.style.display = isReadOnlyRole() ? 'none' : '';
+            });
+            document.querySelectorAll('[data-read-only-notice]').forEach(el => {
+                el.style.display = isReadOnlyRole() ? 'flex' : 'none';
+            });
+            if(typeof window.applyReadOnlyFormLock === 'function') window.applyReadOnlyFormLock();
             document.querySelectorAll('[data-finance-queue-summary]').forEach(el => {
                 el.style.display = canManageFinanceWorkflow() ? 'grid' : 'none';
             });
@@ -923,6 +930,28 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
             });
             if(isAppAdmin()) subscribeRoleDirectory();
         }
+
+        // Layar entri data tetap dapat dibuka oleh Finance/Viewer untuk membaca,
+        // tetapi seluruh kontrolnya dikunci supaya tidak ada perubahan yang bisa
+        // diketik. Penyimpanan sendiri sudah dijaga requireClaimEditor().
+        const READ_ONLY_FORM_SCOPES = ['#menu-claim-input', '#menu-claim-quick', '#menu-claim-detail', '#menu-claim-excel-v2', '#menu-master-gl', '#menu-master-karyawan', '#menu-master-calendar', '#menu-master-backup'];
+        function applyReadOnlyFormLock() {
+            const lock = isReadOnlyRole();
+            READ_ONLY_FORM_SCOPES.forEach(scope => {
+                const root = document.querySelector(scope);
+                if(!root) return;
+                root.querySelectorAll('input, select, textarea').forEach(field => {
+                    // Kolom filter/pencarian tetap hidup supaya data masih bisa ditelusuri.
+                    if(field.closest('.list-toolbar, .header-panel, .pagination-container')) return;
+                    if(field.dataset.readOnlyExempt === 'true') return;
+                    field.disabled = lock;
+                });
+            });
+            document.querySelectorAll('.content-card [contenteditable="true"]').forEach(cell => {
+                if(lock) cell.setAttribute('contenteditable', 'false');
+            });
+        }
+        window.applyReadOnlyFormLock = applyReadOnlyFormLock;
 
         function openChangePasswordModal() {
             if(!currentFirebaseUser) return showToast('Sesi pengguna belum siap.', 'error');
@@ -2097,11 +2126,6 @@ function changeMenu(menuId, isBackAction = false) {
         isBackAction = true;
         window.menuHistoryStack = [];
     }
-    if(sessionRole === 'finance' && !FINANCE_ALLOWED_MENUS.includes(menuId)) {
-        menuId = 'claim-rekap';
-        isBackAction = true;
-        window.menuHistoryStack = [];
-    }
     if(menuId === 'master-content' && !isAppAdmin()) {
         showToast('Editor teks hanya dapat diakses Admin.', 'error');
         menuId = 'home';
@@ -2175,6 +2199,10 @@ if(menuId === 'executive') document.getElementById('nav-executive').classList.ad
         if(menuId === 'waiting-approval' && typeof window.renderWaitingTable === 'function') window.renderWaitingTable();
         if(menuId === 'claim-catatan-detail' && typeof renderCatatanDetailTable === 'function') { updateFilterIconHighlight('catatan-detail'); renderCatatanDetailTable(); }
 if(menuId === 'executive' && typeof renderExecutiveDashboard === 'function') renderExecutiveDashboard();
+
+        // resetFormAdd()/resetQuickForm() menyalakan ulang field saat layar dibuka,
+        // jadi kunci hanya-baca dipasang lagi setelah render selesai.
+        if(typeof applyReadOnlyFormLock === 'function') applyReadOnlyFormLock();
     });
     
     updateBackButtonVisibility();
@@ -5001,6 +5029,7 @@ const WORKSHEET_P20_TRANSLATION_ROWS = [
 ];
 
 const WORKSHEET_P22_TRANSLATION_ROWS = [
+    ['Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.', 'Your account has read-only access on this screen. Payment status changes are still available through the Finance Action button in the claim lists.', 'このアカウントはこの画面では閲覧のみです。支払いステータスの変更は申請一覧の「Finance操作」ボタンから引き続き行えます。'],
     ['CLAIM DATA', 'CLAIM DATA', '申請データ'],
     ['Seluruh claim Accounting dan Finance dalam satu tabel, lengkap dengan SLA dan status terkini.', 'Every Accounting and Finance claim in one table, with SLA and current status.', 'AccountingとFinanceの全申請を、SLAと最新ステータス付きで一覧表示します。'],
     ['Periode Tgl Proses', 'Process Date Period', '処理日の期間'],

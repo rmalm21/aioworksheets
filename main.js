@@ -2374,7 +2374,7 @@ let slaContent = renderSLABadge(item);
 let formattedNote = window.formatLongNote(item.reviseNote || '-');
 
     return `<tr>
-        <td><input type="checkbox" class="${chkClass}" data-id="${item.id}"></td>
+        <td class="selection-only-column"><input type="checkbox" class="${chkClass}" data-id="${item.id}"></td>
         <td><div style="display:flex; gap:4px; margin-bottom:4px;"><button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="Lihat data">👁️</button>${editBtn}</div>${btnArch}</td>
         <td><strong>${item.noPR || item.extNo || '-'}</strong></td>
         <td style="text-align:center;">${slaContent}</td><td>${item.tglSubmit}</td><td>${item.nik}</td><td><strong>${item.nama}</strong></td>
