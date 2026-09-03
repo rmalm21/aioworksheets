@@ -3681,7 +3681,7 @@ window.renderStatistikData = function() {
                     backgroundColor: context => window.buildChartGradient(context, theme.blue, theme.blueSoft),
                     hoverBackgroundColor: context => window.buildChartGradient(context, theme.blueDeep, theme.blue),
                     borderWidth: 0,
-                    borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 2, bottomRight: 2 },
+                    borderRadius: { topLeft: 6, topRight: 6, bottomLeft: 2, bottomRight: 2 },
                     borderSkipped: false,
                     maxBarThickness: 46,
                     categoryPercentage: 0.78,
@@ -3751,7 +3751,8 @@ window.renderStatistikData = function() {
                             }
                         }
                     }),
-                    chartCenterText: {
+                    // Tanpa data, ruang tengah dipakai pesan kosong saja.
+                    chartCenterText: slaTotal === 0 ? null : {
                         value: `${slaAchievedPct}%`,
                         label: translateUiText('Pencapaian'),
                         caption: translateUiText(`Target ${slaTargetPct}%`),
