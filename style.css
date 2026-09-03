@@ -4288,13 +4288,33 @@ body { font-size: var(--ws-font-base); line-height: var(--ws-line-base); }
 /* Status & Timeline — modern workspace */
 #modal-status { backdrop-filter: blur(8px); background: rgba(5,24,42,.48); }
 #modal-status .status-workflow-modal {
+    display: flex;
+    flex-direction: column;
     width: min(720px, calc(100vw - 28px));
+    max-height: min(90vh, 900px);
     padding: 0;
+    /* Hanya bingkai luar yang hidden; area isi punya scroll sendiri
+       supaya linimasa panjang tetap terjangkau di layar kecil. */
     overflow: hidden;
     border: 1px solid #dce9f2;
     border-radius: 20px;
     box-shadow: 0 28px 75px rgba(15,46,70,.28);
 }
+#modal-status .status-modal-hero,
+#modal-status .status-modal-footer { flex: 0 0 auto; }
+#modal-status .status-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-bottom: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #b6cede transparent;
+}
+#modal-status .status-modal-body::-webkit-scrollbar { width: 10px; }
+#modal-status .status-modal-body::-webkit-scrollbar-track { margin: 6px 0; background: transparent; }
+#modal-status .status-modal-body::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 999px; background: #b6cede; background-clip: content-box; }
+#modal-status .status-modal-body::-webkit-scrollbar-thumb:hover { background: #8fb2c9; background-clip: content-box; }
 .status-modal-hero {
     display: flex;
     align-items: flex-start;
@@ -4311,8 +4331,8 @@ body { font-size: var(--ws-font-base); line-height: var(--ws-line-base); }
 .status-modal-hero h3 { margin:0; color:#153d59; font-size:19px !important; }
 .status-modal-hero p { margin:5px 0 0; color:#6e8292; font-size:11px; line-height:1.5; }
 #modal-status #modal-status-edit-area { padding:18px 22px 0; }
-#modal-status > .modal-content > .timeline-container { margin:18px 22px 0; }
-#modal-status > .modal-content > div:last-child { padding:0 22px 20px; }
+#modal-status .status-modal-body > .timeline-container { margin:18px 22px 0; }
+#modal-status > .modal-content > .status-modal-footer { padding:14px 22px 18px; }
 .status-transition-context { padding:12px 14px; border-radius:13px; }
 .status-transition-grid { gap:10px; }
 .status-transition-choice { min-height:64px; border-radius:13px; padding:10px 12px; }
@@ -4441,7 +4461,7 @@ body.dark-mode .ui-copy-row textarea { background:#12232f; color:#dce8ef; }
 .status-time-clear { position:absolute; right:7px; display:grid; place-items:center; width:30px; height:30px; padding:0; border:0; border-radius:8px; background:#fff1f2; color:#b42336; cursor:pointer; font-size:18px; }
 .status-time-clear:hover { background:#ffe4e6; }
 .reactivate-action-panel { border-color:#bae6fd !important; background:#f0f9ff !important; }
-.status-modal-footer { display:flex; justify-content:space-between; gap:10px; margin-top:18px; padding:0 22px 20px; }
+.status-modal-footer { display:flex; justify-content:space-between; gap:10px; margin-top:0; padding:14px 22px 18px; border-top:1px solid #e6eef4; background:#fff; }
 .status-modal-footer .btn { min-width:118px; }
 
 .note-detail-modal { width:min(560px, calc(100vw - 28px)) !important; padding:0 !important; overflow:hidden; border:1px solid #dce8ef; border-radius:18px !important; box-shadow:0 24px 65px rgba(17,53,78,.25) !important; }
@@ -4520,3 +4540,53 @@ body.dark-mode .rekap-ext-badge { background: #1f5f96; color: #e6f2fb; }
 body.dark-mode .rekap-amount { color: #7cc4f0; }
 body.dark-mode .rekap-input-by { color: #93a7b8; }
 body.dark-mode .rekap-adjust-badge { color: #f19aa5; }
+
+/* Status & Linimasa — scroll region contrast in dark mode */
+body.dark-mode #modal-status .status-modal-body { scrollbar-color: #46647a transparent; }
+body.dark-mode #modal-status .status-modal-body::-webkit-scrollbar-thumb { background: #46647a; background-clip: content-box; }
+body.dark-mode #modal-status .status-modal-body::-webkit-scrollbar-thumb:hover { background: #5d8199; background-clip: content-box; }
+body.dark-mode .status-modal-footer { border-top-color: #30495a; background: #162936; }
+
+/* =========================================================
+   P21 — MODAL OVERFLOW SAFETY NET
+   Kartu modal memakai overflow:hidden agar sudutnya membulat.
+   Tanpa area scroll sendiri, isi yang lebih tinggi dari layar
+   terpotong dan tombol aksinya tidak dapat dijangkau.
+   ========================================================= */
+#modal-note-detail .note-detail-modal {
+    display: flex;
+    flex-direction: column;
+    max-height: min(90vh, 820px);
+}
+#modal-note-detail .note-detail-head,
+#modal-note-detail .note-detail-meta,
+#modal-note-detail .note-detail-footer { flex: 0 0 auto; }
+#modal-note-detail .note-detail-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+#modal-add-adjust > .modal-content,
+#modal-exec-detail > .modal-content {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+}
+
+/* Scrollbar tipis yang konsisten untuk seluruh area scroll modal. */
+.modal-overlay .modal-content,
+#modal-note-detail .note-detail-body { scrollbar-width: thin; scrollbar-color: #b6cede transparent; }
+.modal-overlay .modal-content::-webkit-scrollbar,
+#modal-note-detail .note-detail-body::-webkit-scrollbar { width: 10px; }
+.modal-overlay .modal-content::-webkit-scrollbar-track,
+#modal-note-detail .note-detail-body::-webkit-scrollbar-track { margin: 6px 0; background: transparent; }
+.modal-overlay .modal-content::-webkit-scrollbar-thumb,
+#modal-note-detail .note-detail-body::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 999px; background: #b6cede; background-clip: content-box; }
+.modal-overlay .modal-content::-webkit-scrollbar-thumb:hover,
+#modal-note-detail .note-detail-body::-webkit-scrollbar-thumb:hover { background: #8fb2c9; background-clip: content-box; }
+body.dark-mode .modal-overlay .modal-content,
+body.dark-mode #modal-note-detail .note-detail-body { scrollbar-color: #46647a transparent; }
+body.dark-mode .modal-overlay .modal-content::-webkit-scrollbar-thumb,
+body.dark-mode #modal-note-detail .note-detail-body::-webkit-scrollbar-thumb { background: #46647a; background-clip: content-box; }
