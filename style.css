@@ -4836,3 +4836,46 @@ body.dark-mode .sf-state-title.is-empty { color:#f7a3ae !important; }
     .sf-query-step .sf-step-controls { justify-content: flex-start; }
     .sf-step-index { display: none; }
 }
+
+/* =========================================================
+   P21 — EDITOR TEKS WEBSITE: SECTION + PAGINASI PER SECTION
+   ========================================================= */
+.ui-copy-sections {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin: 14px 0 4px;
+}
+.ui-copy-tab {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 13px;
+    border: 1px solid #d7e6f0; border-radius: 999px;
+    background: #fff;
+    color: #4c687d;
+    font-size: var(--ws-font-sm); font-weight: 700;
+    cursor: pointer;
+    transition: border-color .16s ease, background .16s ease, color .16s ease;
+}
+.ui-copy-tab em { font-style: normal; padding: 1px 7px; border-radius: 999px; background: #eef4f9; color: #6b8497; font-size: var(--ws-font-xs); font-weight: 800; }
+.ui-copy-tab:hover { border-color: #a9cde3; background: #f6fbfe; color: #14618c; }
+.ui-copy-tab.is-active { border-color: #0a7fb5; background: #e7f4fb; color: #08587e; }
+.ui-copy-tab.is-active em { background: #0a7fb5; color: #fff; }
+.ui-copy-tab.is-empty { opacity: .5; }
+.ui-copy-empty { padding: 34px 18px; color: #8295a3; font-size: var(--ws-font-md); font-style: italic; text-align: center; }
+.ui-copy-pagination {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    margin-top: 14px; padding-top: 14px;
+    border-top: 1px solid #e6eef4;
+}
+.ui-copy-rows { display: inline-flex; align-items: center; gap: 8px; color: #6b8497; font-size: var(--ws-font-sm); }
+.ui-copy-pagination-controls { display: inline-flex; align-items: center; gap: 10px; }
+.ui-copy-pagination-controls #ui-copy-page-info { color: #0a6f9f; font-size: var(--ws-font-sm); font-weight: 800; }
+.ui-copy-pagination-controls .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+body.dark-mode .ui-copy-tab { border-color: #34505f; background: #172b39; color: #b7ccda; }
+body.dark-mode .ui-copy-tab em { background: #24404f; color: #9db3c3; }
+body.dark-mode .ui-copy-tab:hover { border-color: #4a7893; background: #1d3546; color: #8fd6fa; }
+body.dark-mode .ui-copy-tab.is-active { border-color: #2a86b8; background: #14384e; color: #8fd6fa; }
+body.dark-mode .ui-copy-tab.is-active em { background: #2a86b8; color: #f2fbff; }
+body.dark-mode .ui-copy-empty { color: #93a7b8; }
+body.dark-mode .ui-copy-pagination { border-top-color: #30495a; }
+body.dark-mode .ui-copy-rows { color: #93a7b8; }
+body.dark-mode .ui-copy-pagination-controls #ui-copy-page-info { color: #8fd6fa; }

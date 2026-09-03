@@ -1927,12 +1927,28 @@
                         <div class="content-editor-actions"><button class="btn btn-secondary" onclick="resetUiCopyEditorDraft()">Atur Ulang Draft</button><button class="btn btn-primary" id="btn-save-ui-copy" onclick="saveUiCopyOverrides()">Simpan Perubahan Teks</button></div>
                     </div>
                     <div class="content-editor-toolbar">
-                        <input id="ui-copy-search" type="search" placeholder="Cari teks, misalnya login, rekapitulasi, status..." oninput="renderUiCopyEditor()">
-                        <select id="ui-copy-language" onchange="renderUiCopyEditor()" aria-label="Bahasa yang diedit"><option value="id">Bahasa Indonesia</option><option value="en">English</option><option value="ja">日本語</option></select>
+                        <input id="ui-copy-search" type="search" placeholder="Cari teks, misalnya login, rekapitulasi, status..." oninput="resetUiCopyPaging()">
+                        <select id="ui-copy-language" onchange="resetUiCopyPaging()" aria-label="Bahasa yang diedit"><option value="id">Bahasa Indonesia</option><option value="en">English</option><option value="ja">日本語</option></select>
                         <span id="ui-copy-meta">0 teks</span>
                     </div>
+                    <div id="ui-copy-sections" class="ui-copy-sections" role="group" aria-label="Kelompok teks antarmuka"></div>
                     <div class="content-editor-note">Perubahan berlaku untuk semua perangkat setelah sinkronisasi Firestore. Kosongkan override untuk kembali menggunakan teks bawaan sistem.</div>
                     <div id="ui-copy-editor-list" class="content-editor-list" data-i18n-skip="true"></div>
+                    <div id="ui-copy-pagination" class="ui-copy-pagination" hidden>
+                        <label class="ui-copy-rows">Tampilkan
+                            <select id="ui-copy-rows-per-page" onchange="changeUiCopyRows(this.value)" aria-label="Jumlah teks per halaman">
+                                <option value="10">10 baris</option>
+                                <option value="25" selected>25 baris</option>
+                                <option value="50">50 baris</option>
+                                <option value="100">100 baris</option>
+                            </select>
+                        </label>
+                        <div class="ui-copy-pagination-controls">
+                            <button type="button" class="btn btn-secondary" id="ui-copy-prev" onclick="changeUiCopyPage(-1)">◀ Sebelumnya</button>
+                            <span id="ui-copy-page-info">Halaman 1 dari 1</span>
+                            <button type="button" class="btn btn-secondary" id="ui-copy-next" onclick="changeUiCopyPage(1)">Berikutnya ▶</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 

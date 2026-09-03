@@ -5000,6 +5000,16 @@ const WORKSHEET_P20_TRANSLATION_ROWS = [
 ];
 
 const WORKSHEET_P21_TRANSLATION_ROWS = [
+    ['Login & Akun', 'Login & Account', 'ログインとアカウント'],
+    ['Navigasi & Menu', 'Navigation & Menu', 'ナビゲーションとメニュー'],
+    ['Klaim & Workflow', 'Claims & Workflow', '申請とワークフロー'],
+    ['Tabel & Filter', 'Tables & Filters', '表とフィルター'],
+    ['Notifikasi & Pesan', 'Notifications & Messages', '通知とメッセージ'],
+    ['Master Data & Sistem', 'Master Data & System', 'マスタデータとシステム'],
+    ['Statistik & Laporan', 'Statistics & Reports', '統計とレポート'],
+    ['Teks Lainnya', 'Other Text', 'その他のテキスト'],
+    ['Kelompok teks antarmuka', 'Interface text groups', 'UIテキストのグループ'],
+    ['Jumlah teks per halaman', 'Texts per page', '1ページあたりのテキスト数'],
     ['CLAIM LOOKUP', 'CLAIM LOOKUP', '申請検索'],
     ['Pencarian Klaim', 'Claim Search', '申請検索'],
     ['Telusuri seluruh klaim aktif, arsip, dan riwayat berstatus Posted dalam satu pencarian.', 'Search every active, archived, and Posted claim in one place.', 'アクティブ・アーカイブ・Posted済みの全申請をまとめて検索します。'],
@@ -5436,6 +5446,64 @@ function getUiCopyCatalogSources() {
     return Object.keys(WORKSHEET_TRANSLATIONS).filter(Boolean).sort((a,b) => a.localeCompare(b, 'id'));
 }
 
+// Katalog teks berjumlah ribuan baris. Tanpa pengelompokan, admin harus
+// menggulir satu daftar panjang untuk menemukan satu label. Setiap teks
+// dipetakan ke satu section berdasarkan kata kunci, dicek berurutan supaya
+// hasilnya selalu sama untuk teks yang cocok di lebih dari satu section.
+const UI_COPY_SECTIONS = [
+    { key:'akun', label:'Login & Akun', icon:'🔐', re:/\b(login|masuk|keluar|logout|password|kata sandi|akun|pengguna|peran|role|akses|sesi|admin|viewer|finance|accounting|otentikasi|kredensial|profil)\b/i },
+    { key:'navigasi', label:'Navigasi & Menu', icon:'🧭', re:/\b(menu|halaman utama|beranda|dashboard|navigasi|lembar kerja|rekapitulasi|statistik|analitik|ringkasan manajemen|cari klaim|pengaturan|kembali|tutup|buka|batal|simpan|lanjut|berikutnya|sebelumnya)\b/i },
+    { key:'klaim', label:'Klaim & Workflow', icon:'📄', re:/\b(klaim|claim|pengajuan|status|posted|paid|hold|revisi|cancel|canceled|dibatalkan|approval|persetujuan|proses|nota|detail|adjust|penyesuaian|workflow|linimasa|riwayat|arsip|finance|pembayaran|payment)\b/i },
+    { key:'tabel', label:'Tabel & Filter', icon:'▤', re:/\b(tabel|kolom|baris|filter|sortir|urutkan|halaman|pagination|tampilkan|pilih|centang|ekspor|export|impor|import|unduh|excel|xlsx|cari|pencarian|kata kunci|periode|rentang|tanggal|preset)\b/i },
+    { key:'pesan', label:'Notifikasi & Pesan', icon:'🔔', re:/\b(berhasil|gagal|error|kesalahan|wajib|tidak valid|minimal|maksimal|peringatan|perhatian|konfirmasi|yakin|apakah|silakan|mohon|periksa|coba lagi|tersimpan|terhapus|diperbarui|kosong|belum|sudah)\b/i },
+    { key:'master', label:'Master Data & Sistem', icon:'⚙️', re:/\b(master|gl|karyawan|nik|entitas|kalender|libur|sla|backup|cadangan|pulihkan|sinkronisasi|firestore|cloud|database|penyimpanan|log|aktivitas|audit|sistem|versi|bahasa|font|tema)\b/i },
+    { key:'laporan', label:'Statistik & Laporan', icon:'📊', re:/\b(statistik|laporan|grafik|chart|tren|rapor|peringkat|rata-rata|total|jumlah|nilai|persentase|target|pencapaian|perbandingan|indikator|volume|amount|mata uang|currency)\b/i }
+];
+const UI_COPY_FALLBACK_SECTION = { key:'lainnya', label:'Teks Lainnya', icon:'🗂️' };
+
+function getUiCopySectionKey(source) {
+    const text = String(source || '');
+    const match = UI_COPY_SECTIONS.find(section => section.re.test(text));
+    return match ? match.key : UI_COPY_FALLBACK_SECTION.key;
+}
+
+function getUiCopySectionMeta(key) {
+    return UI_COPY_SECTIONS.find(section => section.key === key) || UI_COPY_FALLBACK_SECTION;
+}
+
+function groupUiCopySources(sources) {
+    const groups = new Map();
+    [...UI_COPY_SECTIONS.map(section => section.key), UI_COPY_FALLBACK_SECTION.key]
+        .forEach(key => groups.set(key, []));
+    (sources || []).forEach(source => groups.get(getUiCopySectionKey(source)).push(source));
+    return groups;
+}
+
+let uiCopyActiveSection = UI_COPY_SECTIONS[0].key;
+let uiCopySectionPages = {};
+let uiCopyRowsPerPage = 25;
+
+window.setUiCopySection = function(key) {
+    uiCopyActiveSection = key;
+    uiCopySectionPages[key] = 1;
+    window.renderUiCopyEditor();
+};
+window.changeUiCopyPage = function(delta) {
+    const current = uiCopySectionPages[uiCopyActiveSection] || 1;
+    uiCopySectionPages[uiCopyActiveSection] = Math.max(1, current + delta);
+    window.renderUiCopyEditor();
+};
+window.changeUiCopyRows = function(value) {
+    uiCopyRowsPerPage = Math.max(5, parseInt(value, 10) || 25);
+    uiCopySectionPages = {};
+    window.renderUiCopyEditor();
+};
+// Pencarian dan pergantian bahasa selalu memulai section dari halaman satu.
+window.resetUiCopyPaging = function() {
+    uiCopySectionPages = {};
+    window.renderUiCopyEditor();
+};
+
 function escapeUiCopyHtml(value) {
     return String(value === null || value === undefined ? '' : value)
         .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -5483,21 +5551,64 @@ window.renderUiCopyEditor = function() {
     const query = String(document.getElementById('ui-copy-search')?.value || '').trim().toLowerCase();
     const language = document.getElementById('ui-copy-language')?.value || 'id';
     const draft = ensureUiCopyEditorDraft();
+
     let sources = getUiCopyCatalogSources();
     if(query) sources = sources.filter(source => {
         const base = getBaseWorksheetTranslation(source, language);
         const override = draft[source] && draft[source][language] || '';
         return `${source} ${base} ${override}`.toLowerCase().includes(query);
     });
+
+    const groups = groupUiCopySources(sources);
     const totalMatches = sources.length;
-    sources = sources.slice(0, 300);
+
+    // Saat pencarian mengosongkan section aktif, pindah otomatis ke section
+    // pertama yang masih punya hasil supaya layar tidak terlihat kosong.
+    if(!(groups.get(uiCopyActiveSection) || []).length) {
+        const firstFilled = [...groups.entries()].find(([, rows]) => rows.length);
+        if(firstFilled) uiCopyActiveSection = firstFilled[0];
+    }
+
+    const tabsHost = document.getElementById('ui-copy-sections');
+    if(tabsHost) {
+        tabsHost.innerHTML = [...groups.entries()].map(([key, rows]) => {
+            const meta = getUiCopySectionMeta(key);
+            const active = key === uiCopyActiveSection;
+            return `<button type="button" class="ui-copy-tab${active ? ' is-active' : ''}${rows.length ? '' : ' is-empty'}"
+                aria-pressed="${active}" onclick="setUiCopySection('${key}')">
+                <span aria-hidden="true">${meta.icon}</span>${escapeUiCopyHtml(translateUiText(meta.label, worksheetLanguage))}
+                <em>${rows.length}</em></button>`;
+        }).join('');
+    }
+
+    const sectionRows = groups.get(uiCopyActiveSection) || [];
+    const maxPage = Math.max(1, Math.ceil(sectionRows.length / uiCopyRowsPerPage));
+    let page = uiCopySectionPages[uiCopyActiveSection] || 1;
+    if(page > maxPage) page = maxPage;
+    if(page < 1) page = 1;
+    uiCopySectionPages[uiCopyActiveSection] = page;
+    const pageRows = sectionRows.slice((page - 1) * uiCopyRowsPerPage, page * uiCopyRowsPerPage);
+
     const meta = document.getElementById('ui-copy-meta');
-    if(meta) meta.textContent = translateUiText(`${totalMatches} teks${totalMatches > 300 ? ' · tampil 300' : ''}`, worksheetLanguage);
-    if(!sources.length) {
-        list.innerHTML = `<div style="padding:28px;text-align:center;color:#8295a3;font-size:12px;">${escapeUiCopyHtml(translateUiText('Tidak ada teks yang cocok.', worksheetLanguage))}</div>`;
+    if(meta) meta.textContent = translateUiText(`${totalMatches} teks`, worksheetLanguage);
+
+    const pager = document.getElementById('ui-copy-pagination');
+    if(pager) {
+        pager.hidden = sectionRows.length === 0;
+        const info = document.getElementById('ui-copy-page-info');
+        if(info) info.textContent = translateUiText(`Halaman ${page} dari ${maxPage} (${sectionRows.length} Data)`, worksheetLanguage);
+        const prev = document.getElementById('ui-copy-prev');
+        const next = document.getElementById('ui-copy-next');
+        if(prev) prev.disabled = page <= 1;
+        if(next) next.disabled = page >= maxPage;
+    }
+
+    if(!pageRows.length) {
+        list.innerHTML = `<div class="ui-copy-empty">${escapeUiCopyHtml(translateUiText('Tidak ada teks yang cocok.', worksheetLanguage))}</div>`;
         return;
     }
-    list.innerHTML = sources.map(source => {
+
+    list.innerHTML = pageRows.map(source => {
         const encoded = encodeURIComponent(source);
         const base = getBaseWorksheetTranslation(source, language);
         const override = draft[source] && draft[source][language];
