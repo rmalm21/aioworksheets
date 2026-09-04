@@ -734,7 +734,16 @@
 </div>
 
             <!-- MENU 1: INPUT DATA -->
-            <div id="menu-claim-input" class="content-card">
+            <div id="menu-claim-input" class="content-card list-page" data-accent="blue">
+    <header class="list-hero">
+        <div class="list-hero-icon" aria-hidden="true">📝</div>
+        <div class="list-hero-copy">
+            <span class="list-eyebrow">LEMBAR KERJA</span>
+            <h3>Masukkan Data</h3>
+            <p>Buat pengajuan jurnal lengkap dengan rincian baris transaksi dan penyesuaian.</p>
+        </div>
+        <div class="list-hero-mark" aria-hidden="true">🧮</div>
+    </header>
                 <div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
                 <div class="unified-form-box">
                     <div class="header-actions">
@@ -818,7 +827,16 @@
             </div>
 
             <!-- MENU 1.5: QUICK INPUT -->
-            <div id="menu-claim-quick" class="content-card">
+            <div id="menu-claim-quick" class="content-card list-page" data-accent="cyan">
+    <header class="list-hero">
+        <div class="list-hero-icon" aria-hidden="true">⚡</div>
+        <div class="list-hero-copy">
+            <span class="list-eyebrow">LEMBAR KERJA</span>
+            <h3>Input Cepat</h3>
+            <p>Rekam pengajuan ringkas tanpa rincian baris, cocok untuk klaim sederhana.</p>
+        </div>
+        <div class="list-hero-mark" aria-hidden="true">🚀</div>
+    </header>
                 <div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
                 <div class="unified-form-box">
                     <div class="header-actions" style="margin-bottom: 20px;">
@@ -904,7 +922,16 @@
             </div>
 
 <!-- MENU 1.7: DETAIL PENGAJUAN (NOTA) -->
-<div id="menu-claim-detail" class="content-card">
+<div id="menu-claim-detail" class="content-card list-page" data-accent="amber">
+    <header class="list-hero">
+        <div class="list-hero-icon" aria-hidden="true">🧾</div>
+        <div class="list-hero-copy">
+            <span class="list-eyebrow">LEMBAR KERJA</span>
+            <h3>Detail Pengajuan</h3>
+            <p>Lengkapi rincian nota untuk pengajuan yang sudah tercatat di Rekapitulasi.</p>
+        </div>
+        <div class="list-hero-mark" aria-hidden="true">📑</div>
+    </header>
 <div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
     <div class="unified-form-box">
         <div class="header-actions">
@@ -1006,27 +1033,36 @@
 </div>
 
 <!-- MENU 1.8: CATATAN DETAIL (ARSIP NOTA) -->
-<div id="menu-claim-catatan-detail" class="content-card">
-    <div class="header-panel" style="margin-bottom: 10px; display:flex; flex-direction:column; gap:10px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:10px;">
-            <div>
-                <h3 style="color:#0050A0; margin:0;">📂 Catatan Detail (Arsip Nota)</h3>
-                <p style="font-size:12px; color:#666; margin:0;">Rekapitulasi pengajuan yang rincian detailnya sudah dibuat (Draft / Final).</p>
-            </div>
-            <input type="text" id="search-catatan-detail" class="minimal-search-box" placeholder="🔍 Pencarian cepat" onkeyup="executeGlobalSearch('catatan-detail')">
+<div id="menu-claim-catatan-detail" class="content-card list-page" data-accent="cyan">
+    <header class="list-hero">
+        <div class="list-hero-icon" aria-hidden="true">📂</div>
+        <div class="list-hero-copy">
+            <span class="list-eyebrow">LEMBAR KERJA</span>
+            <h3>Catatan Detail</h3>
+            <p>Rekapitulasi pengajuan yang rincian detailnya sudah dibuat, baik Draft maupun Final.</p>
         </div>
-        
-        <div style="display:flex; align-items:center; gap:5px;">
+        <div class="list-hero-mark" aria-hidden="true">🧾</div>
+    </header>
+
+    <section class="header-panel list-toolbar" aria-label="Filter Catatan Detail">
+        <div class="list-toolbar-title"><span aria-hidden="true">◷</span><div><strong>Periode Tgl Proses</strong><small>Atur rentang data yang ditampilkan</small></div></div>
+        <div class="list-toolbar-controls">
             <select id="preset-period-catatan-detail" class="compact-period-select" onchange="applyClaimPeriodPreset('catatan-detail', this.value)" aria-label="Preset periode Catatan Detail">
                 <option value="this_month" selected>Bulan Ini</option>
                 <option value="last_month">Bulan Lalu</option>
                 <option value="all_time">Semua Waktu</option>
                 <option value="custom">Pilih Periode Manual</option>
             </select>
-            <input type="text" id="filter-date-catatan-detail" placeholder="📅 Filter Tgl Proses..." style="padding:6px 10px; border-radius:6px; border:1px solid #ccc; font-size:12px; width:220px; text-align:center; cursor:pointer;" readonly> 
-            <button class="btn btn-secondary" onclick="applyClaimPeriodPreset('catatan-detail', 'all_time')" style="padding:6px; font-size:11px;" title="Atur ulang filter">✖ Atur Ulang Waktu</button>
+            <input type="text" id="filter-date-catatan-detail" class="list-date-input" placeholder="📅 Filter Tgl Proses..." readonly>
+            <button class="btn btn-secondary list-reset-button" onclick="applyClaimPeriodPreset('catatan-detail', 'all_time')" title="Atur ulang filter">✖ Atur Ulang</button>
+            <input type="text" id="search-catatan-detail" class="list-search-box" placeholder="🔍 Pencarian cepat" onkeyup="executeGlobalSearch('catatan-detail')">
         </div>
-    </div>
+    </section>
+
+    <section class="list-panel">
+        <div class="list-panel-head">
+            <div class="list-panel-title"><span class="list-panel-icon" aria-hidden="true">▤</span><div><h4>Arsip Rincian Nota</h4><small>Buka Detail untuk meninjau atau melengkapi rincian</small></div></div>
+        </div>
 
     <div class="table-responsive" style="border:none;">
         <table class="std-table" id="main-catatan-detail-table">
@@ -1067,6 +1103,7 @@
             <button class="btn btn-secondary" onclick="window.catatanDetailCurrentPage++; renderCatatanDetailTable();">Berikutnya ▶</button>
         </div>
     </div>
+    </section>
 </div>
             <!-- MENU 1.9: REVISE / CONFIRM -->
             <div id="menu-claim-revise" class="content-card list-page" data-accent="amber">

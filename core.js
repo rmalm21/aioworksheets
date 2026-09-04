@@ -5032,6 +5032,20 @@ const WORKSHEET_P20_TRANSLATION_ROWS = [
 ];
 
 const WORKSHEET_P22_TRANSLATION_ROWS = [
+    ['Cache lokal aktif; Firestore hanya membaca data baru atau yang berubah.', 'Local cache is active; Firestore only reads new or changed data.', 'ローカルキャッシュが有効です。Firestoreは新規・変更分のみ読み取ります。'],
+    ['Bootstrap cache selesai; listener penuh langsung diganti menjadi delta.', 'Cache bootstrap finished; the full listener switches straight to delta.', 'キャッシュの初期化が完了し、全件リスナーは差分へ切り替わりました。'],
+    ['LEMBAR KERJA', 'WORKSHEET', 'ワークシート'],
+    ['Masukkan Data', 'Enter Data', 'データ入力'],
+    ['Buat pengajuan jurnal lengkap dengan rincian baris transaksi dan penyesuaian.', 'Create a full journal claim with transaction lines and adjustments.', '取引明細と調整を含む仕訳申請を作成します。'],
+    ['Input Cepat', 'Quick Entry', 'クイック入力'],
+    ['Rekam pengajuan ringkas tanpa rincian baris, cocok untuk klaim sederhana.', 'Record a compact claim without line details, suited to simple claims.', '明細なしで簡易に申請を登録します。単純な申請向けです。'],
+    ['Detail Pengajuan', 'Claim Details', '申請明細'],
+    ['Lengkapi rincian nota untuk pengajuan yang sudah tercatat di Rekapitulasi.', 'Complete the receipt details for a claim already recorded in the recap.', '集計に登録済みの申請に領収書明細を追加します。'],
+    ['Catatan Detail', 'Detail Notes', '明細メモ'],
+    ['Rekapitulasi pengajuan yang rincian detailnya sudah dibuat, baik Draft maupun Final.', 'Claims whose details have been created, both Draft and Final.', '明細が作成済みの申請（下書き・確定の両方）。'],
+    ['Arsip Rincian Nota', 'Receipt Detail Archive', '領収書明細アーカイブ'],
+    ['Buka Detail untuk meninjau atau melengkapi rincian', 'Open Detail to review or complete the entries', '「詳細を開く」で内容を確認・補完できます'],
+    ['Filter Catatan Detail', 'Detail Notes filter', '明細メモフィルター'],
     ['Buka modul In Process', 'Open the In Process module', 'In Processモジュールを開く'],
     ['Buka modul Pemantauan Revisi', 'Open the Revision Monitoring module', '修正監視モジュールを開く'],
     ['Buka modul Menunggu Persetujuan', 'Open the Waiting Approval module', '承認待ちモジュールを開く'],
@@ -5278,6 +5292,7 @@ const WORKSHEET_DYNAMIC_TRANSLATIONS = [
     { re: /^Halaman (\d+) \/ (\d+)$/i, en: m => `Page ${m[1]} / ${m[2]}`, ja: m => `${m[1]} / ${m[2]} ページ` },
     { re: /^([\d.,]+) klaim ditemukan$/i, en: m => `${m[1]} claims found`, ja: m => `${m[1]}件の申請が見つかりました` },
     { re: /^(\d+) perubahan ditolak cloud dan belum tersimpan\. Data lokal aman; tekan Sinkronkan untuk mencoba lagi\.$/i, en: m => `${m[1]} change(s) were rejected by the cloud and are not saved yet. Local data is safe; press Sync to try again.`, ja: m => `${m[1]}件の変更がクラウドに拒否され、まだ保存されていません。ローカルデータは安全です。「同期」を押して再試行してください。` },
+    { re: /^Konfigurasi terakhir:\s*(.+?)\s+oleh\s+(.+)$/i, en: m => `Last configured: ${m[1]} by ${m[2]}`, ja: m => `最終設定：${m[1]}（${m[2]}）` },
     { re: /^Catatan:\s*(.+)$/i, en: m => `Note: ${m[1]}`, ja: m => `メモ：${m[1]}` },
     { re: /^SLA \(Kerja\):\s*(\d+) Hari$/i, en: m => `SLA (working): ${m[1]} days`, ja: m => `SLA（営業日）：${m[1]}日` },
     { re: /^Zona waktu: (.+) \| Terakhir diperbarui: (.+) \| Oleh: (.+)$/i, en: m => `Time zone: ${m[1]} | Last updated: ${m[2]} | By: ${m[3]}`, ja: m => `タイムゾーン：${m[1]}｜最終更新：${m[2]}｜更新者：${m[3]}` }
