@@ -3,6 +3,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
+    function actorEmail() { return request.auth.token.get('email', '').lower(); }
     function rolePath() { return /databases/$(database)/documents/userRoles/$(request.auth.uid); }
     function hasRoleDocument() { return signedIn() && exists(rolePath()); }
     function storedRole() { return hasRoleDocument() ? get(rolePath()).data.role : 'viewer'; }
@@ -61,11 +62,18 @@ service cloud.firestore {
       ]);
     }
 
+    function requestWorkflowTimestamps() { return request.resource.data.get('workflowTimestamps', {}); }
+    function storedWorkflowTimestamps() { return resource.data.get('workflowTimestamps', {}); }
+
+    // Dokumen lama dapat tersimpan tanpa workflowTimestamps sama sekali.
+    // Membacanya langsung membuat evaluasi rules gagal dan seluruh update
+    // ditolak, jadi selalu diambil lewat get() dengan map kosong sebagai
+    // nilai bawaan.
     function preservesPostedAudit() {
       return request.resource.data.get('postedAt', null) == resource.data.get('postedAt', null)
         && request.resource.data.get('postedBy', null) == resource.data.get('postedBy', null)
-        && request.resource.data.workflowTimestamps.get('completedAt', null)
-          == resource.data.workflowTimestamps.get('completedAt', null);
+        && requestWorkflowTimestamps().get('completedAt', null)
+          == storedWorkflowTimestamps().get('completedAt', null);
     }
 
     function hasWorkflowHistory() {
@@ -138,7 +146,7 @@ service cloud.firestore {
         && workflowFieldsOnly()
         && request.resource.data.isArchived == false
         && !request.resource.data.keys().hasAny(['postedAt', 'postedBy'])
-        && request.resource.data.workflowTimestamps.get('completedAt', null) == null
+        && requestWorkflowTimestamps().get('completedAt', null) == null
         && hasWorkflowHistory();
     }
 
@@ -209,11 +217,21 @@ service cloud.firestore {
           || !request.resource.data.keys().hasAny(['holdReason', 'holdAt', 'holdAtMs', 'holdBy']));
     }
 
+    // Batal Bayar hanya boleh dilakukan Admin atau Finance yang mencatat
+    // pembayarannya. paymentBy dibaca lewat get() dan dibandingkan tanpa
+    // membedakan huruf besar/kecil: aplikasi menyimpannya dalam huruf kecil,
+    // sedangkan email pada token mengikuti ejaan akun apa adanya.
+    function isOwnPayment() {
+      return actorEmail() != ''
+        && resource.data.get('paymentBy', '') is string
+        && resource.data.get('paymentBy', '').lower() == actorEmail();
+    }
+
     function validFinanceCancelPaid() {
       return canManageFinanceWorkflow()
         && resource.data.statusClaim == 'Paid'
         && request.resource.data.statusClaim == 'Posted'
-        && (isAdmin() || resource.data.paymentBy == request.auth.token.email)
+        && (isAdmin() || isOwnPayment())
         && workflowFieldsOnly()
         && request.resource.data.lastPaymentCancellation is map
         && request.resource.data.lastPaymentCancellation.reason is string
@@ -222,7 +240,7 @@ service cloud.firestore {
         && request.resource.data.lastPaymentCancellation.cancelledAtMs is int
         && request.resource.data.lastPaymentCancellation.cancelledBy == request.auth.token.email
         && !request.resource.data.keys().hasAny(['paymentAt', 'paymentAtMs', 'paymentDate', 'paymentBy', 'paymentReference'])
-        && request.resource.data.workflowTimestamps.get('paidAt', null) == null
+        && requestWorkflowTimestamps().get('paidAt', null) == null
         && request.resource.data.isArchived == true
         && preservesPostedAudit()
         && hasWorkflowHistory();
@@ -240,7 +258,7 @@ service cloud.firestore {
         && request.resource.data.lastHoldRelease.releasedAtMs is int
         && request.resource.data.lastHoldRelease.releasedBy == request.auth.token.email
         && !request.resource.data.keys().hasAny(['holdReason', 'holdAt', 'holdAtMs', 'holdBy'])
-        && request.resource.data.workflowTimestamps.get('holdAt', null) == null
+        && requestWorkflowTimestamps().get('holdAt', null) == null
         && request.resource.data.isArchived == true
         && preservesPostedAudit()
         && hasWorkflowHistory();

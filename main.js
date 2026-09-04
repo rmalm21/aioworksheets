@@ -2590,6 +2590,22 @@ function getAllowedStatusTransitions(data) {
     return [];
 }
 
+// Modal Status berubah menjadi hanya-baca begitu tidak ada transisi yang
+// diizinkan. Tanpa keterangan, Finance yang membuka claim Paid milik rekannya
+// hanya melihat modal kosong dan mengira aplikasinya bermasalah.
+function getStatusTransitionBlockReason(data) {
+    if(!data || sessionRole === 'viewer') return 'Peran Anda hanya dapat melihat status dan linimasa klaim ini.';
+    if(String(data.statusClaim || '') === 'Paid' && isFinanceRole()
+        && String(data.paymentBy || '').toLowerCase() !== getCurrentActorIdentity()) {
+        return 'Pembatalan Paid hanya dapat dilakukan oleh Finance yang mencatat pembayaran ini atau oleh Admin.';
+    }
+    if(isFinanceRole()) return 'Finance hanya dapat mengubah status pada klaim yang sudah berstatus Posted, Hold, atau Paid.';
+    if(typeof isFinalClaimStatus === 'function' && isFinalClaimStatus(data.statusClaim)) {
+        return 'Klaim yang sudah final hanya dapat diubah melalui alur Finance.';
+    }
+    return 'Tidak ada perubahan status yang tersedia untuk peran Anda pada klaim ini.';
+}
+
 function isFinanceWorkflowTransition(oldStatus, newStatus) {
     return (oldStatus === 'Posted' && ['Paid', 'Hold', 'Returned by Finance'].includes(newStatus))
         || (oldStatus === 'Hold' && ['Paid', 'Posted', 'Returned by Finance'].includes(newStatus))
@@ -2660,6 +2676,11 @@ function openStatusModal(id) {
 
     const readOnly = allowed.length === 0;
     document.getElementById('modal-status-edit-area').style.display = readOnly ? 'none' : 'block';
+    const readOnlyNote = document.getElementById('modal-status-readonly-note');
+    if(readOnlyNote) {
+        readOnlyNote.textContent = readOnly ? getStatusTransitionBlockReason(data) : '';
+        readOnlyNote.style.display = readOnly ? 'block' : 'none';
+    }
     const saveStatusButton = document.getElementById('btn-save-status');
     saveStatusButton.style.display = readOnly ? 'none' : 'inline-flex';
     saveStatusButton.disabled = false;
@@ -3841,28 +3862,53 @@ function loadFromCloud() {
 // seluruh perubahan status ditolak, padahal di layar terlihat berhasil.
 //
 // Karena itu setiap field yang secara makna tidak berubah dikirim ulang
-// persis seperti nilai yang sudah ada di cloud. Aman dilakukan karena setiap
-// dokumen yang tersimpan sudah lolos validClaimShape(), sehingga tipe datanya
-// pasti valid. Field meta dikecualikan: nilainya memang sengaja diperbarui.
+// persis seperti nilai yang sudah ada di cloud, apa pun tipe simpannya, selama
+// bentuknya masih memenuhi validClaimShape(). Field meta dikecualikan:
+// nilainya memang sengaja diperbarui setiap kali payload dikirim.
 const CLAIM_SYNC_META_FIELDS = new Set(['_version', '_updatedAt', '_updatedAtMs', '_updatedBy']);
-// validClaimShape() menuntut format tertentu untuk field ini (angka, dan kode
-// mata uang tiga huruf kapital). Nilainya selalu dikirim dalam bentuk hasil
-// normalisasi supaya payload tidak pernah melanggar bentuk yang diwajibkan.
-const CLAIM_SHAPE_ENFORCED_FIELDS = new Set(['totalHeader', 'mataUang', 'statusClaim']);
+// Payload dikirim dengan set() penuh, sehingga field yang tidak ikut dikirim
+// otomatis terhapus di cloud. Hanya field berikut yang memang pernah dihapus
+// oleh aksi pengguna: alur Finance (Batal Bayar, Lepas Hold), pembatalan
+// status oleh Admin, dan penghapusan rincian nota. Field lain yang ada di
+// cloud tetapi tidak ada pada salinan lokal berarti salinan lokalnya yang
+// tertinggal, bukan penghapusan yang disengaja, jadi nilainya dipertahankan.
+// Tanpa penjagaan ini satu field asing saja membuat workflowFieldsOnly()
+// menolak seluruh perubahan status.
+const CLAIM_REMOVABLE_FIELDS = new Set([
+    'paymentAt', 'paymentAtMs', 'paymentDate', 'paymentBy', 'paymentReference',
+    'holdReason', 'holdAt', 'holdAtMs', 'holdBy',
+    'postedAt', 'postedBy', 'detailNota'
+]);
+// validClaimShape() menuntut bentuk tertentu untuk sebagian field. Nilai mentah
+// dari cloud hanya boleh dipakai ulang selama masih memenuhi syarat itu; kalau
+// tidak, hasil normalisasi yang dikirim supaya payload tetap sah dan dokumen
+// lama dapat diperbaiki lewat penyuntingan Accounting.
+function isClaimShapeLegalValue(field, value) {
+    if(field === 'nama' || field === 'nik' || field === 'statusClaim') return typeof value === 'string';
+    if(field === 'totalHeader') return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+    if(field === 'mataUang') return typeof value === 'string' && /^[A-Z]{3}$/.test(value);
+    return true;
+}
 function preserveIncidentalClaimFields(nextClaim, remoteClaim, remoteRaw) {
     if(!nextClaim || !remoteClaim || !remoteRaw) return nextClaim;
     const fields = new Set([...Object.keys(nextClaim), ...Object.keys(remoteRaw)]);
     fields.forEach(field => {
-        if(CLAIM_SYNC_META_FIELDS.has(field) || CLAIM_SHAPE_ENFORCED_FIELDS.has(field)) return;
+        if(CLAIM_SYNC_META_FIELDS.has(field)) return;
+        const remoteHasField = Object.prototype.hasOwnProperty.call(remoteRaw, field);
         // Kedua sisi dibandingkan dalam bentuk yang sudah dinormalisasi. Kalau
-        // sama, isinya tidak diubah pengguna dan nilai asli cloud dipertahankan.
-        if(stableStringify(nextClaim[field]) !== stableStringify(remoteClaim[field])) return;
-        if(!Object.prototype.hasOwnProperty.call(remoteRaw, field)) { delete nextClaim[field]; return; }
-        // Nilai asli hanya dipulihkan bila tipenya sama dengan hasil normalisasi.
-        // Dokumen lama yang menyimpan angka sebagai teks tetap dikirim sebagai
-        // angka, karena validClaimShape() mensyaratkan tipe tersebut.
-        if(typeof remoteRaw[field] !== typeof nextClaim[field]) return;
-        nextClaim[field] = clonePlain(remoteRaw[field]);
+        // sama, isinya tidak diubah pengguna dan nilai asli cloud dipertahankan
+        // supaya hasil normalisasi tidak pernah muncul sebagai perubahan.
+        if(stableStringify(nextClaim[field]) === stableStringify(remoteClaim[field])) {
+            if(!remoteHasField) { delete nextClaim[field]; return; }
+            if(isClaimShapeLegalValue(field, remoteRaw[field])) nextClaim[field] = clonePlain(remoteRaw[field]);
+            return;
+        }
+        // Cloud menyimpan field yang tidak dikenal salinan lokal ini dan bukan
+        // field yang dapat dihapus aksi pengguna. Menghapusnya di cloud tidak
+        // pernah diminta, jadi nilainya dikirim ulang apa adanya.
+        if(remoteHasField
+            && !Object.prototype.hasOwnProperty.call(nextClaim, field)
+            && !CLAIM_REMOVABLE_FIELDS.has(field)) nextClaim[field] = clonePlain(remoteRaw[field]);
     });
     return nextClaim;
 }
