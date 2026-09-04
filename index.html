@@ -613,30 +613,30 @@
                     <!-- THE CARDS -->
                     <div class="stat-boxes modern-stat-boxes">
                         <!-- In Process -->
-                        <div class="stat-box modern-stat-card card-process">
+                        <div class="stat-box modern-stat-card card-process clickable" role="button" tabindex="0" onclick="changeMenu('in-process')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();changeMenu('in-process');}" title="Buka modul In Process">
                             <div class="card-bg-icon">📝</div>
-                            <p>In Process</p>
+                            <p>In Process <span class="click-hint">Buka ➔</span></p>
                             <h3 id="stat-val-process">0</h3>
                         </div>
 
                         <!-- Revisi -->
-                        <div class="stat-box modern-stat-card card-revise">
+                        <div class="stat-box modern-stat-card card-revise clickable" role="button" tabindex="0" onclick="changeMenu('claim-revise')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();changeMenu('claim-revise');}" title="Buka modul Pemantauan Revisi">
                             <div class="card-bg-icon">⚠️</div>
-                            <p>Revisi</p>
+                            <p>Revisi <span class="click-hint">Buka ➔</span></p>
                             <h3 id="stat-val-revise">0</h3>
                         </div>
 
                         <!-- Waiting Approval -->
-                        <div class="stat-box modern-stat-card card-waiting clickable" onclick="changeMenu('waiting-approval')">
+                        <div class="stat-box modern-stat-card card-waiting clickable" role="button" tabindex="0" onclick="changeMenu('waiting-approval')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();changeMenu('waiting-approval');}" title="Buka modul Menunggu Persetujuan">
                             <div class="card-bg-icon">⏳</div>
                             <p>Menunggu Persetujuan <span class="click-hint">Buka ➔</span></p>
                             <h3 id="stat-val-waiting">0</h3>
                         </div>
 
                         <!-- Posted -->
-                        <div class="stat-box modern-stat-card card-posted">
+                        <div class="stat-box modern-stat-card card-posted clickable" role="button" tabindex="0" onclick="changeMenu('history')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();changeMenu('history');}" title="Buka modul Riwayat Klaim">
                             <div class="card-bg-icon">✅</div>
-                            <p>Selesai (Posted)</p>
+                            <p>Selesai (Posted) <span class="click-hint">Buka ➔</span></p>
                             <h3 id="stat-val-rtp">0</h3>
                         </div>
                     </div>

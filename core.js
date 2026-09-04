@@ -5032,6 +5032,10 @@ const WORKSHEET_P20_TRANSLATION_ROWS = [
 ];
 
 const WORKSHEET_P22_TRANSLATION_ROWS = [
+    ['Buka modul In Process', 'Open the In Process module', 'In Processモジュールを開く'],
+    ['Buka modul Pemantauan Revisi', 'Open the Revision Monitoring module', '修正監視モジュールを開く'],
+    ['Buka modul Menunggu Persetujuan', 'Open the Waiting Approval module', '承認待ちモジュールを開く'],
+    ['Buka modul Riwayat Klaim', 'Open the Claim History module', '申請履歴モジュールを開く'],
     ['Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.', 'Your account has read-only access on this screen. Payment status changes are still available through the Finance Action button in the claim lists.', 'このアカウントはこの画面では閲覧のみです。支払いステータスの変更は申請一覧の「Finance操作」ボタンから引き続き行えます。'],
     ['CLAIM DATA', 'CLAIM DATA', '申請データ'],
     ['Seluruh claim Accounting dan Finance dalam satu tabel, lengkap dengan SLA dan status terkini.', 'Every Accounting and Finance claim in one table, with SLA and current status.', 'AccountingとFinanceの全申請を、SLAと最新ステータス付きで一覧表示します。'],

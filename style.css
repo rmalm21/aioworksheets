@@ -866,7 +866,9 @@ span.flatpickr-weekday {
     border-radius: 16px; text-align: left; position: relative; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.02); transition: all 0.3s ease; cursor: default;
 }
 .modern-stat-card:hover { transform: translateY(-5px); box-shadow: 0 12px 20px -5px rgba(0,0,0,0.1) !important; filter: brightness(0.97); }
-.modern-stat-card.clickable:hover { cursor: pointer; }
+.modern-stat-card.clickable { cursor: pointer; transition: transform .16s ease, box-shadow .16s ease; }
+.modern-stat-card.clickable:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(16,66,101,.14); }
+.modern-stat-card.clickable:focus-visible { outline: 2px solid #0a7fb5; outline-offset: 2px; }
 .modern-stat-card .card-bg-icon { position: absolute; right: -10px; top: -10px; font-size: 80px; opacity: 0.1; }
 .modern-stat-card p { font-size: var(--ws-font-sm); font-weight: 800; margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 0.5px; }
 .modern-stat-card h3 { font-size: 36px; font-weight: 900; margin: 0; }
@@ -882,7 +884,16 @@ span.flatpickr-weekday {
 .card-waiting { background: linear-gradient(135deg, #f0fdfa, #bbf7d0); border: 1px solid #86efac; }
 .card-waiting p { color: #166534; }
 .card-waiting h3 { color: #15803d; }
-.card-waiting .click-hint { font-size: var(--ws-font-2xs); background: #166534; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 4px; }
+/* Petunjuk klik dipakai keempat kartu ringkasan, warnanya mengikuti aksen kartu. */
+.click-hint { display: inline-block; margin-left: 6px; padding: 2px 6px; border-radius: 4px; background: rgba(15,58,90,.14); color: inherit; font-size: var(--ws-font-2xs); font-weight: 800; vertical-align: middle; }
+.card-waiting .click-hint { background: #166534; color: #fff; }
+.card-process .click-hint { background: rgba(29,78,216,.16); color: #1d4ed8; }
+.card-revise .click-hint { background: rgba(180,83,9,.18); color: #92500a; }
+.card-posted .click-hint { background: rgba(21,128,61,.16); color: #15803d; }
+body.dark-mode .card-process .click-hint { background: rgba(126,169,245,.2); color: #9dc0f7; }
+body.dark-mode .card-revise .click-hint { background: rgba(240,199,101,.2); color: #f0c765; }
+body.dark-mode .card-posted .click-hint { background: rgba(111,206,146,.2); color: #8fdcac; }
+body.dark-mode .card-waiting .click-hint { background: #16603a; color: #c9f3da; }
 
 .card-posted { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #bbf7d0; }
 .card-posted p { color: #14532d; }
@@ -3312,12 +3323,15 @@ body.dark-mode #sla-options-list { border-color: #34505f !important; }
     .sidebar { left: min(-88vw, -320px); width: min(86vw, 320px); height: 100dvh; padding-bottom: max(18px, env(safe-area-inset-bottom)); transition: left .22s ease; }
     .sidebar.active-mobile { left: 0; height: 100dvh; }
     .close-sidebar-btn { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border-radius: 11px; background: #fff1f3; color: #bd2f43; }
-    .top-navbar { position: sticky; top: 0; display: grid; grid-template-columns: 1fr; gap: 9px; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); border-bottom-width: 1px; }
-    .top-navbar-brand { width: 100%; }
-    .top-navbar-brand h2 { max-width: calc(100vw - 108px); font-size: 15px !important; }
+    /* Navbar tetap satu baris di layar kecil: judul menyusut dan tombol aksi
+       menempel di kanan. Versi grid sebelumnya memaksa tombol turun ke baris
+       kedua dan rata kiri, menyisakan ruang kosong di kanan. */
+    .top-navbar { position: sticky; top: 0; display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); border-bottom-width: 1px; }
+    .top-navbar-brand { flex: 1 1 auto !important; width: auto !important; min-width: 0; }
+    .top-navbar-brand h2 { max-width: 100%; font-size: 15px !important; }
     .hamburger, #btn-global-back { display: inline-grid; place-items: center; min-width: 42px; min-height: 42px; margin-right: 8px !important; padding: 0; border: 1px solid #d6e4ef; border-radius: 11px; background: #f5faff; }
-    .top-navbar-tools { width: 100%; min-width: 0; justify-content: flex-start !important; gap: 8px !important; }
-    .top-navbar-actions { width: 100%; min-width: 0; flex-wrap: nowrap !important; gap: 6px !important; overflow-x: auto; padding: 1px 0 3px; scrollbar-width: none; }
+    .top-navbar-tools { flex: 0 0 auto !important; width: auto !important; min-width: 0; justify-content: flex-end !important; gap: 8px !important; }
+    .top-navbar-actions { flex: 0 0 auto; width: auto; min-width: 0; flex-wrap: nowrap !important; gap: 6px !important; overflow: visible; padding: 0; }
     .top-navbar-actions::-webkit-scrollbar { display: none; }
     .top-navbar-user { flex: 0 0 auto; min-height: 40px; padding: 5px 9px !important; }
     .top-action-button { flex: 0 0 auto; min-width: 42px; min-height: 40px; padding: 7px 9px !important; }
@@ -3396,7 +3410,7 @@ body.dark-mode #sla-options-list { border-color: #34505f !important; }
     #toast-container { right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); width: calc(100vw - 20px); }
     .toast { grid-template-columns: 36px minmax(0,1fr) 28px; }
     .system-dialog-actions { grid-template-columns: 1fr; }
-    .top-action-button span { display: none; }
+    .top-navbar .top-action-button .top-action-label { display: none; }
     .top-navbar-user #logged-in-role { display: none; }
 }
 
@@ -3597,8 +3611,8 @@ body.dark-mode .top-action-logout { border-color: #70414a !important; background
 }
 
 @media (max-width: 700px) {
-    .top-action-button .top-action-label { display: none; }
-    .top-action-button .top-action-icon { display: inline-grid; }
+    .top-navbar .top-action-button .top-action-label { display: none; }
+    .top-navbar .top-action-button .top-action-icon { display: inline-grid; }
     .font-switcher-mark { display: none; }
     .font-switcher { padding-left: 4px; }
     .font-switcher .ws-select-shell { min-width: 94px; width: 94px; }
@@ -3727,7 +3741,17 @@ body.dark-mode .status-transition-copy small, body.dark-mode .status-transition-
 body.dark-mode .status-transition-icon { background: #29485d; color: #8ed8fa; }
 
 @media (max-width: 850px) {
-    .profile-menu { right: 0; width: min(310px, calc(100vw - 20px)); }
+    .top-navbar { position: sticky; }
+    .profile-menu-shell { position: static; }
+    .profile-menu {
+        top: calc(100% + 6px);
+        right: 12px;
+        left: auto;
+        width: min(310px, calc(100vw - 24px));
+        max-height: calc(100dvh - 96px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
     .profile-menu-username { max-width: 92px; }
     #modal-status .modal-content { width: 100% !important; }
 }
@@ -5029,3 +5053,9 @@ body.dark-mode .daily-recap-input-head strong { color:#dfeaf2; }
 body.dark-mode .daily-recap-input-head small { color:#93a7b8; }
 body.dark-mode .daily-recap-footer { border-color:#30495b; background:#142633; }
 body.dark-mode #daily-recap-row-count { color:#a9c8db; }
+
+/* Tombol di dalam dropdown profil selalu menampilkan labelnya: ruangnya cukup
+   dan tanpa teks tombolnya hanya terbaca sebagai ikon tanpa arti. */
+.profile-menu .top-action-button { justify-content: center; gap: 7px; }
+.profile-menu .top-action-button .top-action-label { display: inline !important; font-size: var(--ws-font-sm); }
+.profile-menu .top-action-button .top-action-icon { display: inline-grid !important; }
