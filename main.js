@@ -3743,6 +3743,30 @@ function loadFromCloud() {
     if(isAppAdmin() && window.currentOpenMenu === 'master-user') ensureActivityLogSubscription(generation);
 }
 
+// normalizeClaimRecord() menulis ulang detailNota.rows setiap kali payload
+// dibangun: amount berbentuk teks diubah menjadi angka dan rowId yang kosong
+// diisi. Untuk claim lama, hasilnya berbeda dari dokumen yang tersimpan di
+// cloud walaupun pengguna tidak menyentuh rincian sama sekali.
+//
+// Rules alur Finance (Paid, Hold, Return, Batal Bayar, Lepas Hold) memakai
+// workflowFieldsOnly(), yang menolak update begitu ada field di luar daftar
+// alur yang ikut berubah. Akibatnya perubahan status ditolak cloud walau
+// tampak berhasil di layar. Karena itu field yang secara makna tidak berubah
+// dikirim ulang persis seperti nilai yang sudah ada di cloud.
+const INCIDENTAL_NORMALIZED_FIELDS = ['detailNota'];
+function preserveIncidentalClaimFields(nextClaim, remoteClaim, remoteRaw) {
+    if(!nextClaim || !remoteClaim || !remoteRaw) return nextClaim;
+    INCIDENTAL_NORMALIZED_FIELDS.forEach(field => {
+        // Bandingkan bentuk yang sudah dinormalisasi di kedua sisi. Kalau sama,
+        // pengguna tidak mengubah isinya dan nilai asli cloud dipertahankan.
+        if(stableStringify(nextClaim[field]) !== stableStringify(remoteClaim[field])) return;
+        if(Object.prototype.hasOwnProperty.call(remoteRaw, field)) nextClaim[field] = clonePlain(remoteRaw[field]);
+        else delete nextClaim[field];
+    });
+    return nextClaim;
+}
+window.preserveIncidentalClaimFields = preserveIncidentalClaimFields;
+
 async function saveOneClaimWithVersion(localClaim) {
     const id = String(localClaim.id);
     const sentComparable = claimComparable(localClaim);
@@ -3794,6 +3818,7 @@ async function saveOneClaimWithVersion(localClaim) {
             }
 
             const nextClaim = normalizeClaimRecord(localClaim);
+            preserveIncidentalClaimFields(nextClaim, remoteClaim, remoteSnap.exists() ? remoteSnap.data() : null);
             nextClaim._version = remoteVersion + 1;
             nextClaim._updatedAtMs = Date.now(); nextClaim._updatedBy = sessionUser;
             transaction.set(docRef, { ...nextClaim, _updatedAt: window.fbServerTimestamp() });
@@ -4024,6 +4049,10 @@ async function flushPendingCloudSync() {
             console.error('[Firebase] Sinkronisasi ditolak dan tidak akan diulang otomatis:', permanentErrors[0]);
             setCloudSyncState('error', 'Sync perlu diperiksa');
             failGlobalDataProgress(progressId, (completedTasks / totalTasks) * 100, 'Cloud menolak pembaruan', 'Data lokal aman · periksa akses/rules, lalu tekan Sync untuk mencoba kembali.');
+            // Penolakan permanen menghentikan percobaan ulang otomatis. Tanpa
+            // pemberitahuan, perubahan terlihat berhasil di layar padahal cloud
+            // masih menyimpan versi lama, jadi kegagalannya diberitahukan.
+            showToast(`${permanentErrors.length} perubahan ditolak cloud dan belum tersimpan. Data lokal aman; tekan Sinkronkan untuk mencoba lagi.`, 'error');
             return false;
         }
         if(retryableErrors.length) {

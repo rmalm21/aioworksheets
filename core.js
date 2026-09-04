@@ -5270,6 +5270,7 @@ const WORKSHEET_DYNAMIC_TRANSLATIONS = [
     { re: /^Halaman (\d+)\/(\d+)$/i, en: m => `Page ${m[1]}/${m[2]}`, ja: m => `${m[1]}/${m[2]} ページ` },
     { re: /^Halaman (\d+) \/ (\d+)$/i, en: m => `Page ${m[1]} / ${m[2]}`, ja: m => `${m[1]} / ${m[2]} ページ` },
     { re: /^([\d.,]+) klaim ditemukan$/i, en: m => `${m[1]} claims found`, ja: m => `${m[1]}件の申請が見つかりました` },
+    { re: /^(\d+) perubahan ditolak cloud dan belum tersimpan\. Data lokal aman; tekan Sinkronkan untuk mencoba lagi\.$/i, en: m => `${m[1]} change(s) were rejected by the cloud and are not saved yet. Local data is safe; press Sync to try again.`, ja: m => `${m[1]}件の変更がクラウドに拒否され、まだ保存されていません。ローカルデータは安全です。「同期」を押して再試行してください。` },
     { re: /^Catatan:\s*(.+)$/i, en: m => `Note: ${m[1]}`, ja: m => `メモ：${m[1]}` },
     { re: /^SLA \(Kerja\):\s*(\d+) Hari$/i, en: m => `SLA (working): ${m[1]} days`, ja: m => `SLA（営業日）：${m[1]}日` },
     { re: /^Zona waktu: (.+) \| Terakhir diperbarui: (.+) \| Oleh: (.+)$/i, en: m => `Time zone: ${m[1]} | Last updated: ${m[2]} | By: ${m[3]}`, ja: m => `タイムゾーン：${m[1]}｜最終更新：${m[2]}｜更新者：${m[3]}` }
