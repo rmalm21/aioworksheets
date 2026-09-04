@@ -343,7 +343,8 @@ function goBackMenu() {
 }
 function updateBackButtonVisibility() {
     let backBtn = document.getElementById('btn-global-back');
-    if (backBtn) backBtn.style.display = (window.menuHistoryStack.length > 0 && window.currentOpenMenu !== 'home') ? 'inline-block' : 'none';
+    // Tombolnya memakai grid agar ikon panahnya tetap di tengah kotak.
+    if (backBtn) backBtn.style.display = (window.menuHistoryStack.length > 0 && window.currentOpenMenu !== 'home') ? 'grid' : 'none';
 }
 window.exportStatistikExcel = function() {
     const statisticRange = normalizeReportingRange(window.filterDatesStatistik);
@@ -750,6 +751,7 @@ function renderSlaCalendarVisuals() {
 
     const monthLabel = document.getElementById('sla-calendar-month-label');
     if(monthLabel) monthLabel.innerText = slaCalendarViewDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    syncSlaPeriodPicker(viewYear, viewMonth);
 
     const firstOfMonth = new Date(viewYear, viewMonth, 1);
     const mondayOffset = (firstOfMonth.getDay() + 6) % 7;
@@ -791,6 +793,53 @@ function renderSlaCalendarVisuals() {
         }).join('') : '<div class="sla-upcoming-empty"><span>✅</span><strong>Tidak ada libur mendatang</strong><small>Daftar saat ini sudah melewati tanggal hari ini.</small></div>';
     }
 }
+
+// Pemilih periode melengkapi tombol maju/mundur: rentang tahunnya mengikuti
+// tahun berjalan, tahun yang sedang dilihat, dan tahun pada daftar hari libur,
+// sehingga tanggal libur lama tetap dapat dibuka.
+function getSlaPeriodYearRange(viewYear) {
+    const years = new Set([new Date().getFullYear(), viewYear]);
+    (slaCalendarEntries || []).forEach(item => {
+        const year = parseInt(String(item && item.date || '').slice(0, 4), 10);
+        if(Number.isFinite(year)) years.add(year);
+    });
+    const min = Math.min(...years) - 2;
+    const max = Math.max(...years) + 3;
+    const list = [];
+    for(let year = min; year <= max; year++) list.push(year);
+    return list;
+}
+
+function syncSlaPeriodPicker(viewYear, viewMonth) {
+    const monthSelect = document.getElementById('sla-period-month');
+    const yearSelect = document.getElementById('sla-period-year');
+    if(!monthSelect || !yearSelect) return;
+    if(monthSelect.options.length !== 12) {
+        monthSelect.innerHTML = Array.from({ length: 12 }, (unused, index) => {
+            const name = new Date(2000, index, 1).toLocaleDateString('id-ID', { month: 'long' });
+            return `<option value="${index}">${name}</option>`;
+        }).join('');
+    }
+    const years = getSlaPeriodYearRange(viewYear);
+    const rendered = [...yearSelect.options].map(option => Number(option.value));
+    if(rendered.length !== years.length || rendered.some((year, index) => year !== years[index])) {
+        yearSelect.innerHTML = years.map(year => `<option value="${year}">${year}</option>`).join('');
+    }
+    monthSelect.value = String(viewMonth);
+    yearSelect.value = String(viewYear);
+}
+
+function setSlaCalendarPeriod() {
+    const monthSelect = document.getElementById('sla-period-month');
+    const yearSelect = document.getElementById('sla-period-year');
+    if(!monthSelect || !yearSelect) return;
+    const month = parseInt(monthSelect.value, 10);
+    const year = parseInt(yearSelect.value, 10);
+    if(!Number.isFinite(month) || !Number.isFinite(year)) return;
+    slaCalendarViewDate = new Date(year, month, 1);
+    renderSlaCalendarVisuals();
+}
+window.setSlaCalendarPeriod = setSlaCalendarPeriod;
 
 function changeSlaCalendarMonth(offset) {
     slaCalendarViewDate = new Date(slaCalendarViewDate.getFullYear(), slaCalendarViewDate.getMonth() + Number(offset || 0), 1);
@@ -1750,9 +1799,36 @@ let adjNoteInput = document.getElementById('qk-adj-note');
                 : `<span class="badge ${getClaimStatusClass(item.statusClaim)}" title="Status klaim">${item.statusClaim}</span>`;
         }
 
+// ==========================================
+// TAMPILAN FOLDER (Rekapitulasi, Riwayat, Revisi)
+// Tiga modul memakai kerangka yang sama supaya kepala folder, jumlah item,
+// dan animasi bukanya konsisten. Status buka/tutup disimpan pada kelas
+// .is-open, bukan pada style inline, agar dapat diatur lewat CSS saja.
+// ==========================================
+window.toggleFolderGroup = function(trigger) {
+    const group = trigger && trigger.closest ? trigger.closest('.folder-group') : null;
+    if(!group) return;
+    const open = group.classList.toggle('is-open');
+    trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+};
+
+function buildFolderGroup({ icon = '\u{1F4C1}', title = '', subtitle = '', count = 0, countLabel = 'Item', body = '', open = false }) {
+    const safeTitle = escapeTimelineText(String(title));
+    const safeSubtitle = subtitle ? `<small>${escapeTimelineText(String(subtitle))}</small>` : '';
+    return `<div class="folder-group${open ? ' is-open' : ''}">
+        <button type="button" class="folder-header" onclick="toggleFolderGroup(this)" aria-expanded="${open ? 'true' : 'false'}">
+            <span class="folder-header-icon" aria-hidden="true">${icon}</span>
+            <span class="folder-header-copy"><strong>${safeTitle}</strong>${safeSubtitle}</span>
+            <span class="folder-header-count">${count} ${translateUiText(countLabel)}</span>
+            <span class="folder-header-chevron" aria-hidden="true">\u2304</span>
+        </button>
+        <div class="folder-content">${body}</div>
+    </div>`;
+}
+window.buildFolderGroup = buildFolderGroup;
+
         function buildHistoryFolderHTML(folderTitle, items) {
-            let html = `<div class="folder-group" style="margin-bottom:10px;"><div class="folder-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='none'?'block':'none'" style="background:#0050A0; color:white;">📁 ${folderTitle} <span>(${items.length} data)</span></div><div class="folder-content" style="display:none;">
-            <div class="table-responsive" style="border:none;">
+            let html = `<div class="table-responsive" style="border:none;">
             <table class="std-table">
                 <thead>
                     <tr>
@@ -1813,15 +1889,12 @@ let actionBtns = buildClaimActionCell(item, { withTimeline: true, withReverse: t
                     <td><span class="badge ${getClaimStatusClass(item.statusClaim)}">${item.statusClaim}</span></td>
                 </tr>`;
             });
-            html += `</tbody></table></div></div></div>`;
-            return html;
+            html += `</tbody></table></div>`;
+            return buildFolderGroup({ icon:'\u{1F5C2}\uFE0F', title: folderTitle, count: items.length, countLabel:'data', body: html });
         }
 function buildReviseFolderHTML(folderTitle, items, isArchived) {
     let chkClass = isArchived ? 'revise-arsip-checkbox' : 'revise-active-checkbox';
-    let html = `<div class="folder-group" style="margin-bottom:10px;">
-        <div class="folder-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='none'?'block':'none'">📁 ${folderTitle} <span>(${items.length} data)</span></div>
-        <div class="folder-content" style="display:none;">
-        <div class="table-responsive" style="border:none;">
+    let html = `<div class="table-responsive" style="border:none;">
         <table class="std-table">
             <thead>
                 <tr>
@@ -1844,8 +1917,8 @@ function buildReviseFolderHTML(folderTitle, items, isArchived) {
     items.forEach(item => {
         html += buildReviseRowHTML(item, isArchived);
     });
-    html += `</tbody></table></div></div></div>`;
-    return html;
+    html += `</tbody></table></div>`;
+    return buildFolderGroup({ icon: isArchived ? '\u{1F4E6}' : '\u{1F5C2}\uFE0F', title: folderTitle, count: items.length, countLabel:'data', body: html });
 }
         function renderHistoryFolder(filteredData) {
             let container = document.getElementById('history-folder-view');
@@ -1867,15 +1940,14 @@ function buildReviseFolderHTML(folderTitle, items, isArchived) {
 
             let arsipHtmlStr = "";
             Object.keys(groupsArchived).sort((a,b)=>b.localeCompare(a)).forEach(yr => {
-                arsipHtmlStr += `<div class="folder-group" style="margin-bottom:15px; border: 2px solid #adb5bd;">
-                    <div class="folder-header" style="background:#adb5bd; color:#333;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='none'?'block':'none'">📁 Tahun Posted: ${yr}</div>
-                    <div class="folder-content" style="display:none; padding:10px; background:#f8f9fa;">`;
-                
-                let months = groupsArchived[yr];
-                Object.keys(months).sort((a,b)=>b.localeCompare(a)).forEach(mo => {
-                    arsipHtmlStr += buildHistoryFolderHTML(`Bulan: ${mo}`, months[mo]);
+                const months = groupsArchived[yr];
+                const monthKeys = Object.keys(months).sort((a,b)=>b.localeCompare(a));
+                const inner = monthKeys.map(mo => buildHistoryFolderHTML(`Bulan: ${mo}`, months[mo])).join('');
+                const total = monthKeys.reduce((sum, mo) => sum + months[mo].length, 0);
+                arsipHtmlStr += buildFolderGroup({
+                    icon: '\u{1F4C5}', title: yr, subtitle: translateUiText('Tahun Posted'),
+                    count: total, countLabel: 'data', body: inner
                 });
-                arsipHtmlStr += `</div></div>`;
             });
             container.innerHTML = arsipHtmlStr;
         }
@@ -2271,7 +2343,13 @@ window.renderCanceledTable = function() {
                         <td><span class="rekap-input-by">${formatActorUsernameHtml(item.inputBy)}</span></td>
                         <td>${buildClaimStatusBadge(item)}</td>
                     </tr>`).join('');
-                return `<div class="folder-group"><div class="folder-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">📁 ${translateUiText('Bulan/Tahun Proses')}: ${escapeTimelineText(key)} <span>(${groups[key].length} ${translateUiText('Item')})</span></div><div class="folder-content" style="display:none;"><div class="table-responsive" style="border:none;"><table class="std-table"><thead><tr>${headerCells}</tr></thead><tbody>${body}</tbody></table></div></div></div>`;
+                return buildFolderGroup({
+                    icon: '\u{1F5C2}\uFE0F',
+                    title: key,
+                    subtitle: translateUiText('Bulan/Tahun Proses'),
+                    count: groups[key].length,
+                    body: `<div class="table-responsive" style="border:none;"><table class="std-table"><thead><tr>${headerCells}</tr></thead><tbody>${body}</tbody></table></div>`
+                });
             }).join('');
         }
         window.renderRekapFolder = renderRekapFolder;
@@ -2538,9 +2616,11 @@ function renderReviseConfirm() {
             });
             let activeHtmlStr = "";
             Object.keys(groupsActive).sort((a,b) => b.localeCompare(a)).forEach(ym => {
-                activeHtmlStr += `<div class="folder-group" style="margin-bottom:15px; border: 2px solid #cce0f5;"><div class="folder-header" style="background:#0050A0; color:white;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='none'?'block':'none'">📁 Bulan/Tahun Proses: ${ym}</div><div class="folder-content" style="display:block; padding:10px; background:#f8fbff;">`;
-                activeHtmlStr += buildReviseFolderHTML(`Data Group: ${ym}`, groupsActive[ym], false);
-                activeHtmlStr += `</div></div>`;
+                activeHtmlStr += buildFolderGroup({
+                    icon: '\u{1F4C5}', title: ym, subtitle: translateUiText('Bulan/Tahun Proses'),
+                    count: groupsActive[ym].length, countLabel: 'data', open: true,
+                    body: buildReviseFolderHTML(`Data Group: ${ym}`, groupsActive[ym], false)
+                });
             });
             activeFolderContainer.innerHTML = activeHtmlStr;
         } else activeFolderContainer.innerHTML = '<p style="font-size:12px; color:#777; font-style:italic;">Tidak ada histori data revisi/confirm yang aktif.</p>';
@@ -2558,10 +2638,14 @@ function renderReviseConfirm() {
             });
             let arsipHtmlStr = "";
             Object.keys(groupsArchived).sort((a,b)=>b.localeCompare(a)).forEach(yr => {
-                arsipHtmlStr += `<div class="folder-group" style="margin-bottom:15px; border: 2px solid #adb5bd;"><div class="folder-header" style="background:#adb5bd; color:#333;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='none'?'block':'none'">📁 Tahun Proses: ${yr}</div><div class="folder-content" style="display:none; padding:10px; background:#f8f9fa;">`;
-                let months = groupsArchived[yr];
-                Object.keys(months).sort((a,b)=>b.localeCompare(a)).forEach(mo => { arsipHtmlStr += buildReviseFolderHTML(`Bulan: ${mo}`, months[mo], true); });
-                arsipHtmlStr += `</div></div>`;
+                const months = groupsArchived[yr];
+                const monthKeys = Object.keys(months).sort((a,b)=>b.localeCompare(a));
+                const inner = monthKeys.map(mo => buildReviseFolderHTML(`Bulan: ${mo}`, months[mo], true)).join('');
+                const total = monthKeys.reduce((sum, mo) => sum + months[mo].length, 0);
+                arsipHtmlStr += buildFolderGroup({
+                    icon: '\u{1F4E6}', title: yr, subtitle: translateUiText('Tahun Proses'),
+                    count: total, countLabel: 'data', body: inner
+                });
             });
             arsipFolderContainer.innerHTML = arsipHtmlStr;
         } else arsipFolderContainer.innerHTML = '<p style="font-size:12px; color:#777; font-style:italic;">Belum ada data yang diarsipkan.</p>';
@@ -3106,7 +3190,24 @@ function normalizeClaimRecord(item) {
     claim.totalHeader = Number(claim.totalHeader) || 0;
     claim.mataUang = normalizeCurrency(claim.mataUang || 'IDR');
     claim._version = Number(claim._version) || 0;
-    if(!claim.workflowTimestamps) claim.workflowTimestamps = {};
+    if(!claim.workflowTimestamps || typeof claim.workflowTimestamps !== 'object' || Array.isArray(claim.workflowTimestamps)) claim.workflowTimestamps = {};
+    // Dokumen lama dapat menyimpan historyLog sebagai objek berindeks, bukan
+    // array. Seluruh pembaca menganggapnya array, dan rules pun menuntut list,
+    // jadi bentuknya diseragamkan di satu tempat ini.
+    if(claim.historyLog !== undefined) {
+        const entries = Array.isArray(claim.historyLog)
+            ? claim.historyLog
+            : (claim.historyLog && typeof claim.historyLog === 'object'
+                ? Object.keys(claim.historyLog)
+                    .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }))
+                    .map(key => claim.historyLog[key])
+                : []);
+        // Setiap pembaca menganggap time dan status berupa string; entri lama
+        // dapat kehilangan salah satunya sehingga seluruh tabel gagal dirender.
+        claim.historyLog = entries
+            .filter(entry => entry && typeof entry === 'object')
+            .map(entry => ({ ...entry, time: String(entry.time || ''), status: String(entry.status || '') }));
+    }
     if(Array.isArray(claim.detailNota && claim.detailNota.rows)) {
         claim.detailNota.rows = claim.detailNota.rows.map((row, index) => ({
             ...row,
@@ -3879,18 +3980,39 @@ const CLAIM_REMOVABLE_FIELDS = new Set([
     'holdReason', 'holdAt', 'holdAtMs', 'holdBy',
     'postedAt', 'postedBy', 'detailNota'
 ]);
-// validClaimShape() menuntut bentuk tertentu untuk sebagian field. Nilai mentah
-// dari cloud hanya boleh dipakai ulang selama masih memenuhi syarat itu; kalau
-// tidak, hasil normalisasi yang dikirim supaya payload tetap sah dan dokumen
-// lama dapat diperbaiki lewat penyuntingan Accounting.
+// validClaimShape() menuntut bentuk tertentu untuk sebagian field. Dokumen lama
+// bisa menyimpannya di luar bentuk itu, misalnya kode mata uang huruf kecil atau
+// total header berupa teks. Payload wajib memuatnya dalam bentuk yang sah, tetapi
+// mengirim hasil normalisasi membuat workflowFieldsOnly() melihatnya sebagai
+// perubahan di luar alur. Kedua syarat itu hanya bisa dipenuhi bersamaan apabila
+// rules mengizinkan perbaikan bentuk; daftar ini dipakai untuk mengenali
+// perbaikan tersebut dan melaporkannya jika rules yang terpasang belum mendukung.
+const CLAIM_SHAPE_REPAIRABLE_FIELDS = ['nama', 'nik', 'statusClaim', 'totalHeader', 'mataUang'];
 function isClaimShapeLegalValue(field, value) {
     if(field === 'nama' || field === 'nik' || field === 'statusClaim') return typeof value === 'string';
     if(field === 'totalHeader') return typeof value === 'number' && Number.isFinite(value) && value >= 0;
     if(field === 'mataUang') return typeof value === 'string' && /^[A-Z]{3}$/.test(value);
     return true;
 }
+
+// Bentuk simpan yang membuat dokumen tidak dapat diperbarui sama sekali:
+// rules membaca resource.data._version sebagai angka, jadi nilai bertipe lain
+// membuat seluruh aturan update gagal dievaluasi sebelum cabang mana pun dicoba.
+function describeUnwritableClaimShape(remoteRaw) {
+    if(!remoteRaw) return '';
+    const version = remoteRaw._version;
+    if(version !== undefined && !(typeof version === 'number' && Number.isInteger(version))) {
+        return `_version tersimpan sebagai ${typeof version === 'string' ? 'teks' : typeof version}`;
+    }
+    return '';
+}
+
+// Field alur kerja adalah satu-satunya yang boleh berubah pada transisi status.
+// Selebihnya dikembalikan persis seperti yang tersimpan di cloud, apa pun tipenya,
+// supaya tidak ada satu pun selisih di luar alur.
 function preserveIncidentalClaimFields(nextClaim, remoteClaim, remoteRaw) {
-    if(!nextClaim || !remoteClaim || !remoteRaw) return nextClaim;
+    if(!nextClaim || !remoteClaim || !remoteRaw) return { repairedFields: [] };
+    const repairedFields = [];
     const fields = new Set([...Object.keys(nextClaim), ...Object.keys(remoteRaw)]);
     fields.forEach(field => {
         if(CLAIM_SYNC_META_FIELDS.has(field)) return;
@@ -3900,7 +4022,14 @@ function preserveIncidentalClaimFields(nextClaim, remoteClaim, remoteRaw) {
         // supaya hasil normalisasi tidak pernah muncul sebagai perubahan.
         if(stableStringify(nextClaim[field]) === stableStringify(remoteClaim[field])) {
             if(!remoteHasField) { delete nextClaim[field]; return; }
-            if(isClaimShapeLegalValue(field, remoteRaw[field])) nextClaim[field] = clonePlain(remoteRaw[field]);
+            if(isClaimShapeLegalValue(field, remoteRaw[field])) {
+                nextClaim[field] = clonePlain(remoteRaw[field]);
+                return;
+            }
+            // Nilai simpannya melanggar validClaimShape(), sehingga tidak dapat
+            // dikirim ulang apa adanya. Hasil normalisasi yang dipakai, dan
+            // field ini dicatat sebagai perbaikan bentuk.
+            if(CLAIM_SHAPE_REPAIRABLE_FIELDS.includes(field)) repairedFields.push(field);
             return;
         }
         // Cloud menyimpan field yang tidak dikenal salinan lokal ini dan bukan
@@ -3910,9 +4039,13 @@ function preserveIncidentalClaimFields(nextClaim, remoteClaim, remoteRaw) {
             && !Object.prototype.hasOwnProperty.call(nextClaim, field)
             && !CLAIM_REMOVABLE_FIELDS.has(field)) nextClaim[field] = clonePlain(remoteRaw[field]);
     });
-    return nextClaim;
+    return { repairedFields };
 }
 window.preserveIncidentalClaimFields = preserveIncidentalClaimFields;
+
+// Sebab penolakan bentuk dicatat per claim selama transaksi berjalan supaya
+// pesan kegagalan dapat menyebutkan field yang membuat cloud menolak.
+const claimShapeDiagnostics = new Map();
 
 async function saveOneClaimWithVersion(localClaim) {
     const id = String(localClaim.id);
@@ -3964,15 +4097,31 @@ async function saveOneClaimWithVersion(localClaim) {
                 throw conflict;
             }
 
+            const remoteRaw = remoteSnap.exists() ? remoteSnap.data() : null;
             const nextClaim = normalizeClaimRecord(localClaim);
-            preserveIncidentalClaimFields(nextClaim, remoteClaim, remoteSnap.exists() ? remoteSnap.data() : null);
+            const { repairedFields } = preserveIncidentalClaimFields(nextClaim, remoteClaim, remoteRaw);
+            claimShapeDiagnostics.set(id, {
+                repairedFields,
+                unwritable: describeUnwritableClaimShape(remoteRaw),
+                noPR: localClaim.noPR || localClaim.extNo || id
+            });
             nextClaim._version = remoteVersion + 1;
             nextClaim._updatedAtMs = Date.now(); nextClaim._updatedBy = sessionUser;
             transaction.set(docRef, { ...nextClaim, _updatedAt: window.fbServerTimestamp() });
             return nextClaim;
         });
+        claimShapeDiagnostics.delete(id);
         await acknowledgeSavedClaim(id, localClaim, sentComparable, savedClaim);
-    } finally { pendingClaimIds.delete(id); }
+    } catch(error) {
+        // Penolakan permanen pada dokumen berbentuk lama punya sebab yang
+        // sangat spesifik; sebabnya dilekatkan supaya pesan ke pengguna dapat
+        // menyebut field yang bermasalah, bukan sekadar "ditolak cloud".
+        if(error && error.code === 'permission-denied') {
+            const diagnostic = claimShapeDiagnostics.get(id);
+            if(diagnostic) error.claimShapeDiagnostic = diagnostic;
+        }
+        throw error;
+    } finally { pendingClaimIds.delete(id); claimShapeDiagnostics.delete(id); }
 }
 
 async function acknowledgeSavedClaim(id, sentClaim, sentComparable, savedClaim) {
@@ -4199,7 +4348,14 @@ async function flushPendingCloudSync() {
             // Penolakan permanen menghentikan percobaan ulang otomatis. Tanpa
             // pemberitahuan, perubahan terlihat berhasil di layar padahal cloud
             // masih menyimpan versi lama, jadi kegagalannya diberitahukan.
-            showToast(`${permanentErrors.length} perubahan ditolak cloud dan belum tersimpan. Data lokal aman; tekan Sinkronkan untuk mencoba lagi.`, 'error');
+            const shapeIssue = permanentErrors.map(error => error && error.claimShapeDiagnostic).find(Boolean);
+            if(shapeIssue && shapeIssue.unwritable) {
+                showToast(`Claim ${shapeIssue.noPR} tidak dapat diperbarui: ${shapeIssue.unwritable}. Dokumen ini perlu diperbaiki langsung di Firestore.`, 'error');
+            } else if(shapeIssue && shapeIssue.repairedFields && shapeIssue.repairedFields.length) {
+                showToast(`Claim ${shapeIssue.noPR} tersimpan dengan format lama pada ${shapeIssue.repairedFields.join(', ')}. Perubahan ditolak cloud; deploy firestore.rules versi terbaru agar perbaikan format diizinkan.`, 'error');
+            } else {
+                showToast(`${permanentErrors.length} perubahan ditolak cloud dan belum tersimpan. Data lokal aman; tekan Sinkronkan untuk mencoba lagi.`, 'error');
+            }
             return false;
         }
         if(retryableErrors.length) {
@@ -6525,7 +6681,9 @@ window.renderCatatanDetailTable = function() {
     }
 
     pagedData.forEach(item => {
-        let actionBtn = `<button class="btn-icon" style="color:#0050A0; background:#eef4fc; border:1px solid #cce0f5; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; width:100%; box-shadow:0 1px 3px rgba(0,0,0,0.1);" onclick="searchAndLoadDetail(${item.id})" title="Buka Rincian Nota">👁️ Buka Detail</button>`;
+        // Satu-satunya aksi pada baris ini, jadi cukup tombol ikon ringkas
+        // yang seukuran tombol aksi tabel lain, bukan tombol selebar kolom.
+        let actionBtn = `<div class="claim-action-cell"><button type="button" class="claim-action-trigger" onclick="searchAndLoadDetail(${item.id})" title="Buka Rincian Nota" aria-label="Buka Rincian Nota">🧾</button></div>`;
 let sClass = getClaimStatusClass(item.statusClaim);
         let btnStatus = `<span class="badge ${sClass}">${item.statusClaim}</span>`;
         let detailStat = item.detailNota.status || 'Draft';

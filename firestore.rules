@@ -47,8 +47,43 @@ service cloud.firestore {
         && request.resource.data.deletedBy == request.auth.token.email;
     }
 
+    // Dokumen lama dapat menyimpan field wajib di luar bentuk yang dituntut
+    // validClaimShape(): kode mata uang huruf kecil, total header berupa teks,
+    // atau nama/NIK bukan string. Payload apa pun wajib mengirimnya dalam bentuk
+    // yang sah, sehingga selisihnya tidak terhindarkan dan setiap perubahan
+    // status pada dokumen itu ditolak selamanya. Karena itu field-field ini
+    // boleh ikut berubah pada update alur kerja HANYA ketika nilai yang
+    // tersimpan memang belum memenuhi validClaimShape(). Selama nilainya sudah
+    // sah, nilainya tetap tidak dapat diubah lewat jalur alur kerja.
+    function repairableNama() {
+      return request.resource.data.nama == resource.data.get('nama', '')
+        || !(resource.data.get('nama', '') is string);
+    }
+    function repairableNik() {
+      return request.resource.data.nik == resource.data.get('nik', '')
+        || !(resource.data.get('nik', '') is string);
+    }
+    function repairableAmount() {
+      return request.resource.data.totalHeader == resource.data.get('totalHeader', -1)
+        || !(resource.data.get('totalHeader', -1) is number)
+        || resource.data.get('totalHeader', -1) < 0;
+    }
+    function repairableCurrency() {
+      return request.resource.data.mataUang == resource.data.get('mataUang', '')
+        || !(resource.data.get('mataUang', '') is string)
+        || !resource.data.get('mataUang', '').matches('^[A-Z]{3}$');
+    }
+    function shapeRepairOnly() {
+      return repairableNama()
+        && repairableNik()
+        && repairableAmount()
+        && repairableCurrency();
+    }
+
     function workflowFieldsOnly() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+      return shapeRepairOnly()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'nama', 'nik', 'totalHeader', 'mataUang',
         'statusClaim', 'postedAt', 'postedBy', 'paymentAt', 'paymentAtMs',
         'paymentDate', 'paymentBy', 'paymentReference',
         'holdReason', 'holdAt', 'holdAtMs', 'holdBy',

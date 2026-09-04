@@ -503,11 +503,14 @@
         
         <div class="top-navbar">
             <div class="top-navbar-brand" style="display:flex; align-items:center; flex: 1 1 auto; min-width: 0;">
-    <button id="btn-global-back" onclick="goBackMenu()" style="display:none; background: rgba(0, 80, 160, 0.08); border: 1px solid rgba(0, 80, 160, 0.15); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; margin-right: 12px; color: #0050A0; align-items: center; justify-content: center; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);" title="Kembali">
+    <button id="btn-global-back" class="nav-icon-button" onclick="goBackMenu()" style="display:none;" title="Kembali" aria-label="Kembali">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
 </button>
     <button class="hamburger" id="mobile-menu-trigger" onclick="toggleSidebar()" aria-label="Buka menu navigasi" aria-controls="app-sidebar" aria-expanded="false">☰</button>
-    <h2 style="color: #0050A0; font-size: 18px; margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Worksheet Klaim - Operasional & Pelaporan</h2>
+    <h2 class="top-navbar-title">
+        <span class="brand-full">Worksheet Klaim - Operasional &amp; Pelaporan</span>
+        <span class="brand-short" aria-hidden="true">Worksheet Klaim</span>
+    </h2>
 </div>
             <div class="top-navbar-tools" style="font-weight: 600; color: #555; font-size:13px; display: flex; align-items: center; justify-content: flex-end; gap: 15px; flex: 1;">
                 <div id="live-clock-container" style="display: flex; align-items: center; white-space: nowrap;">
@@ -1094,7 +1097,7 @@
         <table class="std-table" id="main-catatan-detail-table">
             <thead>
                 <tr>
-                    <th width="100" style="text-align:center;">Aksi</th>
+                    <th width="70" style="text-align:center;">Aksi</th>
                     <th width="100">No. <span class="th-filter-icon" onclick="openExcelFilter(event, 'noPR_extNo', 'catatan-detail')">▼</span></th>
                     <th>NIK <span class="th-filter-icon" onclick="openExcelFilter(event, 'nik', 'catatan-detail')">▼</span></th>
                     <th>Nama Karyawan <span class="th-filter-icon" onclick="openExcelFilter(event, 'nama', 'catatan-detail')">▼</span></th>
@@ -2081,11 +2084,20 @@
                     <div class="sla-calendar-visual-layout">
                         <section class="sla-month-card">
                             <div class="sla-month-toolbar">
-                                <button class="sla-month-nav" onclick="changeSlaCalendarMonth(-1)" title="Bulan sebelumnya">‹</button>
-                                <div><span>Kalender kerja</span><h3 id="sla-calendar-month-label">-</h3></div>
+                                <div class="sla-month-heading">
+                                    <span>Kalender kerja</span>
+                                    <h3 id="sla-calendar-month-label">-</h3>
+                                </div>
                                 <div class="sla-month-toolbar-actions">
-                                    <button class="sla-today-btn" onclick="goToCurrentSlaMonth()">Hari Ini</button>
-                                    <button class="sla-month-nav" onclick="changeSlaCalendarMonth(1)" title="Bulan berikutnya">›</button>
+                                    <div class="sla-period-picker">
+                                        <select id="sla-period-month" aria-label="Pilih bulan" onchange="setSlaCalendarPeriod()"></select>
+                                        <select id="sla-period-year" aria-label="Pilih tahun" onchange="setSlaCalendarPeriod()"></select>
+                                    </div>
+                                    <div class="sla-month-stepper">
+                                        <button type="button" class="sla-month-nav" onclick="changeSlaCalendarMonth(-1)" title="Bulan sebelumnya" aria-label="Bulan sebelumnya">‹</button>
+                                        <button type="button" class="sla-today-btn" onclick="goToCurrentSlaMonth()">Hari Ini</button>
+                                        <button type="button" class="sla-month-nav" onclick="changeSlaCalendarMonth(1)" title="Bulan berikutnya" aria-label="Bulan berikutnya">›</button>
+                                    </div>
                                 </div>
                             </div>
                             <div class="sla-weekday-row"><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span></div>

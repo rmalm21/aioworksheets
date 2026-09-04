@@ -1551,16 +1551,12 @@ body.dark-mode div[style*="border: 2px solid #adb5bd"] {
     background-color: #1e293b !important;
     border-color: #334155 !important;
 }
-body.dark-mode .folder-header,
-body.dark-mode div.folder-header[style*="background:#0050A0"],
-body.dark-mode div.folder-header[style*="background:#adb5bd"] {
+body.dark-mode .folder-header {
     background-color: #0f172a !important;
     color: #38bdf8 !important;
     border-bottom: 1px solid #334155 !important;
 }
-body.dark-mode .folder-content,
-body.dark-mode div.folder-content[style*="background:#f8fbff"],
-body.dark-mode div.folder-content[style*="background:#f8f9fa"] {
+body.dark-mode .folder-content {
     background-color: #1e293b !important;
     border-color: #334155 !important;
 }
@@ -5416,4 +5412,152 @@ body.dark-mode .backup-card[data-tone="amber"] { --backup-tone: #fbbf24; }
 @media (max-width: 900px) {
     .list-toolbar-controls { flex: 0 0 auto; }
     .list-hero > .master-meta-chip { grid-column: 1 / -1; justify-self: start; margin-top: 4px; }
+}
+
+/* =========================================================
+   P27 — TAMPILAN FOLDER, NAVBAR SEMPIT, DAN KALENDER SLA
+   ========================================================= */
+
+/* ---- Folder view: satu kartu yang bisa dilipat ---- */
+.folder-group {
+    margin-bottom: 12px; overflow: hidden;
+    border: 1px solid #dde9f1; border-radius: 16px; background: #fff;
+    box-shadow: 0 8px 22px rgba(16,66,101,.05);
+    transition: box-shadow .18s ease, border-color .18s ease;
+}
+.folder-group.is-open { border-color: #bcd9ea; box-shadow: 0 12px 30px rgba(16,66,101,.09); }
+.folder-header {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 13px 16px; border: 0; border-radius: 0;
+    background: linear-gradient(180deg, #fbfdfe 0, #f5fafc 100%);
+    color: #1b475f; font: inherit; text-align: left; cursor: pointer;
+    transition: background .18s ease;
+}
+.folder-header:hover { background: linear-gradient(180deg, #f3f9fc 0, #eaf4f9 100%); }
+.folder-header:focus-visible { outline: 2px solid #0a7fb5; outline-offset: -2px; }
+.folder-header-icon {
+    display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px;
+    border-radius: 11px; background: var(--list-accent-soft, #e7f4fb); color: var(--list-accent-ink, #08587e);
+    font-size: var(--ws-font-md);
+}
+.folder-header-copy { flex: 1 1 auto; min-width: 0; }
+.folder-header-copy strong { display: block; color: #1b475f; font-size: var(--ws-font-md); font-weight: 800; }
+.folder-header-copy small { display: block; margin-top: 1px; color: #7b93a5; font-size: var(--ws-font-2xs); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.folder-header-count {
+    flex: 0 0 auto; padding: 4px 11px; border-radius: 999px;
+    background: var(--list-accent-soft, #e7f4fb); color: var(--list-accent-ink, #08587e);
+    font-size: var(--ws-font-2xs); font-weight: 800; white-space: nowrap;
+}
+.folder-header-chevron { flex: 0 0 auto; color: #7b93a5; font-size: var(--ws-font-lg); line-height: 1; transition: transform .2s ease; }
+.folder-group.is-open .folder-header-chevron { transform: rotate(180deg); }
+.folder-content { display: none; padding: 14px 16px 16px; border-top: 1px solid #e9f0f5; background: #fff; }
+.folder-group.is-open > .folder-content { display: block; }
+
+body.dark-mode .folder-group { border-color: #2f4c60; background: #172b39; box-shadow: none; }
+body.dark-mode .folder-group.is-open { border-color: #3a6280; }
+body.dark-mode .folder-header { background: linear-gradient(180deg, #1a3140 0, #162936 100%); color: #e4f0f7; }
+body.dark-mode .folder-header:hover { background: linear-gradient(180deg, #1f3a4c 0, #1a3140 100%); }
+body.dark-mode .folder-header-icon,
+body.dark-mode .folder-header-count { background: #24455b; color: #7fd0f2; }
+body.dark-mode .folder-header-copy strong { color: #e4f0f7; }
+body.dark-mode .folder-header-copy small,
+body.dark-mode .folder-header-chevron { color: #93a7b8; }
+body.dark-mode .folder-content { border-color: #2c4557; background: #142530; }
+
+@media (max-width: 700px) {
+    .folder-header { flex-wrap: wrap; gap: 9px; }
+    .folder-header-copy { flex: 1 1 140px; }
+    .folder-content { padding: 12px 11px 13px; }
+}
+
+/* ---- Navbar pada layar sempit / split ---- */
+.top-navbar-title { margin: 0; min-width: 0; color: #0050A0; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top-navbar-title .brand-short { display: none; }
+.nav-icon-button {
+    display: none; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; padding: 0;
+    border: 1px solid rgba(0,80,160,.16); border-radius: 10px;
+    background: rgba(0,80,160,.07); color: #0050A0; cursor: pointer;
+    transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+.nav-icon-button:hover { background: rgba(0,80,160,.14); border-color: rgba(0,80,160,.3); }
+.nav-icon-button:active { transform: scale(.94); }
+body.dark-mode .top-navbar-title { color: #7fd0f2; }
+body.dark-mode .nav-icon-button { border-color: #35566b; background: #17303f; color: #8fd6fa; }
+
+@media (max-width: 900px) {
+    /* Judul panjang terpotong menjadi elipsis dan tidak terbaca; pada layar
+       sempit dipakai bentuk pendeknya supaya tetap utuh. */
+    .top-navbar-brand .top-navbar-title .brand-full { display: none; }
+    .top-navbar-brand .top-navbar-title .brand-short { display: inline; }
+    .top-navbar-brand .top-navbar-title { font-size: var(--ws-font-md) !important; font-weight: 800; letter-spacing: -.01em; }
+    .top-navbar { gap: 6px !important; padding: 8px 11px !important; }
+    .top-navbar-brand { gap: 7px; }
+    .hamburger, #btn-global-back, .nav-icon-button {
+        min-width: 38px !important; min-height: 38px !important; width: 38px; height: 38px;
+        margin-right: 0 !important; border-radius: 11px;
+    }
+    .hamburger { font-size: 19px; border: 1px solid #d6e4ef; background: #f5faff; }
+    body.dark-mode .hamburger { border-color: #35566b; background: #17303f; color: #8fd6fa; }
+    .top-navbar-tools { gap: 6px !important; }
+}
+@media (max-width: 420px) {
+    .top-navbar-brand .top-navbar-title { font-size: var(--ws-font-sm) !important; }
+    .hamburger, #btn-global-back, .nav-icon-button { min-width: 36px !important; min-height: 36px !important; width: 36px; height: 36px; }
+}
+
+/* ---- Kalender SLA: tipografi dan kisi hari ---- */
+.sla-month-toolbar { flex-wrap: wrap; margin-bottom: 16px; }
+.sla-month-heading { flex: 1 1 170px; min-width: 0; }
+.sla-month-toolbar .sla-month-heading span { display: block; color: var(--sla-muted); font-size: var(--ws-font-2xs); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.sla-month-toolbar .sla-month-heading h3 {
+    margin: 4px 0 0; color: var(--sla-navy);
+    font-size: clamp(21px, 2vw, 27px) !important; font-weight: 800; letter-spacing: -.02em; text-transform: capitalize;
+}
+.sla-month-toolbar-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.sla-period-picker { display: flex; align-items: center; gap: 6px; }
+.sla-period-picker select {
+    min-height: 38px; padding: 7px 10px !important;
+    border: 1px solid #cfe0ee !important; border-radius: 11px !important;
+    background: #fff !important; color: #234a63 !important;
+    font-size: var(--ws-font-sm) !important; font-weight: 700; cursor: pointer;
+}
+.sla-period-picker select:focus { border-color: #1684df !important; outline: none; box-shadow: 0 0 0 3px rgba(22,132,223,.14); }
+#sla-period-month { min-width: 104px; }
+#sla-period-year { min-width: 78px; }
+.sla-month-stepper { display: inline-flex; align-items: center; gap: 3px; padding: 3px; border: 1px solid #d7e6f0; border-radius: 12px; background: #f4f9fc; }
+.sla-month-stepper .sla-month-nav,
+.sla-month-stepper .sla-today-btn { min-height: 32px; border-radius: 9px; }
+
+/* Kisi hari memakai jarak antar sel supaya terbaca sebagai kartu, bukan tabel. */
+.sla-weekday-row { gap: 6px; margin-bottom: 8px; }
+.sla-weekday-row span { padding: 6px 3px; color: #57718a; font-size: var(--ws-font-xs) !important; font-weight: 900; letter-spacing: .06em; }
+.sla-month-grid { gap: 6px; }
+.sla-day-cell {
+    border-radius: 12px !important;
+    transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+.sla-day-cell:hover { transform: translateY(-1px); }
+.sla-day-number { width: 29px !important; height: 29px !important; border-radius: 10px !important; font-size: var(--ws-font-sm) !important; }
+.sla-day-cell.today { box-shadow: inset 0 0 0 2px #1684df, 0 6px 16px rgba(22,132,223,.16); }
+.sla-day-label { font-size: var(--ws-font-2xs) !important; }
+.sla-calendar-legend { margin-top: 14px; display: flex; gap: 9px; flex-wrap: wrap; }
+.sla-calendar-legend span {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 11px; border: 1px solid #e2edf3; border-radius: 999px; background: #f8fbfd;
+    color: #5b7a8f; font-size: var(--ws-font-2xs); font-weight: 750;
+}
+
+body.dark-mode .sla-period-picker select { border-color: #35566b !important; background: #142a37 !important; color: #dbe9f2 !important; }
+body.dark-mode .sla-month-stepper { border-color: #34505f; background: #162b39; }
+body.dark-mode .sla-weekday-row span { color: #9db3c3; }
+body.dark-mode .sla-calendar-legend span { border-color: #2f4c60; background: #162834; color: #9db3c3; }
+
+@media (max-width: 700px) {
+    .sla-month-toolbar-actions { width: 100%; justify-content: space-between; }
+    .sla-period-picker { flex: 1 1 100%; }
+    .sla-period-picker select { flex: 1 1 0; min-width: 0; }
+    .sla-month-stepper { width: 100%; justify-content: space-between; }
+    .sla-month-stepper .sla-today-btn { flex: 1; }
+    .sla-weekday-row, .sla-month-grid { gap: 3px; }
+    .sla-day-number { width: 25px !important; height: 25px !important; font-size: var(--ws-font-xs) !important; }
 }

@@ -5243,7 +5243,16 @@ const WORKSHEET_P26_TRANSLATION_ROWS = [
     ['Maksimal tujuh tanggal terakhir yang tersimpan', 'Only the last seven dates are kept', '保持されるのは直近7日分のみです']
 ];
 
-const WORKSHEET_TRANSLATIONS = Object.freeze([...WORKSHEET_TRANSLATION_ROWS, ...WORKSHEET_ADDITIONAL_TRANSLATION_ROWS, ...WORKSHEET_P18_TRANSLATION_ROWS, ...WORKSHEET_P19_TRANSLATION_ROWS, ...WORKSHEET_P20_TRANSLATION_ROWS, ...WORKSHEET_P21_TRANSLATION_ROWS, ...WORKSHEET_P22_TRANSLATION_ROWS, ...WORKSHEET_P26_TRANSLATION_ROWS].reduce((catalog, row) => {
+const WORKSHEET_P27_TRANSLATION_ROWS = [
+    ['Tahun Posted', 'Posted Year', '計上年'],
+    ['Tahun Proses', 'Process Year', '処理年'],
+    ['data', 'records', '件'],
+    ['Pilih bulan', 'Select month', '月を選択'],
+    ['Pilih tahun', 'Select year', '年を選択'],
+    ['Worksheet Klaim', 'Claim Worksheet', '申請ワークシート']
+];
+
+const WORKSHEET_TRANSLATIONS = Object.freeze([...WORKSHEET_TRANSLATION_ROWS, ...WORKSHEET_ADDITIONAL_TRANSLATION_ROWS, ...WORKSHEET_P18_TRANSLATION_ROWS, ...WORKSHEET_P19_TRANSLATION_ROWS, ...WORKSHEET_P20_TRANSLATION_ROWS, ...WORKSHEET_P21_TRANSLATION_ROWS, ...WORKSHEET_P22_TRANSLATION_ROWS, ...WORKSHEET_P26_TRANSLATION_ROWS, ...WORKSHEET_P27_TRANSLATION_ROWS].reduce((catalog, row) => {
     catalog[row[0]] = { en: row[1], ja: row[2] };
     return catalog;
 }, {}));
