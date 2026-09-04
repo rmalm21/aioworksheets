@@ -4299,9 +4299,6 @@ body { font-size: var(--ws-font-base); line-height: var(--ws-line-base); }
 .timeline-event-chip.is-adjust { background:#fff2f2; color:#b42336; }
 
 /* Canceled notes */
-.canceled-status-cell { min-width:220px; }
-.canceled-status-row { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
-.canceled-note-preview { margin-top:5px; color:#667b8b; font-size: var(--ws-font-xs); line-height:1.45; }
 .status-note-detail-btn { margin-left:4px; padding:3px 7px !important; border-radius:7px !important; font-size: var(--ws-font-2xs) !important; }
 
 /* Daily recap */
@@ -5059,3 +5056,39 @@ body.dark-mode #daily-recap-row-count { color:#a9c8db; }
 .profile-menu .top-action-button { justify-content: center; gap: 7px; }
 .profile-menu .top-action-button .top-action-label { display: inline !important; font-size: var(--ws-font-sm); }
 .profile-menu .top-action-button .top-action-icon { display: inline-grid !important; }
+
+/* =========================================================
+   P24 — SEL AKSI RINGKAS + KOTAK CATATAN CLAIM
+   ========================================================= */
+/* Tabel memakai min-width:max-content, jadi kolom Aksi ikut melebar mengikuti
+   ikonnya. Tanpa nowrap, ikon menumpuk ke bawah dan barisnya jadi sangat tinggi. */
+.claim-action-row { display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; white-space: nowrap; }
+.claim-action-row .btn-icon {
+    display: inline-grid; place-items: center;
+    width: 28px; height: 28px; padding: 0;
+    border-radius: 8px;
+    font-size: var(--ws-font-base);
+    transition: background .15s ease, transform .15s ease;
+}
+.claim-action-row .btn-icon:hover { transform: none; background: #eaf3f9; }
+.claim-action-row .btn-icon.is-warning:hover { background: #fdf0d9; }
+.claim-action-row .btn-icon.is-finance:hover { background: #dff2fb; }
+.claim-action-row .btn-icon.is-danger { color: #dc3545; }
+.claim-action-row .btn-icon.is-danger:hover { background: #fdeaec; }
+.claim-action-row .rekap-mini-btn { margin-left: 0; }
+body.dark-mode .claim-action-row .btn-icon:hover { background: #24455b; }
+body.dark-mode .claim-action-row .btn-icon.is-warning:hover { background: #3a2f14; }
+body.dark-mode .claim-action-row .btn-icon.is-finance:hover { background: #16354a; }
+body.dark-mode .claim-action-row .btn-icon.is-danger { color: #f7909d; }
+body.dark-mode .claim-action-row .btn-icon.is-danger:hover { background: #3d1c23; }
+
+/* Kotak catatan status: dipakai bersama modul Revisi dan Canceled Claim. */
+.claim-note-updated { margin-top: 3px; color: #777; font-size: var(--ws-font-2xs); }
+.claim-note-box {
+    margin-top: 4px; padding: 6px;
+    border: 1px dashed #ccc; border-radius: 4px;
+    background: #f9f9f9; color: #555;
+    font-size: var(--ws-font-xs); line-height: 1.5;
+}
+body.dark-mode .claim-note-updated { color: #93a7b8; }
+body.dark-mode .claim-note-box { border-color: #3a5669; background: #142633; color: #cfe0eb; }

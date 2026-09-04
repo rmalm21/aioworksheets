@@ -1744,7 +1744,8 @@ let adjNoteInput = document.getElementById('qk-adj-note');
 
         function buildFinanceWorkflowButton(item, compact = false) {
             if(!canManageFinanceWorkflow() || getAllowedStatusTransitions(item).length === 0) return '';
-            return `<button class="btn btn-info" style="padding:${compact ? '3px 6px' : '4px 8px'}; font-size:10px;" onclick="openStatusModal(${item.id})" title="Tindakan Finance">💳 ${compact ? '' : 'Tindakan Finance'}</button>`;
+            if(compact) return `<button class="btn-icon is-finance" onclick="openStatusModal(${item.id})" title="${translateUiText('Tindakan Finance')}" aria-label="${translateUiText('Tindakan Finance')}">💳</button>`;
+            return `<button class="btn btn-info" style="padding:4px 8px; font-size:10px;" onclick="openStatusModal(${item.id})" title="${translateUiText('Tindakan Finance')}">💳 ${translateUiText('Tindakan Finance')}</button>`;
         }
 
         function buildReadOnlyClaimButton(item) {
@@ -1800,14 +1801,12 @@ if (item.detailNota) {
     detailBtn = `<button class="btn" style="background:#f8f9fa; color:#6c757d; border:1px solid #dee2e6; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; opacity:0.6; cursor:not-allowed; margin-left:4px;" title="Detail kosong (Sudah Posted)" disabled>🧾 </button>`;
 }
 
-let actionBtns = `<div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
-    ${isAppAdmin() && item.statusClaim === 'Posted' ? `<button class="btn btn-warning" style="padding:4px 8px; font-size:11px; width:100%; justify-content:center;" onclick="reverseClaim(${item.id})">↩ Batalkan Posted</button>` : ''}
-    ${buildFinanceWorkflowButton(item)}
-    <div style="display:flex; gap:4px; align-items:center;">
+let actionBtns = `<div class="claim-action-row">
         ${buildReadOnlyClaimButton(item)}
-        <button class="btn-icon" onclick="openHistoryTimeline(${item.id})" title="Linimasa status">🕒</button>
+        <button class="btn-icon" onclick="openHistoryTimeline(${item.id})" title="${translateUiText('Linimasa status')}">🕒</button>
+        ${isAppAdmin() && item.statusClaim === 'Posted' ? `<button class="btn-icon is-warning" onclick="reverseClaim(${item.id})" title="${translateUiText('Batalkan Posted')}" aria-label="${translateUiText('Batalkan Posted')}">↩</button>` : ''}
+        ${buildFinanceWorkflowButton(item, true)}
         ${detailBtn}
-    </div>
 </div>`;               let rtpArr = item.postedAt ? item.postedAt.replace(',', '').split(' ') : ['-', '-'];
 
                 html += `<tr>
@@ -1932,14 +1931,12 @@ if (item.detailNota) {
     detailBtn = `<button class="btn" style="background:#f8f9fa; color:#6c757d; border:1px solid #dee2e6; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; opacity:0.6; cursor:not-allowed; margin-left:4px;" title="Detail kosong (Sudah Posted)" disabled>🧾</button>`;
 }
 
-let actionBtns = `<div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
-    ${isAppAdmin() && item.statusClaim === 'Posted' ? `<button class="btn btn-warning" style="padding:4px 8px; font-size:11px; width:100%; justify-content:center;" onclick="reverseClaim(${item.id})">↩ Batalkan Posted</button>` : ''}
-    ${buildFinanceWorkflowButton(item)}
-    <div style="display:flex; gap:4px; align-items:center;">
+let actionBtns = `<div class="claim-action-row">
         ${buildReadOnlyClaimButton(item)}
-        <button class="btn-icon" onclick="openHistoryTimeline(${item.id})" title="Linimasa status">🕒</button>
+        <button class="btn-icon" onclick="openHistoryTimeline(${item.id})" title="${translateUiText('Linimasa status')}">🕒</button>
+        ${isAppAdmin() && item.statusClaim === 'Posted' ? `<button class="btn-icon is-warning" onclick="reverseClaim(${item.id})" title="${translateUiText('Batalkan Posted')}" aria-label="${translateUiText('Batalkan Posted')}">↩</button>` : ''}
+        ${buildFinanceWorkflowButton(item, true)}
         ${detailBtn}
-    </div>
 </div>`;             
                 let adjBadge = (item.adjustments && item.adjustments.length > 0) ? `<br><span style="font-size:10px; color:#dc3545; font-weight:bold;">[Disesuaikan]</span>` : '';
                 
@@ -1972,6 +1969,22 @@ let actionBtns = `<div style="display:flex; flex-direction:column; gap:4px; alig
 tableFilters['waiting'] = {}; tableSorts['waiting'] = {col:'id', dir:'DESC'};
 window.waitingCurrentPage = 1; window.waitingRowsPerPage = 20;
 
+// PIC Proses pada Waiting Approval adalah orang yang memindahkan claim ke
+// antrean persetujuan, bukan yang pertama kali menginput datanya. Nilainya
+// diambil dari entri historyLog terakhir yang berpindah ke Waiting Approval;
+// bila jejaknya belum ada (data lama), barulah jatuh ke inputBy.
+window.getWaitingApprovalActor = function(item) {
+    const log = Array.isArray(item && item.historyLog) ? item.historyLog : [];
+    for(let i = log.length - 1; i >= 0; i--) {
+        const status = String(log[i] && log[i].status || '').toLowerCase();
+        if(status.includes('waiting approval') || status.includes('menunggu persetujuan')) {
+            const actor = log[i].by || log[i].user;
+            if(actor) return actor;
+        }
+    }
+    return item && item.inputBy;
+};
+
 window.renderWaitingTable = function() {
     let tbody = document.getElementById('tbody-main-waiting'); if (!tbody) return; tbody.innerHTML = '';
     let baseData = dbRekap.filter(i => i.statusClaim === 'Waiting Approval' || i.statusClaim === 'Confirm');
@@ -1983,22 +1996,12 @@ window.renderWaitingTable = function() {
     if (pagedData.length === 0) { tbody.innerHTML = '<tr><td colspan="13" class="table-empty-state">🎉 Kosong! Tidak ada dokumen yang menunggu approval.</td></tr>'; return; }
 
     pagedData.forEach(item => {
-        let ent = item.entitas || '-'; let detailBtn = '';
-if (item.detailNota) {
-    detailBtn = `<button class="btn" style="background:#d4edda; color:#155724; border:1px solid #c3e6cb; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Lihat Rincian Nota">🧾</button>`;
-} else if (!isClaimFinanciallyLocked(item) && canEditClaims()) {
-    detailBtn = `<button class="btn" style="background:#eef4fc; color:#0050A0; border:1px solid #cce0f5; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; cursor:pointer; margin-left:4px;" onclick="searchAndLoadDetail(${item.id})" title="Buat Rincian Nota">➕</button>`;
-} else {
-    detailBtn = `<button class="btn" style="background:#f8f9fa; color:#6c757d; border:1px solid #dee2e6; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; opacity:0.6; cursor:not-allowed; margin-left:4px;" title="Detail kosong (Sudah Posted)" disabled>🧾</button>`;
-}
-
-let actionBtns = isFinanceRole()
-    ? `<button class="btn-icon" onclick="openStatusModal(${item.id})" title="Lihat status dan timeline">👁️</button>`
-    : `<button class="btn-icon" onclick="openEditRoute(${item.id})">✏️</button> <button class="btn-icon" onclick="openStatusModal(${item.id})" title="Ubah Status">🔄</button> ${detailBtn}`;
+        let ent = item.entitas || '-';
+let actionBtns = buildRekapActionCell(item, true);
         let tipeInfo = item.tipe + (item.extNo ? `<br><span class="badge status-process" style="font-size:10px; font-weight:bold; background:#0050A0; color:white; padding:2px 4px; margin-top:3px; display:inline-block;">🔢 No: ${item.extNo}</span>` : '');
         let slaTxt = typeof renderSLABadge === 'function' ? renderSLABadge(item) : 'SLA';
         let waitTime = "-"; if (item.waitingApprovalAt) { let d = new Date(item.waitingApprovalAt); if (!isNaN(d.getTime())) waitTime = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth()+1).padStart(2, '0') + '/' + d.getFullYear(); else waitTime = item.waitingApprovalAt; }
-        tbody.innerHTML += `<tr><td class="selection-only-column"><input type="checkbox" class="waiting-checkbox" data-id="${item.id}"></td><td>${actionBtns}</td><td><strong>${item.noPR || item.extNo || '-'}</strong></td><td>${item.nik}</td><td><strong>${item.nama}</strong></td><td><span class="badge status-revise">${ent}</span></td><td>${tipeInfo}</td><td>${item.tglProses || '-'}</td><td>${item.tglSubmit}</td><td style="text-align:center;">${slaTxt}</td><td><strong style="color:#0050A0;">${formatClaimMoney(item)}</strong></td><td><span class="rekap-input-by">${formatActorUsernameHtml(item.inputBy)}</span></td><td><span class="badge" style="background:#ff9800; color:white;">${waitTime}</span></td></tr>`;
+        tbody.innerHTML += `<tr><td class="selection-only-column"><input type="checkbox" class="waiting-checkbox" data-id="${item.id}"></td><td>${actionBtns}</td><td><strong>${item.noPR || item.extNo || '-'}</strong></td><td>${item.nik}</td><td><strong>${item.nama}</strong></td><td><span class="badge status-revise">${ent}</span></td><td>${tipeInfo}</td><td>${item.tglProses || '-'}</td><td>${item.tglSubmit}</td><td style="text-align:center;">${slaTxt}</td><td><strong style="color:#0050A0;">${formatClaimMoney(item)}</strong></td><td><span class="rekap-input-by">${formatActorUsernameHtml(getWaitingApprovalActor(item))}</span></td><td><span class="badge" style="background:#ff9800; color:white;">${waitTime}</span></td></tr>`;
     });
 };
 
@@ -2068,8 +2071,9 @@ window.renderCanceledTable = function() {
         return;
     }
     tbody.innerHTML = pageRows.map(item => {
-        const reason = String(item.cancelReason || '-');
-        const preview = reason.length > 70 ? `${reason.slice(0,70)}…` : reason;
+        // Bentuknya disamakan dengan kolom catatan pada modul Revisi: badge status,
+        // waktu pembaruan, lalu kotak catatan dengan tombol Detail yang melebarkan teks.
+        const formattedReason = window.formatLongNote(item.cancelReason || '-');
         return `<tr>
             <td><strong>${escapeTimelineText(item.noPR || item.extNo || '-')}</strong></td>
             <td>${escapeTimelineText(formatCanceledDate(item))}</td>
@@ -2080,7 +2084,11 @@ window.renderCanceledTable = function() {
             <td>${escapeTimelineText(item.entitas || '-')}</td>
             <td>${escapeTimelineText(item.tipe || '-')}</td>
             <td><strong>${formatClaimMoney(item)}</strong></td>
-            <td class="canceled-status-cell"><div class="canceled-status-row">${buildClaimStatusBadge(item)}<button type="button" class="btn btn-secondary status-note-detail-btn" onclick="openClaimNoteDetail(${item.id},'cancel')">Detail Catatan</button></div><div class="canceled-note-preview">${escapeTimelineText(preview)}</div></td>
+            <td class="wrap-text">
+                <div class="strict-wrap">${buildClaimStatusBadge(item)}
+                <div class="claim-note-updated">🕒 ${translateUiText('Pembaruan')}: ${escapeTimelineText(formatCanceledDate(item))}</div>
+                <div class="claim-note-box">${translateUiText('Catatan')}: ${formattedReason}</div></div>
+            </td>
         </tr>`;
     }).join('');
 };
@@ -2121,7 +2129,7 @@ window.renderCanceledTable = function() {
 
         // Baris aksi dipakai bersama oleh tampilan daftar dan tampilan folder
         // supaya kedua tampilan tidak pernah berbeda aturan hak akses.
-        function buildRekapActionCell(item) {
+        function buildRekapActionCell(item, withStatus = false) {
             const locked = isClaimFinanciallyLocked(item);
             let detailBtn;
             if(item.detailNota) {
@@ -2131,14 +2139,19 @@ window.renderCanceledTable = function() {
             } else {
                 detailBtn = `<button class="btn rekap-mini-btn is-disabled" title="${translateUiText('Detail kosong (Sudah Posted)')}" disabled>🧾</button>`;
             }
-            if(locked) return `<button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="${translateUiText('Lihat data')}">👁️</button> ${detailBtn}`;
+            // withStatus dipakai layar yang tidak punya kolom Status Data, sehingga
+            // perubahan status tetap terjangkau lewat satu ikon yang sama gayanya.
+            const statusBtn = withStatus && getAllowedStatusTransitions(item).length > 0
+                ? `<button class="btn-icon" onclick="openStatusModal(${item.id})" title="${translateUiText('Ubah Status')}" aria-label="${translateUiText('Ubah Status')}">🔄</button>`
+                : '';
+            if(locked) return `<div class="claim-action-row"><button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="${translateUiText('Lihat data')}">👁️</button>${statusBtn}${detailBtn}</div>`;
             const editBtn = canEditClaims()
                 ? `<button class="btn-icon" onclick="openEditRoute(${item.id})" title="${translateUiText('Ubah data')}">✏️</button>`
                 : `<button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="${translateUiText('Lihat data')}">👁️</button>`;
             const deleteBtn = isAppAdmin()
-                ? `<button class="btn-icon" style="color:#dc3545;" onclick="deleteClaim(${item.id})" title="${translateUiText('Hapus')}">🗑️</button>`
+                ? `<button class="btn-icon is-danger" onclick="deleteClaim(${item.id})" title="${translateUiText('Hapus')}">🗑️</button>`
                 : '';
-            return `${editBtn} ${deleteBtn} ${detailBtn}`;
+            return `<div class="claim-action-row">${editBtn}${statusBtn}${deleteBtn}${detailBtn}</div>`;
         }
 
         function renderRekapFolder(filteredData) {
@@ -5943,7 +5956,10 @@ window.searchAndLoadDetail = function(autoId = null) {
     
     // Tampilkan Tabel, Sembunyikan Empty State
     document.getElementById('det-empty-state').style.display = 'none';
-    document.getElementById('detail-header-info').style.display = 'flex';
+    // Elemen ini memakai .form-grid; memaksanya menjadi flex membuat kolom grid
+    // (termasuk penataan satu kolom di layar kecil) diabaikan sehingga field
+    // berdesakan dan meluber ke samping.
+    document.getElementById('detail-header-info').style.display = 'grid';
     document.getElementById('detail-table-area').style.display = 'block';
 
     document.getElementById('det-hdr-nik').value = data.nik;

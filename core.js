@@ -1383,6 +1383,9 @@ function getExcelFilterCellValue(item, key) {
     } else if(key === 'paymentAtDate') value = typeof formatPaymentDate === 'function' ? formatPaymentDate(item) : '-';
     else if(key === 'canceledAtDate') value = typeof formatCanceledDate === 'function' ? formatCanceledDate(item) : '-';
     else if(key === 'canceledBy') value = typeof formatActorUsername === 'function' ? formatActorUsername(item && item.canceledBy) : getShortUsername(item && item.canceledBy);
+    // Kolom PIC Proses pada Waiting Approval memakai pelaku perpindahan status,
+    // sehingga filternya harus membaca nilai yang sama dengan yang ditampilkan.
+    else if(key === 'waitingApprovalBy') value = getShortUsername(typeof window.getWaitingApprovalActor === 'function' ? window.getWaitingApprovalActor(item) : (item && item.inputBy));
     else if(key === 'totalHeader') value = typeof formatClaimMoney === 'function' ? formatClaimMoney(item) : Number(item && item.totalHeader) || 0;
     else if(key === 'slaDays' && typeof calculateSLADays === 'function') value = calculateSLADays(item) + ' Hari';
     else if(key === 'masukApproval') {
@@ -1662,6 +1665,7 @@ const colNamesTranslate = { 'masukApproval': 'Masuk Persetujuan', 'noPR_extNo': 
 function getFilterColumnLabel(module, key) {
     if(module === 'rekap' && key === 'paymentAtDate') return 'Tgl Pymnt';
     if(module === 'rekap' && key === 'paymentBy') return 'PIC Pymnt';
+    if(key === 'waitingApprovalBy') return 'PIC Proses';
     return colNamesTranslate[key] || key;
 }
 
@@ -2153,10 +2157,13 @@ function changeMenu(menuId, isBackAction = false) {
         // 3. Nyalakan warna menu di Sidebar kiri
         if(menuId === 'home') document.getElementById('nav-home').classList.add('active-menu');
         if(menuId.startsWith('claim-') && !['claim-rekap','claim-revise'].includes(menuId)) document.querySelector('#claim-dropdown').previousElementSibling.classList.add('active-menu');
-        if(['in-process','claim-revise','waiting-approval','history','canceled'].includes(menuId)) document.querySelector('#claim-data-dropdown').previousElementSibling.classList.add('active-menu');
+        // Claim History berdiri sendiri di bawah Rekapitulasi, jadi tidak lagi
+        // menyalakan grup Data Klaim.
+        if(['in-process','claim-revise','waiting-approval','canceled'].includes(menuId)) document.querySelector('#claim-data-dropdown').previousElementSibling.classList.add('active-menu');
         if(menuId.includes('master')) document.querySelector('#master-dropdown').previousElementSibling.classList.add('active-menu');
         if(menuId === 'super-find') document.getElementById('nav-super-find').classList.add('active-menu');
         if(menuId === 'claim-rekap') document.getElementById('nav-claim-rekap').classList.add('active-menu');
+        if(menuId === 'history') document.getElementById('nav-history').classList.add('active-menu');
         if(menuId === 'statistik') document.getElementById('nav-statistik').classList.add('active-menu');
 if(menuId === 'executive') document.getElementById('nav-executive').classList.add('active-menu');
         

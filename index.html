@@ -432,10 +432,10 @@
                 <div class="nav-sub-item" id="nav-in-process" onclick="changeMenu('in-process')">▶️ In Process</div>
                 <div class="nav-sub-item" id="nav-claim-revise" onclick="changeMenu('claim-revise')">⚠️ Revisi</div>
                 <div class="nav-sub-item" id="nav-waiting-approval" onclick="changeMenu('waiting-approval')">⏳ Pending Approval</div>
-                <div class="nav-sub-item" id="nav-history" onclick="changeMenu('history')">✔️ Claim History</div>
                 <div class="nav-sub-item" id="nav-canceled" onclick="changeMenu('canceled')">⛔ Canceled Claim</div>
             </div>
             <div class="nav-item" id="nav-claim-rekap" onclick="changeMenu('claim-rekap')">📊 Rekapitulasi</div>
+            <div class="nav-item" id="nav-history" onclick="changeMenu('history')">✔️ Claim History</div>
 <div class="nav-item" id="nav-statistik" onclick="changeMenu('statistik')">📈 Statistik & Analitik</div>
 <div class="nav-item" id="nav-executive" onclick="changeMenu('executive')">👔 Ringkasan Manajemen</div>
 <div class="nav-item" id="nav-super-find" onclick="changeMenu('super-find')">🔍 Cari Klaim</div>
@@ -1154,7 +1154,7 @@
                                     <thead>
                                         <tr>
                                             <th width="30" class="selection-only-column"><input type="checkbox" onclick="toggleSelectAll(this, 'revise-active-checkbox')"></th>
-                                            <th width="70">Aksi</th>
+                                            <th width="140">Aksi</th>
 <th width="80">No. <span class="th-filter-icon" onclick="openExcelFilter(event, 'noPR_extNo', 'revise')">▼</span></th>
 <th style="text-align:center;">SLA <span class="th-filter-icon" onclick="openExcelFilter(event, 'slaDays', 'revise')">▼</span></th>
                                        
@@ -1198,7 +1198,7 @@
                                     <thead>
                                         <tr>
                                             <th width="30" class="selection-only-column"><input type="checkbox" onclick="toggleSelectAll(this, 'revise-arsip-checkbox')"></th>
-                                            <th width="70">Aksi</th>
+                                            <th width="140">Aksi</th>
 <th width="80">No. <span class="th-filter-icon" onclick="openExcelFilter(event, 'noPR_extNo', 'revise')">▼</span></th>
 <th style="text-align:center;">SLA <span class="th-filter-icon" onclick="openExcelFilter(event, 'slaDays', 'revise')">▼</span></th>
                                             <th>Tgl Submit</th>
@@ -1278,7 +1278,7 @@
                             <thead>
                                 <tr>
                                     <th width="30" class="selection-only-column"><input type="checkbox" onclick="toggleSelectAll(this, 'rekap-checkbox')"></th>
-                                    <th width="70">Aksi</th>
+                                    <th width="140">Aksi</th>
                                     <th width="80">No. <span class="th-filter-icon" onclick="openExcelFilter(event, 'noPR_extNo', 'rekap')">▼</span></th>
                                     <th>NIK <span class="th-filter-icon" onclick="openExcelFilter(event, 'nik', 'rekap')">▼</span></th>
                                     <th>Nama Karyawan <span class="th-filter-icon" onclick="openExcelFilter(event, 'nama', 'rekap')">▼</span></th>
@@ -1462,7 +1462,7 @@
                             <thead>
                                 <tr>
                                     <th width="30" class="selection-only-column"><input type="checkbox" onclick="toggleSelectAll(this, 'history-checkbox')"></th>
-                                    <th width="80" style="text-align:center;">Aksi</th>
+                                    <th width="150" style="text-align:center;">Aksi</th>
                                     <th width="80">No. <span class="th-filter-icon" onclick="openExcelFilter(event, 'noPR_extNo', 'history')">▼</span></th>
                                     <th>Tgl RTP <span class="th-filter-icon" onclick="openExcelFilter(event, 'postedAtDate', 'history')">▼</span></th>
                                     <th>Jam RTP <span class="th-filter-icon" onclick="openExcelFilter(event, 'postedAtTime', 'history')">▼</span></th>
@@ -1554,7 +1554,7 @@
                         <table class="std-table" id="main-waiting-table">
                             <thead><tr>
                                 <th width="30" class="selection-only-column"><input type="checkbox" onclick="toggleSelectAll(this, 'waiting-checkbox')"></th>
-                                <th width="70">Aksi</th>
+                                <th width="140">Aksi</th>
                                 <th width="80">No. <span class="th-filter-icon" onclick="openExcelFilter(event, 'noPR_extNo', 'waiting')">▼</span></th>
                                 <th>NIK <span class="th-filter-icon" onclick="openExcelFilter(event, 'nik', 'waiting')">▼</span></th>
                                 <th>Nama Karyawan <span class="th-filter-icon" onclick="openExcelFilter(event, 'nama', 'waiting')">▼</span></th>
@@ -1564,7 +1564,7 @@
 <th>Tgl Submit <span class="th-filter-icon" onclick="openExcelFilter(event, 'tglSubmit', 'waiting')">▼</span></th>
                                 <th style="text-align:center;">SLA <span class="th-filter-icon" onclick="openExcelFilter(event, 'slaDays', 'waiting')">▼</span></th>
                                 <th>Total Amount <span class="th-filter-icon" onclick="openExcelFilter(event, 'totalHeader', 'waiting')">▼</span></th>
-                                <th>PIC Proses <span class="th-filter-icon" onclick="openExcelFilter(event, 'inputBy', 'waiting')">▼</span></th>
+                                <th>PIC Proses <span class="th-filter-icon" onclick="openExcelFilter(event, 'waitingApprovalBy', 'waiting')">▼</span></th>
                                 <th>Masuk Persetujuan <span class="th-filter-icon" onclick="openExcelFilter(event, 'masukApproval', 'waiting')">▼</span></th><!-- Simulate Jurnal Modal -->
                             </tr></thead>
                             <tbody id="tbody-main-waiting"></tbody>
@@ -1783,7 +1783,7 @@
             <table class="std-table sf-table" id="sf-table">
                 <thead>
                     <tr>
-                        <th width="70">Aksi</th>
+                        <th width="140">Aksi</th>
                         <th width="80">No. <span class="th-filter-icon" onclick="openExcelFilter(event, 'noPR_extNo', 'super-find')">▼</span></th>
                         <th>NIK <span class="th-filter-icon" onclick="openExcelFilter(event, 'nik', 'super-find')">▼</span></th>
                         <th>Nama Karyawan <span class="th-filter-icon" onclick="openExcelFilter(event, 'nama', 'super-find')">▼</span></th>
