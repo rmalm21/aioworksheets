@@ -3756,25 +3756,39 @@ function loadFromCloud() {
     if(isAppAdmin() && window.currentOpenMenu === 'master-user') ensureActivityLogSubscription(generation);
 }
 
-// normalizeClaimRecord() menulis ulang detailNota.rows setiap kali payload
-// dibangun: amount berbentuk teks diubah menjadi angka dan rowId yang kosong
-// diisi. Untuk claim lama, hasilnya berbeda dari dokumen yang tersimpan di
-// cloud walaupun pengguna tidak menyentuh rincian sama sekali.
+// normalizeClaimRecord() merapikan bentuk data setiap kali payload dibangun:
+// nama dan NIK di-trim, totalHeader dijadikan angka, mata uang diseragamkan,
+// dan detailNota.rows ditulis ulang. Untuk claim lama hasilnya berbeda dari
+// dokumen yang tersimpan di cloud walaupun pengguna tidak menyentuh field itu.
 //
 // Rules alur Finance (Paid, Hold, Return, Batal Bayar, Lepas Hold) memakai
-// workflowFieldsOnly(), yang menolak update begitu ada field di luar daftar
-// alur yang ikut berubah. Akibatnya perubahan status ditolak cloud walau
-// tampak berhasil di layar. Karena itu field yang secara makna tidak berubah
-// dikirim ulang persis seperti nilai yang sudah ada di cloud.
-const INCIDENTAL_NORMALIZED_FIELDS = ['detailNota'];
+// workflowFieldsOnly(), yang menolak update begitu ada satu field di luar
+// daftar alur ikut berubah. Satu spasi di ujung nama pun cukup membuat
+// seluruh perubahan status ditolak, padahal di layar terlihat berhasil.
+//
+// Karena itu setiap field yang secara makna tidak berubah dikirim ulang
+// persis seperti nilai yang sudah ada di cloud. Aman dilakukan karena setiap
+// dokumen yang tersimpan sudah lolos validClaimShape(), sehingga tipe datanya
+// pasti valid. Field meta dikecualikan: nilainya memang sengaja diperbarui.
+const CLAIM_SYNC_META_FIELDS = new Set(['_version', '_updatedAt', '_updatedAtMs', '_updatedBy']);
+// validClaimShape() menuntut format tertentu untuk field ini (angka, dan kode
+// mata uang tiga huruf kapital). Nilainya selalu dikirim dalam bentuk hasil
+// normalisasi supaya payload tidak pernah melanggar bentuk yang diwajibkan.
+const CLAIM_SHAPE_ENFORCED_FIELDS = new Set(['totalHeader', 'mataUang', 'statusClaim']);
 function preserveIncidentalClaimFields(nextClaim, remoteClaim, remoteRaw) {
     if(!nextClaim || !remoteClaim || !remoteRaw) return nextClaim;
-    INCIDENTAL_NORMALIZED_FIELDS.forEach(field => {
-        // Bandingkan bentuk yang sudah dinormalisasi di kedua sisi. Kalau sama,
-        // pengguna tidak mengubah isinya dan nilai asli cloud dipertahankan.
+    const fields = new Set([...Object.keys(nextClaim), ...Object.keys(remoteRaw)]);
+    fields.forEach(field => {
+        if(CLAIM_SYNC_META_FIELDS.has(field) || CLAIM_SHAPE_ENFORCED_FIELDS.has(field)) return;
+        // Kedua sisi dibandingkan dalam bentuk yang sudah dinormalisasi. Kalau
+        // sama, isinya tidak diubah pengguna dan nilai asli cloud dipertahankan.
         if(stableStringify(nextClaim[field]) !== stableStringify(remoteClaim[field])) return;
-        if(Object.prototype.hasOwnProperty.call(remoteRaw, field)) nextClaim[field] = clonePlain(remoteRaw[field]);
-        else delete nextClaim[field];
+        if(!Object.prototype.hasOwnProperty.call(remoteRaw, field)) { delete nextClaim[field]; return; }
+        // Nilai asli hanya dipulihkan bila tipenya sama dengan hasil normalisasi.
+        // Dokumen lama yang menyimpan angka sebagai teks tetap dikirim sebagai
+        // angka, karena validClaimShape() mensyaratkan tipe tersebut.
+        if(typeof remoteRaw[field] !== typeof nextClaim[field]) return;
+        nextClaim[field] = clonePlain(remoteRaw[field]);
     });
     return nextClaim;
 }
