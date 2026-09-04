@@ -252,21 +252,15 @@ service cloud.firestore {
           || !request.resource.data.keys().hasAny(['holdReason', 'holdAt', 'holdAtMs', 'holdBy']));
     }
 
-    // Batal Bayar hanya boleh dilakukan Admin atau Finance yang mencatat
-    // pembayarannya. paymentBy dibaca lewat get() dan dibandingkan tanpa
-    // membedakan huruf besar/kecil: aplikasi menyimpannya dalam huruf kecil,
-    // sedangkan email pada token mengikuti ejaan akun apa adanya.
-    function isOwnPayment() {
-      return actorEmail() != ''
-        && resource.data.get('paymentBy', '') is string
-        && resource.data.get('paymentBy', '').lower() == actorEmail();
-    }
-
+    // Batal Bayar terbuka untuk Admin dan seluruh peran Finance. Sebelumnya
+    // hanya Finance yang mencatat pembayarannya yang boleh membatalkan, sehingga
+    // pembayaran keliru yang ditemukan rekan lain tidak dapat dikoreksi oleh
+    // siapa pun. Pelakunya tetap terekam pada lastPaymentCancellation.cancelledBy
+    // yang wajib sama dengan email pemanggil, serta pada historyLog.
     function validFinanceCancelPaid() {
       return canManageFinanceWorkflow()
         && resource.data.statusClaim == 'Paid'
         && request.resource.data.statusClaim == 'Posted'
-        && (isAdmin() || isOwnPayment())
         && workflowFieldsOnly()
         && request.resource.data.lastPaymentCancellation is map
         && request.resource.data.lastPaymentCancellation.reason is string

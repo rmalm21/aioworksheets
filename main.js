@@ -2665,10 +2665,12 @@ function getAllowedStatusTransitions(data) {
     if(typeof isCanceledClaim === 'function' && isCanceledClaim(data)) return canEditClaims() ? ['In Process'] : [];
     if(canManageFinanceWorkflow() && current === 'Posted') return ['Paid', 'Hold', 'Returned by Finance'];
     if(canManageFinanceWorkflow() && current === 'Hold') return ['Paid', 'Posted', 'Returned by Finance'];
-    if(canManageFinanceWorkflow() && current === 'Paid') {
-        if(isFinanceRole() && String(data.paymentBy || '').toLowerCase() !== getCurrentActorIdentity()) return [];
-        return ['Posted'];
-    }
+    // Batal Bayar terbuka untuk seluruh peran Finance, bukan hanya yang mencatat
+    // pembayarannya. Pembayaran yang salah sering baru ketahuan oleh rekan yang
+    // berbeda shift, dan sebelumnya claim seperti itu tidak dapat dibatalkan
+    // oleh siapa pun kecuali pembayar aslinya. Jejaknya tetap tercatat pada
+    // lastPaymentCancellation.cancelledBy dan historyLog.
+    if(canManageFinanceWorkflow() && current === 'Paid') return ['Posted'];
     if(isFinanceRole()) return [];
     if(canEditClaims() && !isFinalClaimStatus(current)) return ['In Process', 'Revisi', 'Waiting Approval', 'Posted', 'Canceled'];
     return [];
@@ -2679,10 +2681,6 @@ function getAllowedStatusTransitions(data) {
 // hanya melihat modal kosong dan mengira aplikasinya bermasalah.
 function getStatusTransitionBlockReason(data) {
     if(!data || sessionRole === 'viewer') return 'Peran Anda hanya dapat melihat status dan linimasa klaim ini.';
-    if(String(data.statusClaim || '') === 'Paid' && isFinanceRole()
-        && String(data.paymentBy || '').toLowerCase() !== getCurrentActorIdentity()) {
-        return 'Pembatalan Paid hanya dapat dilakukan oleh Finance yang mencatat pembayaran ini atau oleh Admin.';
-    }
     if(isFinanceRole()) return 'Finance hanya dapat mengubah status pada klaim yang sudah berstatus Posted, Hold, atau Paid.';
     if(typeof isFinalClaimStatus === 'function' && isFinalClaimStatus(data.statusClaim)) {
         return 'Klaim yang sudah final hanya dapat diubah melalui alur Finance.';
@@ -2981,14 +2979,20 @@ window.saveStatus = async function() {
         if(paymentReference && stat === 'Paid') logEntry.paymentReference = paymentReference;
         item.historyLog.push(logEntry);
 
-        await saveDataToLocal({ claimIds: [id] });
+        const persistResult = await saveDataToLocal({ claimIds: [id] });
         logActivity(sessionUser, `Pembaruan Status Klaim ID ${id}: ${oldStatus} → ${item.statusClaim}${paymentReference ? ` | Referensi: ${paymentReference}` : ''}`).catch(() => {});
         if(window.currentOpenMenu === 'claim-quick' && Number(currentEditingId) === Number(id)) {
             viewMode = !canEditClaims() || isClaimFinanciallyLocked(item);
             setQuickFormState(viewMode);
         }
         closeModal('modal-status'); refreshActiveViewSilently();
+        // Pengiriman ke cloud berjalan setelah penyimpanan lokal selesai, jadi
+        // keberhasilannya belum diketahui di titik ini. Pesannya menyebut apa
+        // yang benar-benar sudah terjadi; penolakan cloud diberitahukan
+        // tersendiri oleh flushPendingCloudSync.
+        const cloudPending = !!(persistResult && persistResult.cloudQueued);
         if(item.statusClaim === 'Posted' && !financeAction) showRTPAnimation();
+        else if(cloudPending) showToast(`Status diubah menjadi ${item.statusClaim} dan tersimpan di perangkat. Pengiriman ke cloud sedang berjalan.`, 'success');
         else showToast(`Status berhasil diperbarui menjadi ${item.statusClaim}.`, 'success');
     } catch(error) {
         if(await window.restoreClaimsAfterConflict(error)) return;
@@ -4043,6 +4047,96 @@ function preserveIncidentalClaimFields(nextClaim, remoteClaim, remoteRaw) {
 }
 window.preserveIncidentalClaimFields = preserveIncidentalClaimFields;
 
+// ==========================================
+// DIAGNOSA PENOLAKAN CLOUD
+// permission-denied dari Firestore tidak menyebutkan klausa mana yang gagal.
+// Fungsi ini menguji ulang syarat firestore.rules terhadap dokumen cloud dan
+// payload yang benar-benar dikirim, lalu menamai klausa yang tidak terpenuhi,
+// sehingga penyebabnya terbaca tanpa perlu membuka Rules Playground.
+// ==========================================
+const CLAIM_WORKFLOW_ALLOWED_KEYS = [
+    'nama', 'nik', 'totalHeader', 'mataUang',
+    'statusClaim', 'postedAt', 'postedBy', 'paymentAt', 'paymentAtMs',
+    'paymentDate', 'paymentBy', 'paymentReference',
+    'holdReason', 'holdAt', 'holdAtMs', 'holdBy',
+    'returnReason', 'returnedAt', 'returnedAtMs', 'returnedBy',
+    'lastPaymentCancellation', 'lastHoldRelease',
+    'cancelReason', 'canceledAt', 'canceledAtMs', 'canceledBy',
+    'reactivateReason', 'reactivatedAt', 'reactivatedAtMs', 'reactivatedBy', 'isInactive',
+    'workflowTimestamps', 'isArchived', 'waitingApprovalAt',
+    'reviseStep', 'reviseTime', 'reviseTimestamp', 'reviseNote',
+    'historyLog', '_version', '_updatedAt', '_updatedAtMs', '_updatedBy'
+];
+
+function diagnoseClaimWriteRejection(payload, remoteRaw) {
+    if(!payload || !remoteRaw) return [];
+    const problems = [];
+    const has = (obj, key) => obj && Object.prototype.hasOwnProperty.call(obj, key);
+    const get = (obj, key, fallback) => has(obj, key) ? obj[key] : fallback;
+    const isInt = value => typeof value === 'number' && Number.isInteger(value);
+    const same = (a, b) => stableStringify(a) === stableStringify(b);
+    const from = String(get(remoteRaw, 'statusClaim', ''));
+    const to = String(get(payload, 'statusClaim', ''));
+
+    // --- Syarat yang berlaku untuk semua update ---
+    if(!isInt(get(remoteRaw, '_version', 0))) {
+        problems.push(`_version pada dokumen cloud bertipe ${typeof remoteRaw._version}, bukan bilangan bulat. Rules membacanya sebagai angka sehingga seluruh aturan update gagal dievaluasi.`);
+    }
+    if(!same(get(payload, 'id', null), get(remoteRaw, 'id', null))) {
+        problems.push(`id berbeda antara payload (${JSON.stringify(payload.id)}) dan cloud (${JSON.stringify(remoteRaw.id)}).`);
+    }
+    ['nama', 'nik', 'statusClaim'].forEach(field => {
+        if(typeof payload[field] !== 'string') problems.push(`${field} pada payload bukan string.`);
+    });
+    if(typeof payload.totalHeader !== 'number' || !(payload.totalHeader >= 0)) problems.push('totalHeader pada payload bukan angka >= 0.');
+    if(!/^[A-Z]{3}$/.test(String(payload.mataUang || ''))) problems.push(`mataUang "${payload.mataUang}" bukan tiga huruf kapital.`);
+
+    // --- workflowFieldsOnly() ---
+    const changed = [...new Set([...Object.keys(payload), ...Object.keys(remoteRaw)])]
+        .filter(key => key !== '_updatedAt' && !same(payload[key], remoteRaw[key]));
+    const outside = changed.filter(key => !CLAIM_WORKFLOW_ALLOWED_KEYS.includes(key));
+    if(outside.length) {
+        problems.push(`workflowFieldsOnly(): field di luar daftar alur ikut berubah — ${outside.join(', ')}.`);
+    }
+
+    // --- Klausa khusus per transisi ---
+    if(from === 'Paid' && to === 'Posted') {
+        const cancellation = payload.lastPaymentCancellation;
+        if(!cancellation || typeof cancellation !== 'object') {
+            problems.push('lastPaymentCancellation tidak terkirim sebagai map.');
+        } else {
+            if(typeof cancellation.reason !== 'string' || !cancellation.reason.length || cancellation.reason.length > 500) problems.push('lastPaymentCancellation.reason kosong atau melebihi 500 karakter.');
+            if(!isInt(cancellation.cancelledAtMs)) problems.push('lastPaymentCancellation.cancelledAtMs bukan bilangan bulat.');
+            const actor = typeof getCurrentActorIdentity === 'function' ? getCurrentActorIdentity() : sessionUser;
+            if(cancellation.cancelledBy !== actor) problems.push(`lastPaymentCancellation.cancelledBy (${cancellation.cancelledBy}) tidak sama dengan email akun yang sedang masuk (${actor}).`);
+        }
+        const leftovers = ['paymentAt', 'paymentAtMs', 'paymentDate', 'paymentBy', 'paymentReference'].filter(key => has(payload, key));
+        if(leftovers.length) problems.push(`field pembayaran masih ikut terkirim — ${leftovers.join(', ')}.`);
+        if(get(get(payload, 'workflowTimestamps', {}), 'paidAt', null) !== null) problems.push('workflowTimestamps.paidAt belum dikosongkan.');
+        if(payload.isArchived !== true) problems.push('isArchived harus true.');
+        if(!changed.includes('lastPaymentCancellation')) problems.push('lastPaymentCancellation tidak berubah dibanding dokumen cloud.');
+    }
+    if(!same(get(payload, 'postedAt', null), get(remoteRaw, 'postedAt', null))
+        || !same(get(payload, 'postedBy', null), get(remoteRaw, 'postedBy', null))
+        || !same(get(get(payload, 'workflowTimestamps', {}), 'completedAt', null), get(get(remoteRaw, 'workflowTimestamps', {}), 'completedAt', null))) {
+        problems.push('preservesPostedAudit(): postedAt, postedBy, atau workflowTimestamps.completedAt ikut berubah.');
+    }
+    const remoteHistory = get(remoteRaw, 'historyLog', []);
+    const remoteHistorySize = Array.isArray(remoteHistory) ? remoteHistory.length
+        : (remoteHistory && typeof remoteHistory === 'object' ? Object.keys(remoteHistory).length : 0);
+    if(!Array.isArray(payload.historyLog) || payload.historyLog.length < remoteHistorySize + 1) {
+        problems.push('hasWorkflowHistory(): historyLog pada payload tidak bertambah minimal satu entri.');
+    }
+
+    // Semua syarat di atas terpenuhi, tetapi cloud tetap menolak. Yang tersisa
+    // adalah rules yang terpasang belum sama dengan firestore.rules di repo.
+    if(!problems.length) {
+        problems.push(`Seluruh syarat pada firestore.rules versi repo terpenuhi untuk transisi ${from} \u2192 ${to}, tetapi cloud tetap menolak. Rules yang terpasang di proyek Firebase kemungkinan besar masih versi lama; deploy ulang firestore.rules.`);
+    }
+    return problems;
+}
+window.diagnoseClaimWriteRejection = diagnoseClaimWriteRejection;
+
 // Sebab penolakan bentuk dicatat per claim selama transaksi berjalan supaya
 // pesan kegagalan dapat menyebutkan field yang membuat cloud menolak.
 const claimShapeDiagnostics = new Map();
@@ -4100,13 +4194,17 @@ async function saveOneClaimWithVersion(localClaim) {
             const remoteRaw = remoteSnap.exists() ? remoteSnap.data() : null;
             const nextClaim = normalizeClaimRecord(localClaim);
             const { repairedFields } = preserveIncidentalClaimFields(nextClaim, remoteClaim, remoteRaw);
+            nextClaim._version = remoteVersion + 1;
+            nextClaim._updatedAtMs = Date.now(); nextClaim._updatedBy = sessionUser;
             claimShapeDiagnostics.set(id, {
                 repairedFields,
                 unwritable: describeUnwritableClaimShape(remoteRaw),
-                noPR: localClaim.noPR || localClaim.extNo || id
+                noPR: localClaim.noPR || localClaim.extNo || id,
+                from: remoteRaw ? String(remoteRaw.statusClaim || '') : '',
+                to: String(nextClaim.statusClaim || ''),
+                payload: clonePlain(nextClaim),
+                remoteRaw: clonePlain(remoteRaw)
             });
-            nextClaim._version = remoteVersion + 1;
-            nextClaim._updatedAtMs = Date.now(); nextClaim._updatedBy = sessionUser;
             transaction.set(docRef, { ...nextClaim, _updatedAt: window.fbServerTimestamp() });
             return nextClaim;
         });
@@ -4118,7 +4216,14 @@ async function saveOneClaimWithVersion(localClaim) {
         // menyebut field yang bermasalah, bukan sekadar "ditolak cloud".
         if(error && error.code === 'permission-denied') {
             const diagnostic = claimShapeDiagnostics.get(id);
-            if(diagnostic) error.claimShapeDiagnostic = diagnostic;
+            if(diagnostic) {
+                diagnostic.ruleProblems = diagnoseClaimWriteRejection(diagnostic.payload, diagnostic.remoteRaw);
+                error.claimShapeDiagnostic = diagnostic;
+                console.error(
+                    `[Firebase] Cloud menolak perubahan claim ${diagnostic.noPR} (${diagnostic.from} \u2192 ${diagnostic.to}). Syarat firestore.rules yang tidak terpenuhi:\n` +
+                    diagnostic.ruleProblems.map((line, index) => `  ${index + 1}. ${line}`).join('\n')
+                );
+            }
         }
         throw error;
     } finally { pendingClaimIds.delete(id); claimShapeDiagnostics.delete(id); }
@@ -4348,11 +4453,18 @@ async function flushPendingCloudSync() {
             // Penolakan permanen menghentikan percobaan ulang otomatis. Tanpa
             // pemberitahuan, perubahan terlihat berhasil di layar padahal cloud
             // masih menyimpan versi lama, jadi kegagalannya diberitahukan.
+            const reverted = await window.restoreClaimsAfterRejection(aggregateError);
+            if(reverted && reverted.length) {
+                const list = reverted.map(entry => `${entry.noPR} (${entry.from} \u2192 ${entry.to})`).join(', ');
+                console.warn(`[Firebase] Perubahan status dikembalikan ke nilai cloud karena ditolak: ${list}`);
+            }
             const shapeIssue = permanentErrors.map(error => error && error.claimShapeDiagnostic).find(Boolean);
             if(shapeIssue && shapeIssue.unwritable) {
                 showToast(`Claim ${shapeIssue.noPR} tidak dapat diperbarui: ${shapeIssue.unwritable}. Dokumen ini perlu diperbaiki langsung di Firestore.`, 'error');
-            } else if(shapeIssue && shapeIssue.repairedFields && shapeIssue.repairedFields.length) {
-                showToast(`Claim ${shapeIssue.noPR} tersimpan dengan format lama pada ${shapeIssue.repairedFields.join(', ')}. Perubahan ditolak cloud; deploy firestore.rules versi terbaru agar perbaikan format diizinkan.`, 'error');
+            } else if(shapeIssue && shapeIssue.ruleProblems && shapeIssue.ruleProblems.length) {
+                // Sebab pertama sudah cukup untuk menunjukkan arah perbaikan;
+                // daftar lengkapnya tercetak di console.
+                showToast(`Claim ${shapeIssue.noPR} ditolak cloud (${shapeIssue.from} \u2192 ${shapeIssue.to}): ${shapeIssue.ruleProblems[0]}`, 'error');
             } else {
                 showToast(`${permanentErrors.length} perubahan ditolak cloud dan belum tersimpan. Data lokal aman; tekan Sinkronkan untuk mencoba lagi.`, 'error');
             }
@@ -4404,6 +4516,34 @@ window.saveDataToLocal = function(options = null) {
     const task = claimPersistenceQueue.then(() => persistCurrentState(options));
     claimPersistenceQueue = task.catch(() => {});
     return task;
+};
+
+// Penolakan permanen pada perubahan STATUS harus mengembalikan salinan lokal
+// ke nilai cloud. Tanpa itu layar menampilkan status baru sementara cloud masih
+// menyimpan status lama, dan perbedaannya tidak pernah terlihat oleh pengguna.
+// Penyuntingan biasa tidak dikembalikan: isinya diketik pengguna dan lebih baik
+// dipertahankan agar dapat disalin ulang.
+window.restoreClaimsAfterRejection = async function(error) {
+    const errors = error && Array.isArray(error.syncErrors) ? error.syncErrors : [error];
+    const reverted = [];
+    errors.forEach(item => {
+        const diagnostic = item && item.claimShapeDiagnostic;
+        if(!diagnostic || !diagnostic.remoteRaw) return;
+        if(String(diagnostic.from || '') === String(diagnostic.to || '')) return;
+        const id = String(diagnostic.remoteRaw.id ?? '');
+        if(!id) return;
+        const remoteClaim = normalizeClaimRecord(diagnostic.remoteRaw);
+        const localIdx = dbRekap.findIndex(claim => String(claim.id) === id);
+        if(localIdx >= 0) dbRekap[localIdx] = clonePlain(remoteClaim);
+        claimBaseline.set(id, clonePlain(remoteClaim));
+        dirtyClaimIds.delete(id);
+        reverted.push({ id, noPR: diagnostic.noPR, from: diagnostic.from, to: diagnostic.to });
+    });
+    if(!reverted.length) return false;
+    await dbSyncClaimRows(reverted.map(entry => entry.id)).catch(() => {});
+    persistClaimSyncState();
+    refreshActiveViewSilently();
+    return reverted;
 };
 
 window.restoreClaimsAfterConflict = async function(error) {

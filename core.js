@@ -5258,6 +5258,8 @@ const WORKSHEET_TRANSLATIONS = Object.freeze([...WORKSHEET_TRANSLATION_ROWS, ...
 }, {}));
 
 const WORKSHEET_DYNAMIC_TRANSLATIONS = [
+    { re: /^Status diubah menjadi (.+) dan tersimpan di perangkat\. Pengiriman ke cloud sedang berjalan\.$/i, en: m => `Status changed to ${m[1]} and saved on this device. Sending to the cloud is in progress.`, ja: m => `ステータスを${m[1]}に変更し、端末に保存しました。クラウドへの送信を実行中です。` },
+    { re: /^Claim (.+) ditolak cloud \((.+) \u2192 (.+)\): (.+)$/i, en: m => `Claim ${m[1]} was rejected by the cloud (${m[2]} \u2192 ${m[3]}): ${m[4]}`, ja: m => `申請 ${m[1]} はクラウドに拒否されました（${m[2]} \u2192 ${m[3]}）：${m[4]}` },
     { re: /^Apakah Anda ingin memulihkan cadangan (.+) dengan mode aman\?$/i, en: m => `Do you want to restore backup ${m[1]} using safe mode?`, ja: m => `バックアップ ${m[1]} を安全モードで復元しますか？` },
     { re: /^Claim urutan (\d+): ID kosong\/tidak valid\.$/i, en: m => `Claim ${m[1]}: ID is empty/invalid.`, ja: m => `申請${m[1]}：IDが空または無効です。` },
     { re: /^Claim ID (.+) muncul lebih dari sekali\.$/i, en: m => `Claim ID ${m[1]} appears more than once.`, ja: m => `申請ID ${m[1]} が重複しています。` },
