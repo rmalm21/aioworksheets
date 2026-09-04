@@ -5032,6 +5032,7 @@ const WORKSHEET_P20_TRANSLATION_ROWS = [
 ];
 
 const WORKSHEET_P22_TRANSLATION_ROWS = [
+    ['PIC Proses', 'Process PIC', '処理担当者'],
     ['Cache lokal aktif; Firestore hanya membaca data baru atau yang berubah.', 'Local cache is active; Firestore only reads new or changed data.', 'ローカルキャッシュが有効です。Firestoreは新規・変更分のみ読み取ります。'],
     ['Bootstrap cache selesai; listener penuh langsung diganti menjadi delta.', 'Cache bootstrap finished; the full listener switches straight to delta.', 'キャッシュの初期化が完了し、全件リスナーは差分へ切り替わりました。'],
     ['LEMBAR KERJA', 'WORKSHEET', 'ワークシート'],

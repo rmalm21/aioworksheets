@@ -1980,7 +1980,7 @@ window.renderWaitingTable = function() {
     if(window.waitingCurrentPage > maxPage) window.waitingCurrentPage = maxPage; if(window.waitingCurrentPage < 1) window.waitingCurrentPage = 1;
     let pageInfo = document.getElementById('waiting-page-info'); if(pageInfo) pageInfo.innerText = `Halaman ${window.waitingCurrentPage} dari ${maxPage} (${totalRows} Data)`;
     let startIdx = (window.waitingCurrentPage - 1) * window.waitingRowsPerPage; let pagedData = filteredArr.slice(startIdx, startIdx + window.waitingRowsPerPage);
-    if (pagedData.length === 0) { tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:20px; color:#999; font-style:italic;">🎉 Kosong! Tidak ada dokumen yang menunggu approval.</td></tr>'; return; }
+    if (pagedData.length === 0) { tbody.innerHTML = '<tr><td colspan="13" class="table-empty-state">🎉 Kosong! Tidak ada dokumen yang menunggu approval.</td></tr>'; return; }
 
     pagedData.forEach(item => {
         let ent = item.entitas || '-'; let detailBtn = '';
@@ -1998,7 +1998,7 @@ let actionBtns = isFinanceRole()
         let tipeInfo = item.tipe + (item.extNo ? `<br><span class="badge status-process" style="font-size:10px; font-weight:bold; background:#0050A0; color:white; padding:2px 4px; margin-top:3px; display:inline-block;">🔢 No: ${item.extNo}</span>` : '');
         let slaTxt = typeof renderSLABadge === 'function' ? renderSLABadge(item) : 'SLA';
         let waitTime = "-"; if (item.waitingApprovalAt) { let d = new Date(item.waitingApprovalAt); if (!isNaN(d.getTime())) waitTime = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth()+1).padStart(2, '0') + '/' + d.getFullYear(); else waitTime = item.waitingApprovalAt; }
-        tbody.innerHTML += `<tr><td class="selection-only-column"><input type="checkbox" class="waiting-checkbox" data-id="${item.id}"></td><td>${actionBtns}</td><td><strong>${item.noPR || item.extNo || '-'}</strong></td><td>${item.nik}</td><td><strong>${item.nama}</strong></td><td><span class="badge status-revise">${ent}</span></td><td>${tipeInfo}</td><td>${item.tglProses || '-'}</td><td>${item.tglSubmit}</td><td style="text-align:center;">${slaTxt}</td><td><strong style="color:#0050A0;">${formatClaimMoney(item)}</strong></td><td><span class="badge" style="background:#ff9800; color:white;">${waitTime}</span></td></tr>`;
+        tbody.innerHTML += `<tr><td class="selection-only-column"><input type="checkbox" class="waiting-checkbox" data-id="${item.id}"></td><td>${actionBtns}</td><td><strong>${item.noPR || item.extNo || '-'}</strong></td><td>${item.nik}</td><td><strong>${item.nama}</strong></td><td><span class="badge status-revise">${ent}</span></td><td>${tipeInfo}</td><td>${item.tglProses || '-'}</td><td>${item.tglSubmit}</td><td style="text-align:center;">${slaTxt}</td><td><strong style="color:#0050A0;">${formatClaimMoney(item)}</strong></td><td><span class="rekap-input-by">${formatActorUsernameHtml(item.inputBy)}</span></td><td><span class="badge" style="background:#ff9800; color:white;">${waitTime}</span></td></tr>`;
     });
 };
 
