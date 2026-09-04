@@ -1742,17 +1742,6 @@ let adjNoteInput = document.getElementById('qk-adj-note');
         }
         window.toggleHistoryView = toggleHistoryView;
 
-        function buildFinanceWorkflowButton(item, compact = false) {
-            if(!canManageFinanceWorkflow() || getAllowedStatusTransitions(item).length === 0) return '';
-            if(compact) return `<button class="btn-icon is-finance" onclick="openStatusModal(${item.id})" title="${translateUiText('Tindakan Finance')}" aria-label="${translateUiText('Tindakan Finance')}">💳</button>`;
-            return `<button class="btn btn-info" style="padding:4px 8px; font-size:10px;" onclick="openStatusModal(${item.id})" title="${translateUiText('Tindakan Finance')}">💳 ${translateUiText('Tindakan Finance')}</button>`;
-        }
-
-        function buildReadOnlyClaimButton(item) {
-            if(sessionRole === 'finance' || sessionRole === 'viewer') return `<button class="btn-icon" onclick="openStatusModal(${item.id})" title="Lihat status dan linimasa">👁️</button>`;
-            return `<button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="Lihat data">👁️</button>`;
-        }
-
         function buildClaimStatusBadge(item) {
             const transitions = getAllowedStatusTransitions(item);
             const canChange = transitions.length > 0 && (canEditClaims() || canManageFinanceWorkflow());
@@ -1801,13 +1790,7 @@ if (item.detailNota) {
     detailBtn = `<button class="btn" style="background:#f8f9fa; color:#6c757d; border:1px solid #dee2e6; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; opacity:0.6; cursor:not-allowed; margin-left:4px;" title="Detail kosong (Sudah Posted)" disabled>🧾 </button>`;
 }
 
-let actionBtns = `<div class="claim-action-row">
-        ${buildReadOnlyClaimButton(item)}
-        <button class="btn-icon" onclick="openHistoryTimeline(${item.id})" title="${translateUiText('Linimasa status')}">🕒</button>
-        ${isAppAdmin() && item.statusClaim === 'Posted' ? `<button class="btn-icon is-warning" onclick="reverseClaim(${item.id})" title="${translateUiText('Batalkan Posted')}" aria-label="${translateUiText('Batalkan Posted')}">↩</button>` : ''}
-        ${buildFinanceWorkflowButton(item, true)}
-        ${detailBtn}
-</div>`;               let rtpArr = item.postedAt ? item.postedAt.replace(',', '').split(' ') : ['-', '-'];
+let actionBtns = buildClaimActionCell(item, { withTimeline: true, withReverse: true, withFinance: true });               let rtpArr = item.postedAt ? item.postedAt.replace(',', '').split(' ') : ['-', '-'];
 
                 html += `<tr>
                     <td>${actionBtns}</td>
@@ -1931,13 +1914,7 @@ if (item.detailNota) {
     detailBtn = `<button class="btn" style="background:#f8f9fa; color:#6c757d; border:1px solid #dee2e6; padding:2px 6px; font-size:10px; border-radius:4px; font-weight:bold; opacity:0.6; cursor:not-allowed; margin-left:4px;" title="Detail kosong (Sudah Posted)" disabled>🧾</button>`;
 }
 
-let actionBtns = `<div class="claim-action-row">
-        ${buildReadOnlyClaimButton(item)}
-        <button class="btn-icon" onclick="openHistoryTimeline(${item.id})" title="${translateUiText('Linimasa status')}">🕒</button>
-        ${isAppAdmin() && item.statusClaim === 'Posted' ? `<button class="btn-icon is-warning" onclick="reverseClaim(${item.id})" title="${translateUiText('Batalkan Posted')}" aria-label="${translateUiText('Batalkan Posted')}">↩</button>` : ''}
-        ${buildFinanceWorkflowButton(item, true)}
-        ${detailBtn}
-</div>`;             
+let actionBtns = buildClaimActionCell(item, { withTimeline: true, withReverse: true, withFinance: true });             
                 let adjBadge = (item.adjustments && item.adjustments.length > 0) ? `<br><span style="font-size:10px; color:#dc3545; font-weight:bold;">[Disesuaikan]</span>` : '';
                 
                 let rtpArr = [getExcelFilterCellValue(item, 'postedAtDate'), getExcelFilterCellValue(item, 'postedAtTime')];
@@ -2129,30 +2106,127 @@ window.renderCanceledTable = function() {
 
         // Baris aksi dipakai bersama oleh tampilan daftar dan tampilan folder
         // supaya kedua tampilan tidak pernah berbeda aturan hak akses.
-        function buildRekapActionCell(item, withStatus = false) {
+        // Satu daftar aksi untuk seluruh tabel klaim. Setiap layar memilih aksi
+        // tambahan yang relevan lewat options, tetapi aturan hak aksesnya sama.
+        function getClaimActions(item, options = {}) {
+            const { withStatus = false, withTimeline = false, withReverse = false, withFinance = false } = options;
             const locked = isClaimFinanciallyLocked(item);
-            let detailBtn;
-            if(item.detailNota) {
-                detailBtn = `<button class="btn rekap-mini-btn is-ready" onclick="searchAndLoadDetail(${item.id})" title="${translateUiText('Lihat Rincian Nota')}">🧾</button>`;
-            } else if(!locked && canEditClaims()) {
-                detailBtn = `<button class="btn rekap-mini-btn is-add" onclick="searchAndLoadDetail(${item.id})" title="${translateUiText('Buat Rincian Nota')}">➕</button>`;
-            } else {
-                detailBtn = `<button class="btn rekap-mini-btn is-disabled" title="${translateUiText('Detail kosong (Sudah Posted)')}" disabled>🧾</button>`;
+            const canChangeStatus = getAllowedStatusTransitions(item).length > 0;
+            const actions = [];
+
+            actions.push(locked || !canEditClaims()
+                ? { icon:'👁️', label:'Lihat data', run:`openEditRoute(${item.id}, true)` }
+                : { icon:'✏️', label:'Ubah data', run:`openEditRoute(${item.id})` });
+
+            if(withTimeline) actions.push({ icon:'🕒', label:'Linimasa status', run:`openHistoryTimeline(${item.id})` });
+            if(withStatus && canChangeStatus) actions.push({ icon:'🔄', label:'Ubah Status', run:`openStatusModal(${item.id})` });
+            if(withFinance && canManageFinanceWorkflow() && canChangeStatus) actions.push({ icon:'💳', label:'Tindakan Finance', run:`openStatusModal(${item.id})`, tone:'finance' });
+            if(withReverse && isAppAdmin() && item.statusClaim === 'Posted') actions.push({ icon:'↩', label:'Batalkan Posted', run:`reverseClaim(${item.id})`, tone:'warning' });
+
+            if(item.detailNota) actions.push({ icon:'🧾', label:'Lihat Rincian Nota', run:`searchAndLoadDetail(${item.id})`, tone:'ready' });
+            else if(!locked && canEditClaims()) actions.push({ icon:'➕', label:'Buat Rincian Nota', run:`searchAndLoadDetail(${item.id})`, tone:'add' });
+            else actions.push({ icon:'🧾', label:'Detail kosong (Sudah Posted)', disabled:true });
+
+            if(isAppAdmin() && !locked) actions.push({ icon:'🗑️', label:'Hapus', run:`deleteClaim(${item.id})`, tone:'danger' });
+            // Aksi khusus satu layar, misalnya arsip pada Pemantauan Revisi.
+            if(options.withArchive && canEditClaims() && !isFinalClaimStatus(item.statusClaim)) {
+                actions.push(options.isArchived
+                    ? { icon:'📤', label:'Kembalikan ke daftar aktif', run:`toggleArchive(${item.id})` }
+                    : { icon:'📦', label:'Arsipkan', run:`toggleArchive(${item.id})` });
             }
-            // withStatus dipakai layar yang tidak punya kolom Status Data, sehingga
-            // perubahan status tetap terjangkau lewat satu ikon yang sama gayanya.
-            const statusBtn = withStatus && getAllowedStatusTransitions(item).length > 0
-                ? `<button class="btn-icon" onclick="openStatusModal(${item.id})" title="${translateUiText('Ubah Status')}" aria-label="${translateUiText('Ubah Status')}">🔄</button>`
-                : '';
-            if(locked) return `<div class="claim-action-row"><button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="${translateUiText('Lihat data')}">👁️</button>${statusBtn}${detailBtn}</div>`;
-            const editBtn = canEditClaims()
-                ? `<button class="btn-icon" onclick="openEditRoute(${item.id})" title="${translateUiText('Ubah data')}">✏️</button>`
-                : `<button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="${translateUiText('Lihat data')}">👁️</button>`;
-            const deleteBtn = isAppAdmin()
-                ? `<button class="btn-icon is-danger" onclick="deleteClaim(${item.id})" title="${translateUiText('Hapus')}">🗑️</button>`
-                : '';
-            return `<div class="claim-action-row">${editBtn}${statusBtn}${deleteBtn}${detailBtn}</div>`;
+            return actions;
         }
+        window.getClaimActions = getClaimActions;
+
+        // Aksi baris diringkas menjadi satu tombol. Menunya dirender ke body
+        // dengan position:fixed karena tabel memakai overflow:auto, sehingga
+        // menu yang tertanam di dalam sel akan terpotong.
+        function buildClaimActionCell(item, options = {}) {
+            const encoded = escapeTimelineText(JSON.stringify(options || {}));
+            return `<div class="claim-action-cell"><button type="button" class="claim-action-trigger" data-claim-action-trigger="${item.id}"
+                onclick="toggleClaimActionMenu(event, ${item.id}, '${encoded}')"
+                aria-haspopup="menu" aria-expanded="false"
+                title="${translateUiText('Aksi')}" aria-label="${translateUiText('Aksi')}"><span aria-hidden="true">⋯</span></button></div>`;
+        }
+        window.buildClaimActionCell = buildClaimActionCell;
+
+        // Nama lama dipertahankan agar pemanggil yang sudah ada tetap bekerja.
+        function buildRekapActionCell(item, withStatus = false) {
+            return buildClaimActionCell(item, { withStatus });
+        }
+
+        function closeClaimActionMenu() {
+            const menu = document.getElementById('claim-action-menu');
+            if(menu) menu.remove();
+            document.querySelectorAll('[data-claim-action-trigger][aria-expanded="true"]')
+                .forEach(button => button.setAttribute('aria-expanded', 'false'));
+            document.removeEventListener('click', handleClaimActionOutside, true);
+            document.removeEventListener('keydown', handleClaimActionKey, true);
+            window.removeEventListener('resize', closeClaimActionMenu);
+            window.removeEventListener('scroll', closeClaimActionMenu, true);
+        }
+        window.closeClaimActionMenu = closeClaimActionMenu;
+
+        function handleClaimActionOutside(event) {
+            const menu = document.getElementById('claim-action-menu');
+            if(!menu) return closeClaimActionMenu();
+            if(menu.contains(event.target) || event.target.closest('[data-claim-action-trigger]')) return;
+            closeClaimActionMenu();
+        }
+        function handleClaimActionKey(event) {
+            if(event.key === 'Escape') closeClaimActionMenu();
+        }
+
+        window.runClaimAction = function(index) {
+            const menu = document.getElementById('claim-action-menu');
+            if(!menu) return;
+            const action = (menu.__claimActions || [])[index];
+            closeClaimActionMenu();
+            if(action && action.run) new Function(action.run)();
+        };
+
+        window.toggleClaimActionMenu = function(event, id, encodedOptions) {
+            event.preventDefault();
+            event.stopPropagation();
+            const trigger = event.currentTarget;
+            const alreadyOpen = trigger.getAttribute('aria-expanded') === 'true';
+            closeClaimActionMenu();
+            if(alreadyOpen) return;
+
+            const item = dbRekap.find(row => Number(row.id) === Number(id));
+            if(!item) return;
+            let options = {};
+            try { options = JSON.parse(encodedOptions || '{}'); } catch(_) { options = {}; }
+            const actions = getClaimActions(item, options);
+            if(!actions.length) return;
+
+            const menu = document.createElement('div');
+            menu.id = 'claim-action-menu';
+            menu.className = 'claim-action-menu';
+            menu.setAttribute('role', 'menu');
+            menu.__claimActions = actions;
+            menu.innerHTML = actions.map((action, index) => `<button type="button" role="menuitem" class="claim-action-item${action.tone ? ' tone-' + action.tone : ''}"
+                ${action.disabled ? 'disabled' : `onclick="runClaimAction(${index})"`}>
+                <span class="claim-action-icon" aria-hidden="true">${action.icon}</span><span>${escapeTimelineText(translateUiText(action.label))}</span></button>`).join('');
+            document.body.appendChild(menu);
+
+            const rect = trigger.getBoundingClientRect();
+            const width = menu.offsetWidth;
+            const height = menu.offsetHeight;
+            // Menu dijaga tetap di dalam layar, dan dibalik ke atas bila ruang bawah kurang.
+            const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+            const top = rect.bottom + 6 + height > window.innerHeight
+                ? Math.max(8, rect.top - height - 6)
+                : rect.bottom + 6;
+            menu.style.left = `${Math.round(left)}px`;
+            menu.style.top = `${Math.round(top)}px`;
+            trigger.setAttribute('aria-expanded', 'true');
+
+            document.addEventListener('click', handleClaimActionOutside, true);
+            document.addEventListener('keydown', handleClaimActionKey, true);
+            window.addEventListener('resize', closeClaimActionMenu);
+            window.addEventListener('scroll', closeClaimActionMenu, true);
+        };
 
         function renderRekapFolder(filteredData) {
             const container = document.getElementById('rekap-folder-view');
@@ -2388,7 +2462,7 @@ let formattedNote = window.formatLongNote(item.reviseNote || '-');
 
     return `<tr>
         <td class="selection-only-column"><input type="checkbox" class="${chkClass}" data-id="${item.id}"></td>
-        <td><div style="display:flex; gap:4px; margin-bottom:4px;"><button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="Lihat data">👁️</button>${editBtn}</div>${btnArch}</td>
+        <td>${buildClaimActionCell(item, { withStatus: true, withArchive: true, isArchived: !!isArchived })}</td>
         <td><strong>${item.noPR || item.extNo || '-'}</strong></td>
         <td style="text-align:center;">${slaContent}</td><td>${item.tglSubmit}</td><td>${item.nik}</td><td><strong>${item.nama}</strong></td>
         <td><span class="badge status-revise">${item.entitas||'-'}</span></td><td>${item.tipe}</td>
@@ -5619,11 +5693,7 @@ if (item.detailNota) {
 }
 if(sessionRole === 'viewer') detailBtn = '';
 
-let actionBtn = canEditClaims()
-    ? (isClaimFinanciallyLocked(item)
-        ? `<button class="btn-icon" onclick="openEditRoute(${item.id}, true)" title="Lihat data">👁️</button> ${detailBtn}`
-        : `<button class="btn-icon" onclick="openEditRoute(${item.id})" title="Ubah data">✏️</button> ${detailBtn}`)
-    : `<button class="btn-icon" onclick="openStatusModal(${item.id})" title="Lihat status dan linimasa">👁️</button> ${buildFinanceWorkflowButton(item, true)}`;
+let actionBtn = buildClaimActionCell(item, { withFinance: true });
         const liveFinanceAction = canManageFinanceWorkflow() && getAllowedStatusTransitions(item).length > 0;
         let btnStatus = getAllowedStatusTransitions(item).length > 0
             ? `<span class="badge ${sClass} clickable" onclick="openStatusModal(${item.id})" title="${liveFinanceAction ? 'Ubah status Finance secara langsung' : 'Ubah status'}">${item.statusClaim} ✏️</span>`

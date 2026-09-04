@@ -5060,28 +5060,6 @@ body.dark-mode #daily-recap-row-count { color:#a9c8db; }
 /* =========================================================
    P24 — SEL AKSI RINGKAS + KOTAK CATATAN CLAIM
    ========================================================= */
-/* Tabel memakai min-width:max-content, jadi kolom Aksi ikut melebar mengikuti
-   ikonnya. Tanpa nowrap, ikon menumpuk ke bawah dan barisnya jadi sangat tinggi. */
-.claim-action-row { display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; white-space: nowrap; }
-.claim-action-row .btn-icon {
-    display: inline-grid; place-items: center;
-    width: 28px; height: 28px; padding: 0;
-    border-radius: 8px;
-    font-size: var(--ws-font-base);
-    transition: background .15s ease, transform .15s ease;
-}
-.claim-action-row .btn-icon:hover { transform: none; background: #eaf3f9; }
-.claim-action-row .btn-icon.is-warning:hover { background: #fdf0d9; }
-.claim-action-row .btn-icon.is-finance:hover { background: #dff2fb; }
-.claim-action-row .btn-icon.is-danger { color: #dc3545; }
-.claim-action-row .btn-icon.is-danger:hover { background: #fdeaec; }
-.claim-action-row .rekap-mini-btn { margin-left: 0; }
-body.dark-mode .claim-action-row .btn-icon:hover { background: #24455b; }
-body.dark-mode .claim-action-row .btn-icon.is-warning:hover { background: #3a2f14; }
-body.dark-mode .claim-action-row .btn-icon.is-finance:hover { background: #16354a; }
-body.dark-mode .claim-action-row .btn-icon.is-danger { color: #f7909d; }
-body.dark-mode .claim-action-row .btn-icon.is-danger:hover { background: #3d1c23; }
-
 /* Kotak catatan status: dipakai bersama modul Revisi dan Canceled Claim. */
 .claim-note-updated { margin-top: 3px; color: #777; font-size: var(--ws-font-2xs); }
 .claim-note-box {
@@ -5092,3 +5070,68 @@ body.dark-mode .claim-action-row .btn-icon.is-danger:hover { background: #3d1c23
 }
 body.dark-mode .claim-note-updated { color: #93a7b8; }
 body.dark-mode .claim-note-box { border-color: #3a5669; background: #142633; color: #cfe0eb; }
+
+/* =========================================================
+   P25 — TOMBOL AKSI TUNGGAL + MENU PILIHAN
+   Aksi baris diringkas jadi satu tombol; menunya dirender ke body dengan
+   position:fixed karena tabel memakai overflow:auto dan akan memotongnya.
+   ========================================================= */
+.claim-action-cell { display: flex; justify-content: center; }
+.claim-action-trigger {
+    display: grid; place-items: center;
+    width: 34px; height: 30px; padding: 0;
+    border: 1px solid #d7e6f0; border-radius: 9px;
+    background: #fff; color: #3f6079;
+    font-size: 17px; line-height: 1; cursor: pointer;
+    transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.claim-action-trigger:hover { border-color: #a9cde3; background: #f4fafd; color: #0a6f9f; }
+.claim-action-trigger[aria-expanded="true"] { border-color: #0a7fb5; background: #e7f4fb; color: #08587e; box-shadow: 0 0 0 3px rgba(10,127,181,.12); }
+.claim-action-trigger:focus-visible { outline: 2px solid #0a7fb5; outline-offset: 2px; }
+
+.claim-action-menu {
+    position: fixed; z-index: 100020;
+    display: flex; flex-direction: column; gap: 2px;
+    min-width: 208px; padding: 6px;
+    border: 1px solid #cfe0ec; border-radius: 13px;
+    background: #fff;
+    box-shadow: 0 18px 44px rgba(9,45,73,.22);
+    animation: claimActionReveal .14s ease both;
+}
+@keyframes claimActionReveal { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.claim-action-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border: 0; border-radius: 9px;
+    background: transparent; color: #35566b;
+    font-size: var(--ws-font-sm); font-weight: 700; text-align: left;
+    cursor: pointer;
+    transition: background .13s ease, color .13s ease;
+}
+.claim-action-item:hover:not(:disabled) { background: #eef7fc; color: #0a6f9f; }
+.claim-action-item:disabled { opacity: .45; cursor: not-allowed; }
+.claim-action-icon { display: grid; place-items: center; width: 22px; font-size: var(--ws-font-base); }
+.claim-action-item.tone-danger { color: #b32536; }
+.claim-action-item.tone-danger:hover:not(:disabled) { background: #fdeaec; color: #8f1d2b; }
+.claim-action-item.tone-warning { color: #8a5a12; }
+.claim-action-item.tone-warning:hover:not(:disabled) { background: #fdf3e2; color: #6b4407; }
+.claim-action-item.tone-finance { color: #0a6475; }
+.claim-action-item.tone-finance:hover:not(:disabled) { background: #e2f6fa; color: #08505f; }
+.claim-action-item.tone-add { color: #0a6f9f; }
+.claim-action-item.tone-ready { color: #15803d; }
+.claim-action-item.tone-ready:hover:not(:disabled) { background: #e6f6ec; color: #116246; }
+
+body.dark-mode .claim-action-trigger { border-color: #34505f; background: #172b39; color: #a9c8db; }
+body.dark-mode .claim-action-trigger:hover { border-color: #4a7893; background: #1d3546; color: #8fd6fa; }
+body.dark-mode .claim-action-trigger[aria-expanded="true"] { border-color: #2a86b8; background: #14384e; color: #8fd6fa; }
+body.dark-mode .claim-action-menu { border-color: #34505f; background: #172b39; box-shadow: 0 18px 44px rgba(0,0,0,.5); }
+body.dark-mode .claim-action-item { color: #cfe0eb; }
+body.dark-mode .claim-action-item:hover:not(:disabled) { background: #23445a; color: #8fd6fa; }
+body.dark-mode .claim-action-item.tone-danger { color: #f7a3ae; }
+body.dark-mode .claim-action-item.tone-danger:hover:not(:disabled) { background: #3d1c23; }
+body.dark-mode .claim-action-item.tone-warning { color: #f0c765; }
+body.dark-mode .claim-action-item.tone-warning:hover:not(:disabled) { background: #3a2f14; }
+body.dark-mode .claim-action-item.tone-finance { color: #7fd0f2; }
+body.dark-mode .claim-action-item.tone-finance:hover:not(:disabled) { background: #16354a; }
+body.dark-mode .claim-action-item.tone-ready { color: #8fdcac; }
+body.dark-mode .claim-action-item.tone-ready:hover:not(:disabled) { background: #16341f; }
