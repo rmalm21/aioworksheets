@@ -4319,14 +4319,31 @@ body { font-size: var(--ws-font-base); line-height: var(--ws-line-base); }
 .content-editor-toolbar input, .content-editor-toolbar select { width:100%; min-height:40px; padding:8px 11px; border:1px solid #cadbe6; border-radius:10px; background:#fbfdfe; }
 #ui-copy-meta { color:#718796; font-size: var(--ws-font-xs); font-weight:800; white-space:nowrap; }
 .content-editor-note { padding:9px 18px; border-bottom:1px solid #e9eff3; background:#f8fbfd; color:#748997; font-size: var(--ws-font-2xs); }
-.content-editor-list { max-height:62vh; overflow:auto; }
-.ui-copy-row { display:grid; grid-template-columns:minmax(240px,.9fr) minmax(320px,1.35fr) auto; gap:12px; align-items:center; padding:12px 18px; border-bottom:1px solid #edf2f5; }
-.ui-copy-row:hover { background:#fbfdff; }
+.content-editor-list {
+    display: grid;
+    gap: 9px;
+    max-height: 62vh;
+    padding: 16px 18px;
+    overflow: auto;
+    background: #f7fafc;
+}
+.ui-copy-row {
+    display: grid;
+    grid-template-columns: minmax(240px,.9fr) minmax(320px,1.35fr) auto;
+    gap: 14px;
+    align-items: center;
+    padding: 13px 15px;
+    border: 1px solid #e4edf3;
+    border-radius: 12px;
+    background: #fff;
+    transition: border-color .16s ease, box-shadow .16s ease;
+}
+.ui-copy-row:hover { border-color:#bcd7e9; box-shadow:0 4px 12px rgba(16,66,101,.06); }
 .ui-copy-source { min-width:0; }
 .ui-copy-source strong { display:block; color:#39596d; font-size: var(--ws-font-xs); line-height:1.45; }
 .ui-copy-source small { display:block; margin-top:3px; color:#90a0aa; font-size: var(--ws-font-2xs); }
 .ui-copy-row textarea { min-height:54px; max-height:120px; resize:vertical; padding:9px 10px; border:1px solid #cddde7; border-radius:9px; background:#fff; color:#29475b; font-size: var(--ws-font-xs) !important; line-height:1.45; }
-.ui-copy-row.is-overridden { background:#f7fcff; }
+.ui-copy-row.is-overridden { border-color:#a9d3ec; background:#f5fbff; box-shadow:inset 3px 0 0 #0a7fb5; }
 .ui-copy-reset { min-width:70px; }
 
 body.dark-mode #modal-status .status-workflow-modal,
@@ -4345,8 +4362,14 @@ body.dark-mode .content-editor-hero p { color:#9eb1be; }
 body.dark-mode .timeline-container,
 body.dark-mode .timeline-content,
 body.dark-mode .daily-recap-input-card,
-body.dark-mode .content-editor-toolbar,
+body.dark-mode .content-editor-toolbar { border-color:#30495b; background:#172b39; }
+body.dark-mode .content-editor-list { background:#101d28; }
 body.dark-mode .ui-copy-row { border-color:#30495b; background:#172b39; }
+body.dark-mode .ui-copy-row:hover { border-color:#4a7893; box-shadow:none; }
+body.dark-mode .ui-copy-row.is-overridden { border-color:#2a86b8; background:#14293a; box-shadow:inset 3px 0 0 #2a86b8; }
+body.dark-mode .ui-copy-sections { border-bottom-color:#30495b; background:#172b39; }
+body.dark-mode .ui-copy-pagination { background:#172b39; }
+body.dark-mode .ui-copy-empty { border-color:#34505f; background:#172b39; }
 body.dark-mode .timeline-dot { border-color:#172b39; }
 body.dark-mode #excel-v2-area,
 body.dark-mode .ui-copy-row textarea { background:#12232f; color:#dce8ef; }
@@ -4696,7 +4719,10 @@ body.dark-mode .sf-state-title.is-empty { color:#f7a3ae !important; }
    ========================================================= */
 .ui-copy-sections {
     display: flex; flex-wrap: wrap; gap: 8px;
-    margin: 14px 0 4px;
+    margin: 0;
+    padding: 14px 18px;
+    border-bottom: 1px solid #e9eff3;
+    background: #fff;
 }
 .ui-copy-tab {
     display: inline-flex; align-items: center; gap: 7px;
@@ -4713,11 +4739,12 @@ body.dark-mode .sf-state-title.is-empty { color:#f7a3ae !important; }
 .ui-copy-tab.is-active { border-color: #0a7fb5; background: #e7f4fb; color: #08587e; }
 .ui-copy-tab.is-active em { background: #0a7fb5; color: #fff; }
 .ui-copy-tab.is-empty { opacity: .5; }
-.ui-copy-empty { padding: 34px 18px; color: #8295a3; font-size: var(--ws-font-md); font-style: italic; text-align: center; }
+.ui-copy-empty { padding: 34px 18px; border: 1px dashed #d7e3ec; border-radius: 12px; background: #fff; color: #8295a3; font-size: var(--ws-font-md); font-style: italic; text-align: center; }
 .ui-copy-pagination {
     display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-    margin-top: 14px; padding-top: 14px;
+    margin: 0; padding: 13px 18px;
     border-top: 1px solid #e6eef4;
+    background: #fff;
 }
 .ui-copy-rows { display: inline-flex; align-items: center; gap: 8px; color: #6b8497; font-size: var(--ws-font-sm); }
 .ui-copy-pagination-controls { display: inline-flex; align-items: center; gap: 10px; }
@@ -4984,3 +5011,21 @@ body.dark-mode .list-section-copy h4 { color: #e4f0f7; }
 body.dark-mode .list-section-copy small { color: #93a7b8; }
 body.dark-mode .list-section-toggle .toggle-icon { color: #8fd6fa; }
 body.dark-mode .list-section-toggle.is-muted .toggle-icon { color: #9db3c3; }
+
+/* =========================================================
+   P23 — MODE GELAP REKAP HARIAN
+   Kartu langkah, kotak format kolom, kepala dan kaki area tempel masih
+   memakai kertas terang, sehingga judulnya tidak terbaca di mode gelap.
+   ========================================================= */
+body.dark-mode .daily-recap-steps > div { border-color:#30495b; background:#172b39; }
+body.dark-mode .daily-recap-steps span { background:#24455b; color:#7fd0f2; }
+body.dark-mode .daily-recap-steps strong { color:#dfeaf2; }
+body.dark-mode .daily-recap-steps small { color:#93a7b8; }
+body.dark-mode .daily-recap-format { border-color:#34505f; background:rgba(18,35,47,.72); }
+body.dark-mode .daily-recap-format span { color:#93a7b8; }
+body.dark-mode .daily-recap-format code { color:#a9d3ec; }
+body.dark-mode .daily-recap-input-head { border-color:#30495b; background:#142633; }
+body.dark-mode .daily-recap-input-head strong { color:#dfeaf2; }
+body.dark-mode .daily-recap-input-head small { color:#93a7b8; }
+body.dark-mode .daily-recap-footer { border-color:#30495b; background:#142633; }
+body.dark-mode #daily-recap-row-count { color:#a9c8db; }

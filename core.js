@@ -4737,6 +4737,9 @@ const WORKSHEET_ADDITIONAL_TRANSLATION_ROWS = [
 ];
 
 const WORKSHEET_P18_TRANSLATION_ROWS = [
+    // Sumber label sidebar memakai Bahasa Indonesia seperti menu lainnya,
+    // supaya tampilan Bahasa Indonesia tidak menyisakan satu item berbahasa Inggris.
+    ['Data Klaim', 'Claim Data', '申請データ'],
     ['Claim Data', 'Claim Data', '申請データ'],
     ['In Process', 'In Process', '処理中'],
     ['Pending Approval', 'Pending Approval', '承認待ち'],
