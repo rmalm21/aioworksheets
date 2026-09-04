@@ -2679,6 +2679,9 @@ body.dark-mode .daily-import-status.is-warning { color: #facc15; }
 }
 .finance-action-panel small { display: block; margin-top: 5px; color: #5f7180; font-size: var(--ws-font-2xs); line-height: 1.4; }
 .finance-action-hint { margin-top: 10px; padding: 8px 10px; border-radius: 7px; background: #fff; color: #52687a; font-size: var(--ws-font-2xs); line-height: 1.45; }
+/* Keterangan saat modal Status hanya-baca: berdiri sendiri di badan modal,
+   jadi perlu bingkai agar tetap terbaca sebagai pemberitahuan. */
+.status-readonly-note { border: 1px solid #d9e5ef; border-left: 4px solid #f59e0b; background: #fffbeb; color: #6b5416; }
 
 .finance-queue-summary {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2707,6 +2710,7 @@ body.dark-mode .daily-import-status.is-warning { color: #facc15; }
 body.dark-mode .finance-action-panel,
 body.dark-mode .finance-queue-card { background: #182634; border-color: #33485e; }
 body.dark-mode .finance-action-hint { background: #122231; color: #b7c9d8; }
+body.dark-mode .status-readonly-note { border-color: #274156; border-left-color: #d9922b; background: #2a2113; color: #f0dcb4; }
 body.dark-mode .finance-queue-card strong { color: #e3f0fb; }
 
 @media (max-width: 800px) {
