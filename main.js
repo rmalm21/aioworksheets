@@ -5558,7 +5558,7 @@ window.resetSuperFind = function() {
     window.filterDatesSuperFind = [];
     
     let searchInput = document.getElementById('sf-search-input');
-    if (searchInput) searchInput.value = '';
+    if (searchInput) { searchInput.value = ''; syncWsSearchState(searchInput); }
     
     const resultTitle = document.getElementById('sf-result-title');
     if(resultTitle) resultTitle.style.display = 'none';
@@ -6012,7 +6012,9 @@ window.closeDetailModule = function() {
     document.getElementById('detail-table-area').style.display = 'none';
     document.getElementById('det-empty-state').style.display = 'flex'; // Munculkan estetika kosong
     document.getElementById('tbody-detail-items').innerHTML = '';
-    document.getElementById('det-search-ref').value = '';
+    const detSearch = document.getElementById('det-search-ref');
+    detSearch.value = '';
+    syncWsSearchState(detSearch);
     document.getElementById('det-revise-note').value = '';
     document.getElementById('btn-det-adjust').style.display = 'none';
 };
@@ -6040,10 +6042,9 @@ window.searchAndLoadDetail = function(autoId = null) {
     
     // Tampilkan Tabel, Sembunyikan Empty State
     document.getElementById('det-empty-state').style.display = 'none';
-    // Elemen ini memakai .form-grid; memaksanya menjadi flex membuat kolom grid
-    // (termasuk penataan satu kolom di layar kecil) diabaikan sehingga field
-    // berdesakan dan meluber ke samping.
-    document.getElementById('detail-header-info').style.display = 'grid';
+    // Kartu ringkasan kini memakai .detail-card (blok) dengan grid di dalamnya,
+    // sehingga penataan kolomnya diurus CSS dan tetap satu kolom di layar kecil.
+    document.getElementById('detail-header-info').style.display = 'block';
     document.getElementById('detail-table-area').style.display = 'block';
 
     document.getElementById('det-hdr-nik').value = data.nik;

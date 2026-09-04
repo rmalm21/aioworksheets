@@ -879,10 +879,10 @@ document.getElementById('tbody-line-items').addEventListener('scroll', function(
                 const contentNav = document.getElementById('nav-master-content'); if(contentNav) contentNav.style.display = 'flex';
                 document.getElementById('dash-card-user').style.display = 'block';
                 
-                document.getElementById('gl-admin-actions').style.display = 'flex';
+                document.getElementById('gl-admin-actions').style.display = 'block';
                 document.getElementById('btn-del-gl').style.display = 'inline-block';
                 
-                document.getElementById('kar-admin-actions').style.display = 'flex';
+                document.getElementById('kar-admin-actions').style.display = 'block';
                 document.getElementById('btn-del-kar').style.display = 'inline-block';
             } else {
                 document.getElementById('nav-master-user').style.display = 'none';
@@ -1442,6 +1442,7 @@ window.openExcelFilter = function(e, colKey, module) {
     let modal = document.getElementById('excel-filter-modal');
     let searchInp = document.getElementById('ef-search-input');
     searchInp.value = '';
+    syncWsSearchState(searchInp);
     
     efUniqueValues = getUniqueValues(module, colKey);
     let listContainer = document.getElementById('ef-checkbox-list');
@@ -5192,7 +5193,52 @@ const WORKSHEET_P21_TRANSLATION_ROWS = [
     ['Sistem akan membatalkannya satu per satu mulai dari transaksi terakhir.', 'The system will reverse them one by one starting from the latest transaction.', '最新の取引から1件ずつ取り消します。']
 ];
 
-const WORKSHEET_TRANSLATIONS = Object.freeze([...WORKSHEET_TRANSLATION_ROWS, ...WORKSHEET_ADDITIONAL_TRANSLATION_ROWS, ...WORKSHEET_P18_TRANSLATION_ROWS, ...WORKSHEET_P19_TRANSLATION_ROWS, ...WORKSHEET_P20_TRANSLATION_ROWS, ...WORKSHEET_P21_TRANSLATION_ROWS, ...WORKSHEET_P22_TRANSLATION_ROWS].reduce((catalog, row) => {
+const WORKSHEET_P26_TRANSLATION_ROWS = [
+    ['Muat Pengajuan', 'Load Claim', '申請を読み込む'],
+    ['Muat pengajuan', 'Load claim', '申請の読み込み'],
+    ['Masukkan nomor pengajuan untuk menarik data header dan rincian notanya.', 'Enter a claim number to pull its header data and receipt details.', '申請番号を入力すると、ヘッダー情報と領収書明細を読み込みます。'],
+    ['Cari nomor pengajuan', 'Search a claim number', '申請番号を検索'],
+    ['Ringkasan Pengajuan', 'Claim Summary', '申請サマリー'],
+    ['Ringkasan pengajuan', 'Claim summary', '申請サマリー'],
+    ['Data header diambil dari Rekapitulasi dan tidak dapat diubah dari layar ini.', 'Header data comes from the Recap and cannot be edited on this screen.', 'ヘッダー情報は集計から取得され、この画面では編集できません。'],
+    ['Rincian nota', 'Receipt details', '領収書明細'],
+    ['Isi setiap baris transaksi hingga Amount Klaim seimbang dengan total header.', 'Fill in every transaction line until the Claim Amount balances with the header total.', '請求金額がヘッダー合計と一致するまで各取引明細を入力してください。'],
+    ['Tabel di bawah diprogram seperti spreadsheet: gunakan Tab dan Enter untuk berpindah antar sel.', 'The table below behaves like a spreadsheet: use Tab and Enter to move between cells.', '下の表は表計算ソフトのように操作できます。TabとEnterでセルを移動します。'],
+    ['Bersihkan pencarian', 'Clear search', '検索をクリア'],
+    ['Cari data pada filter kolom', 'Search values in the column filter', '列フィルターの値を検索'],
+    ['Kata kunci pencarian klaim', 'Claim search keyword', '申請検索キーワード'],
+    ['Cari teks antarmuka', 'Search interface text', 'インターフェース文言を検索'],
+    ['Cari log aktivitas', 'Search the activity log', 'アクティビティログを検索'],
+    ['Cari tipe atau nama GL', 'Search a type or GL name', '種別またはGL名を検索'],
+    ['Cari NIK atau nama karyawan', 'Search an employee ID or name', '社員番号または氏名を検索'],
+    ['PENGATURAN', 'SETTINGS', '設定'],
+    ['Kelola pasangan tipe pengajuan dan nama GL Account yang dipakai seluruh modul lembar kerja.', 'Manage the claim type and GL Account pairs used by every worksheet module.', 'すべてのワークシートで使用する申請種別とGLアカウントの組み合わせを管理します。'],
+    ['Pencarian Data Induk', 'Master Data Search', 'マスタデータ検索'],
+    ['Pencarian GL Account', 'GL Account search', 'GLアカウント検索'],
+    ['Pencarian karyawan', 'Employee search', '社員検索'],
+    ['Saring berdasarkan tipe pengajuan atau nama GL', 'Filter by claim type or GL name', '申請種別またはGL名で絞り込み'],
+    ['Saring berdasarkan NIK atau nama karyawan', 'Filter by employee ID or name', '社員番号または氏名で絞り込み'],
+    ['Tambah GL Account', 'Add GL Account', 'GLアカウントを追加'],
+    ['Tipe pengajuan dapat diketik manual apabila belum tersedia dalam daftar', 'A claim type can be typed manually when it is not yet on the list', '一覧にない申請種別は手入力できます'],
+    ['Impor Excel menambahkan data baru tanpa menghapus daftar yang sudah ada.', 'Excel import adds new records without deleting the existing list.', 'Excelインポートは既存の一覧を削除せずに新規データを追加します。'],
+    ['Daftar GL Account', 'GL Account List', 'GLアカウント一覧'],
+    ['Klik Ubah untuk menyunting satu baris', 'Click Edit to modify a single row', '「編集」をクリックすると1行ずつ修正できます'],
+    ['Sumber NIK, nama, entitas, dan cost center yang mengisi otomatis seluruh formulir pengajuan.', 'The source of employee ID, name, entity, and cost center that auto-fills every claim form.', 'すべての申請フォームに自動入力される社員番号・氏名・法人・コストセンターの基となるデータです。'],
+    ['Tambah Karyawan', 'Add Employee', '社員を追加'],
+    ['Tambah karyawan', 'Add employee', '社員の追加'],
+    ['NIK wajib unik; kolom lain melengkapi data pengisian otomatis', 'The employee ID must be unique; the other fields complete the auto-fill data', '社員番号は重複不可です。他の項目は自動入力用の情報を補完します'],
+    ['Impor Excel memperbarui data dengan NIK yang sama dan menambahkan NIK baru.', 'Excel import updates records with a matching employee ID and adds new ones.', 'Excelインポートは同じ社員番号のデータを更新し、新しい社員番号を追加します。'],
+    ['Daftar Karyawan', 'Employee List', '社員一覧'],
+    ['Daftar karyawan', 'Employee list', '社員一覧'],
+    ['Gunakan ikon filter pada judul kolom untuk penyaringan lanjutan', 'Use the filter icon in the column headers for advanced filtering', '列見出しのフィルターアイコンで詳細な絞り込みができます'],
+    ['Cadangan lokal dibuat berkala ketika browser tidak aktif dan menyimpan tujuh tanggal terakhir. Kata sandi dan peran pengguna tidak pernah disertakan.', 'Local backups run periodically while the browser is idle and keep the last seven dates. Passwords and user roles are never included.', 'ローカルバックアップはブラウザが待機中に定期実行され、直近7日分を保持します。パスワードとユーザー権限は含まれません。'],
+    ['Cadangan Manual Skema 2', 'Manual Backup Scheme 2', '手動バックアップ（スキーマ2）'],
+    ['Log Rotasi Otomatis', 'Automatic Rotation Log', '自動ローテーションログ'],
+    ['Log rotasi cadangan', 'Backup rotation log', 'バックアップのローテーションログ'],
+    ['Maksimal tujuh tanggal terakhir yang tersimpan', 'Only the last seven dates are kept', '保持されるのは直近7日分のみです']
+];
+
+const WORKSHEET_TRANSLATIONS = Object.freeze([...WORKSHEET_TRANSLATION_ROWS, ...WORKSHEET_ADDITIONAL_TRANSLATION_ROWS, ...WORKSHEET_P18_TRANSLATION_ROWS, ...WORKSHEET_P19_TRANSLATION_ROWS, ...WORKSHEET_P20_TRANSLATION_ROWS, ...WORKSHEET_P21_TRANSLATION_ROWS, ...WORKSHEET_P22_TRANSLATION_ROWS, ...WORKSHEET_P26_TRANSLATION_ROWS].reduce((catalog, row) => {
     catalog[row[0]] = { en: row[1], ja: row[2] };
     return catalog;
 }, {}));
@@ -6156,10 +6202,67 @@ function initializeWorksheetInterface() {
     syncMobileNavigation();
 }
 
-if(document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeWorksheetInterface, { once:true });
-} else {
+// ==========================================
+// KOTAK PENCARIAN TERPADU (.ws-search)
+// Semua kolom pencarian memakai bungkus yang sama sehingga ikon dan tombol
+// bersihkan tidak perlu ditulis ulang per layar. Tombol bersihkan hanya
+// tampil ketika kolomnya berisi.
+// ==========================================
+function syncWsSearchState(input) {
+    if(!input) return;
+    const shell = input.closest('.ws-search');
+    if(!shell) return;
+    shell.classList.toggle('is-filled', String(input.value || '').length > 0);
+}
+window.syncWsSearchState = syncWsSearchState;
+
+function refreshAllWsSearchState(root = document) {
+    if(!root || !root.querySelectorAll) return;
+    root.querySelectorAll('.ws-search > input').forEach(syncWsSearchState);
+}
+window.refreshAllWsSearchState = refreshAllWsSearchState;
+
+// Handler kolom pencarian ditulis inline (onkeyup/oninput) pada masing-masing
+// layar, jadi tombol bersihkan harus menembakkan kedua event tersebut supaya
+// tabel ikut dimuat ulang seperti saat pengguna menghapus teksnya sendiri.
+window.clearWsSearch = function(trigger) {
+    const shell = trigger && trigger.closest ? trigger.closest('.ws-search') : null;
+    const input = shell ? shell.querySelector('input') : null;
+    if(!input) return;
+    if(input.value === '') { input.focus(); return; }
+    input.value = '';
+    syncWsSearchState(input);
+    input.dispatchEvent(new Event('input', { bubbles:true }));
+    try {
+        input.dispatchEvent(new KeyboardEvent('keyup', { bubbles:true, key:'Backspace' }));
+    } catch(err) {
+        const legacy = document.createEvent('Event');
+        legacy.initEvent('keyup', true, true);
+        input.dispatchEvent(legacy);
+    }
+    input.dispatchEvent(new Event('change', { bubbles:true }));
+    input.focus();
+};
+
+document.addEventListener('input', event => {
+    const target = event.target;
+    if(target && target.matches && target.matches('.ws-search > input')) syncWsSearchState(target);
+}, true);
+
+document.addEventListener('keyup', event => {
+    const target = event.target;
+    if(target && target.matches && target.matches('.ws-search > input')) syncWsSearchState(target);
+}, true);
+
+function bootWorksheetInterface() {
     initializeWorksheetInterface();
+    refreshAllWsSearchState();
+}
+
+if(document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootWorksheetInterface, { once:true });
+} else {
+    bootWorksheetInterface();
 }
 
 

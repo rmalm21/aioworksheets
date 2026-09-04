@@ -395,7 +395,7 @@
         <div class="ef-sort-btn" onclick="applyExcelSort('ASC')">↑ Sortir A - Z (Terlama)</div>
         <div class="ef-sort-btn" onclick="applyExcelSort('DESC')">↓ Sortir Z - A (Terbaru)</div>
         <hr style="margin: 10px 0; border: 0; border-top: 1px solid #ccc;">
-        <input type="text" id="ef-search-input" class="ef-search-box" placeholder="Cari Data..." onkeyup="filterExcelOptions()">
+        <div class="ws-search ws-search--block" style="margin-bottom:10px;"><span class="ws-search-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"></circle><path d="M10.6 10.6 14 14"></path></svg></span><input type="text" id="ef-search-input" placeholder="Cari Data..." aria-label="Cari data pada filter kolom" onkeyup="filterExcelOptions()"><button type="button" class="ws-search-clear" aria-label="Bersihkan pencarian" onclick="clearWsSearch(this)">✕</button></div>
         
         <div class="ef-checkbox-list" id="ef-checkbox-list">
             <!-- Dinamis checkbox list -->
@@ -933,33 +933,50 @@
         <div class="list-hero-mark" aria-hidden="true">📑</div>
     </header>
 <div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
-    <div class="unified-form-box">
-        <div class="header-actions">
-            <h3 style="color: #0050A0;">🧾 Form Detail Pengajuan</h3>
-<p style="font-size:12px; color:#666; margin:0;">Lengkapi rincian untuk setiap pengajuan.</p>
-            <div style="display:flex; gap:10px;">
-                <input type="text" id="det-search-ref" placeholder="Masukkan nomor pengajuan" style="padding:8px 12px; border:1px solid #0050A0; border-radius:6px; font-size:13px; outline:none;" onkeydown="if(event.key==='Enter') searchAndLoadDetail()">
-                <button class="btn btn-primary" onclick="searchAndLoadDetail()">🔍 Muat Data</button>
+
+    <section class="detail-card" aria-label="Muat pengajuan">
+        <div class="detail-card-head detail-card-head--flush">
+            <div class="detail-card-icon" aria-hidden="true">⌕</div>
+            <div class="detail-card-copy">
+                <h4>Muat Pengajuan</h4>
+                <small>Masukkan nomor pengajuan untuk menarik data header dan rincian notanya.</small>
+            </div>
+            <div class="detail-card-tools">
+                <div class="ws-search ws-search--wide ws-search--lg">
+                    <span class="ws-search-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"></circle><path d="M10.6 10.6 14 14"></path></svg></span>
+                    <input type="text" id="det-search-ref" data-read-only-exempt="true" placeholder="Masukkan nomor pengajuan" aria-label="Cari nomor pengajuan" onkeydown="if(event.key==='Enter') searchAndLoadDetail()">
+                    <button type="button" class="ws-search-clear" aria-label="Bersihkan pencarian" onclick="clearWsSearch(this)">✕</button>
+                </div>
+                <button class="btn btn-primary" onclick="searchAndLoadDetail()">Muat Data</button>
             </div>
         </div>
 
         <!-- Poin 6: Sentuhan Estetika Saat Kosong -->
-        <div id="det-empty-state" class="sf-state-container" style="margin-top: 40px; padding: 70px 20px;">
-            <div class="sf-state-icon waiting" style="font-size:64px; margin-bottom:20px; filter:drop-shadow(0 10px 15px rgba(0,0,0,0.08));">🧾</div>
-            <div class="sf-state-title" style="font-size:20px; font-weight:700; color:#0f172a; margin-bottom:10px;">Menunggu Tarikan Data</div>
+        <div id="det-empty-state" class="sf-state-container" style="padding: 46px 20px;">
+            <div class="sf-state-icon waiting" style="font-size:58px; margin-bottom:18px; filter:drop-shadow(0 10px 15px rgba(0,0,0,0.08));">🧾</div>
+            <div class="sf-state-title" style="font-size:19px; font-weight:700; color:#0f172a; margin-bottom:10px;">Menunggu Tarikan Data</div>
             <div class="sf-state-desc">Silakan masukkan nomor pengajuan pada kolom pencarian di atas untuk memuat dan melengkapi rincian nota pengajuan.</div>
         </div>
-        
-        <div class="form-grid" id="detail-header-info" style="display:none; background:#f8fbff; padding:15px; border-radius:8px; border:1px solid #cce0f5; margin-bottom:20px;">
-            <div class="form-group"><label>NIK</label><input type="text" id="det-hdr-nik" readonly style="background:#e9ecef; font-weight:bold;"></div>
-            <div class="form-group"><label>Nama Karyawan</label><input type="text" id="det-hdr-nama" readonly style="background:#e9ecef; font-weight:bold;"></div>
-            <div class="form-group"><label>Entitas</label><input type="text" id="det-hdr-entitas" readonly style="background:#e9ecef;"></div>
-            <div class="form-group"><label>Tipe Pengajuan</label><input type="text" id="det-hdr-tipe" readonly style="background:#e9ecef;"></div>
-            <div class="form-group"><label>Mata Uang</label><input type="text" id="det-hdr-currency" readonly style="background:#e9ecef; font-weight:bold; color:#0050A0;"></div>
-            
+    </section>
+
+    <section class="detail-card" id="detail-header-info" style="display:none;" aria-label="Ringkasan pengajuan">
+        <div class="detail-card-head">
+            <div class="detail-card-icon" aria-hidden="true">👤</div>
+            <div class="detail-card-copy">
+                <h4>Ringkasan Pengajuan</h4>
+                <small>Data header diambil dari Rekapitulasi dan tidak dapat diubah dari layar ini.</small>
+            </div>
+        </div>
+        <div class="detail-summary-grid">
+            <div class="form-group"><label>NIK</label><input type="text" id="det-hdr-nik" readonly></div>
+            <div class="form-group"><label>Nama Karyawan</label><input type="text" id="det-hdr-nama" readonly></div>
+            <div class="form-group"><label>Entitas</label><input type="text" id="det-hdr-entitas" readonly></div>
+            <div class="form-group"><label>Tipe Pengajuan</label><input type="text" id="det-hdr-tipe" readonly></div>
+            <div class="form-group"><label>Mata Uang</label><input type="text" id="det-hdr-currency" readonly></div>
+
             <div class="form-group">
                 <label>Status Pengajuan</label>
-                <select id="det-hdr-status-select" style="font-weight:bold; color:#0050A0; border-color:#0050A0;" onchange="toggleDetReviseNote()">
+                <select id="det-hdr-status-select" onchange="toggleDetReviseNote()">
                     <option value="In Process">In Process</option>
                     <option value="Revisi">Revisi</option>
                     <option value="Waiting Approval">Menunggu Persetujuan</option>
@@ -968,23 +985,34 @@
                 </select>
             </div>
 
-            <!-- Poin 3: Input Muncul Kalau Dipilih Revisi -->
-            <div class="form-group" id="det-revise-note-container" style="display:none;">
-                <label style="color:#dc3545;">⚠️ Alasan Revisi (Wajib)</label>
-                <textarea id="det-revise-note" rows="1" placeholder="Tulis alasan dikembalikan..." style="border-color:#dc3545; outline:none; resize:vertical; border-radius:6px; padding:8px; font-family:inherit;"></textarea>
-            </div>
-            
-            <div class="form-group">
+            <div class="form-group detail-field-money">
                 <label>Total Header Jurnal (Sistem)</label>
-                <input type="text" id="det-hdr-amount" readonly style="background:#fff3cd; color:#856404; font-weight:bold; font-size:16px;">
+                <input type="text" id="det-hdr-amount" readonly>
+            </div>
+
+            <!-- Poin 3: Input Muncul Kalau Dipilih Revisi -->
+            <div class="form-group detail-field-alert span-2" id="det-revise-note-container" style="display:none;">
+                <label>⚠️ Alasan Revisi (Wajib)</label>
+                <textarea id="det-revise-note" rows="2" placeholder="Tulis alasan dikembalikan..."></textarea>
+            </div>
+        </div>
+    </section>
+
+    <section class="detail-card" id="detail-table-area" style="display:none;" aria-label="Rincian nota">
+        <div class="detail-card-head">
+            <div class="detail-card-icon" aria-hidden="true">▤</div>
+            <div class="detail-card-copy">
+                <h4>Rincian Nota</h4>
+                <small>Isi setiap baris transaksi hingga Amount Klaim seimbang dengan total header.</small>
+            </div>
+            <div class="detail-card-tools">
+                <div id="det-balance-indicator" class="badge unbalanced" style="font-size:14px;">Belum Seimbang</div>
             </div>
         </div>
 
-        <div id="detail-table-area" style="display:none;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <div style="font-size:11px; color:#888;">*Tips: Tabel di bawah diprogram seperti spreadsheet/excel.</div>
-                <div id="det-balance-indicator" class="badge unbalanced" style="font-size:14px;">Belum Seimbang</div>
-            </div>
+        <div class="detail-table-note">
+            <span>Tabel di bawah diprogram seperti spreadsheet: gunakan Tab dan Enter untuk berpindah antar sel.</span>
+        </div>
 
             <div class="table-responsive" style="border:none;">
                 <table id="detail-items-table" class="std-table">
@@ -993,7 +1021,7 @@
                         <tr>
                             <th style="width:4%; text-align:center;">☰</th>
                             <th style="width:4%; text-align:center;"><input type="checkbox" onclick="toggleAllLineRowDet(this)"></th>
-                            <th style="width:5%; text-align:center;">Halaman</th>
+                            <th style="width:8%; text-align:center;">Halaman</th>
                             <th style="width:20%; text-align:center;">Deskripsi (Bensin, Tol, dll)</th>
                             <th style="width:13%; text-align:center;">Tgl Transaksi</th>
                             <th style="width:18%; text-align:center;">Amount Nota</th>
@@ -1005,31 +1033,28 @@
                 </table>
             </div>
 
-            <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap:10px;">
-                <div style="display:flex; gap:10px;">
+            <div class="detail-total-bar">
+                <div class="detail-action-group">
                     <button class="write-action btn btn-secondary" id="btn-det-add-row" onclick="addNewDetailRow()">+ Tambah Baris</button>
                     <button class="write-action btn btn-danger" id="btn-det-del-row" onclick="deleteSelectedDetailRows()" style="display:none;">🗑️ Hapus Baris</button>
+                    <button class="btn btn-warning" id="btn-det-adjust" style="display:none; font-weight:bold;" onclick="executeDetailAdjustments()">⚖️ Sesuaikan Selisih Baris</button>
                 </div>
-                <div style="display:flex; align-items:center; gap:15px;">
-                    <button class="btn btn-warning" id="btn-det-adjust" style="display:none; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2);" onclick="executeDetailAdjustments()">⚖️ Sesuaikan Selisih Baris</button>
-                    <strong>Total Amount Nota: <span id="det-currency-label">IDR</span> <span id="txt-det-total">0</span></strong>
-                </div>
+                <div class="detail-total-value">Total Amount Nota: <strong><span id="det-currency-label">IDR</span> <span id="txt-det-total">0</span></strong></div>
             </div>
 
-            <div style="margin-top: 25px; border-top: 1px solid #e0e0e0; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap:wrap; gap:10px;">
-                <div style="display:flex; gap:10px;">
+            <div class="detail-action-bar">
+                <div class="detail-action-group">
                     <button class="btn btn-secondary" onclick="closeDetailModule()">✖ Tutup</button>
                     <button class="btn btn-info" onclick="openDetailSimulate()">📊 Simulasi Jurnal</button>
                     <button class="btn btn-success" onclick="exportDetailExcel()">📥 Ekspor Excel</button>
                     <button class="write-action btn btn-danger" id="btn-det-delete" onclick="deleteDetailData()">🗑️ Hapus Detail Pengajuan</button>
                 </div>
-                <div style="display:flex; gap:10px;" id="det-action-buttons">
+                <div class="detail-action-group" id="det-action-buttons">
                     <button class="write-action btn btn-secondary" onclick="saveDetailData('Draft')">💾 Simpan sebagai Draft</button>
                     <button class="write-action btn btn-primary" style="background:#28a745; border-color:#1e7e34;" onclick="saveDetailData('Final')">✅ Finalisasi</button>
                 </div>
             </div>
-        </div>
-    </div>
+    </section>
 </div>
 
 <!-- MENU 1.8: CATATAN DETAIL (ARSIP NOTA) -->
@@ -1055,7 +1080,7 @@
             </select>
             <input type="text" id="filter-date-catatan-detail" class="list-date-input" placeholder="📅 Filter Tgl Proses..." readonly>
             <button class="btn btn-secondary list-reset-button" onclick="applyClaimPeriodPreset('catatan-detail', 'all_time')" title="Atur ulang filter">✖ Atur Ulang</button>
-            <input type="text" id="search-catatan-detail" class="list-search-box" placeholder="🔍 Pencarian cepat" onkeyup="executeGlobalSearch('catatan-detail')">
+            <div class="ws-search"><span class="ws-search-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"></circle><path d="M10.6 10.6 14 14"></path></svg></span><input type="text" id="search-catatan-detail" placeholder="Cari No. pengajuan, NIK, nama, tipe..." aria-label="Pencarian cepat" onkeyup="executeGlobalSearch('catatan-detail')"><button type="button" class="ws-search-clear" aria-label="Bersihkan pencarian" onclick="clearWsSearch(this)">✕</button></div>
         </div>
     </section>
 
@@ -1120,7 +1145,7 @@
                 <section class="header-panel list-toolbar" aria-label="Filter Pemantauan Revisi">
                     <div class="list-toolbar-title"><span aria-hidden="true">⌕</span><div><strong>Cari Revisi</strong><small>No. pengajuan, NIK, nama, atau tipe</small></div></div>
                     <div class="list-toolbar-controls">
-                        <input type="text" id="search-revise" class="list-search-box" placeholder="Cari No. pengajuan, NIK, nama, tipe..." oninput="executeGlobalSearch('revise')" onkeydown="if(event.key==='Enter') executeGlobalSearch('revise')" style="width:min(320px,100%);">
+                        <div class="ws-search ws-search--wide"><span class="ws-search-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"></circle><path d="M10.6 10.6 14 14"></path></svg></span><input type="text" id="search-revise" placeholder="Cari No. pengajuan, NIK, nama, tipe..." aria-label="Pencarian cepat" oninput="executeGlobalSearch('revise')" onkeydown="if(event.key==='Enter') executeGlobalSearch('revise')"><button type="button" class="ws-search-clear" aria-label="Bersihkan pencarian" onclick="clearWsSearch(this)">✕</button></div>
                         <div class="list-view-switch" role="group" aria-label="Mode tampilan Revisi">
                             <button class="btn is-active" id="btn-rev-list" onclick="toggleReviseView('list')">Daftar</button>
                             <button class="btn" id="btn-rev-folder" onclick="toggleReviseView('folder')">Folder</button>
@@ -1252,7 +1277,7 @@
                         </select>
                         <input type="text" id="filter-date-rekap" class="list-date-input" placeholder="📅 Filter Tgl Proses..." readonly>
                         <button class="btn btn-secondary list-reset-button" onclick="applyClaimPeriodPreset('rekap', 'all_time')" title="Atur ulang filter">✖ Atur Ulang</button>
-                        <input type="text" id="search-rekap" class="list-search-box" placeholder="🔍 Pencarian cepat" onkeyup="executeGlobalSearch('rekap')">
+                        <div class="ws-search"><span class="ws-search-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"></circle><path d="M10.6 10.6 14 14"></path></svg></span><input type="text" id="search-rekap" placeholder="Cari No. pengajuan, NIK, nama, tipe..." aria-label="Pencarian cepat" onkeyup="executeGlobalSearch('rekap')"><button type="button" class="ws-search-clear" aria-label="Bersihkan pencarian" onclick="clearWsSearch(this)">✕</button></div>
                     </div>
                 </section>
 
@@ -1343,7 +1368,7 @@
                         </select>
                         <input type="text" id="filter-date-in-process" class="list-date-input" placeholder="📅 Filter Tgl Proses..." readonly>
                         <button class="btn btn-secondary list-reset-button" onclick="applyClaimPeriodPreset('in-process','all_time')" title="Atur ulang filter">✖ Atur Ulang</button>
-                        <input type="text" id="search-in-process" class="list-search-box" placeholder="🔍 Pencarian cepat" oninput="executeGlobalSearch('in-process')">
+                        <div class="ws-search"><span class="ws-search-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"></circle><path d="M10.6 10.6 14 14"></path></svg></span><input type="text" id="search-in-process" placeholder="Cari No. pengajuan, NIK, nama, tipe..." aria-label="Pencarian cepat" oninput="executeGlobalSearch('in-process')"><button type="button" class="ws-search-clear" aria-label="Bersihkan pencarian" onclick="clearWsSearch(this)">✕</button></div>
                     </div>
                 </section>
 
@@ -1384,7 +1409,7 @@
                         </select>
                         <input type="text" id="filter-date-canceled" class="list-date-input" placeholder="📅 Filter Tgl Cancel..." readonly>
                         <button class="btn btn-secondary list-reset-button" onclick="applyClaimPeriodPreset('canceled','all_time')" title="Atur ulang filter">✖ Atur Ulang</button>
-                        <input type="text" id="search-canceled" class="list-search-box" placeholder="🔍 Pencarian cepat" oninput="executeGlobalSearch('canceled')">
+                        <div class="ws-search"><span class="ws-search-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"></circle><path d="M10.6 10.6 14 14"></path></svg></span><input type="text" id="search-canceled" placeholder="Cari No. pengajuan, NIK, nama, tipe..." aria-label="Pencarian cepat" oninput="executeGlobalSearch('canceled')"><button type="button" class="ws-search-clear" aria-label="Bersihkan pencarian" onclick="clearWsSearch(this)">✕</button></div>
                     </div>
                 </section>
 
@@ -1429,7 +1454,7 @@
                         </select>
                         <input type="text" id="filter-date-history" class="list-date-input" placeholder="📅 Filter Tgl RTP..." readonly>
                         <button class="btn btn-secondary list-reset-button" onclick="applyClaimPeriodPreset('history', 'all_time')" title="Atur ulang filter">✖ Atur Ulang</button>
-                        <input type="text" id="search-history" class="list-search-box" placeholder="🔍 Pencarian cepat" onkeyup="executeGlobalSearch('history')">
+                        <div class="ws-search"><span class="ws-search-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"></circle><path d="M10.6 10.6 14 14"></path></svg></span><input type="text" id="search-history" placeholder="Cari No. pengajuan, NIK, nama, tipe..." aria-label="Pencarian cepat" onkeyup="executeGlobalSearch('history')"><button type="button" class="ws-search-clear" aria-label="Bersihkan pencarian" onclick="clearWsSearch(this)">✕</button></div>
                     </div>
                 </section>
 
@@ -1535,7 +1560,7 @@
                         </select>
                         <input type="text" id="filter-date-waiting" class="list-date-input" placeholder="📅 Filter Tgl Proses..." readonly>
                         <button class="btn btn-secondary list-reset-button" onclick="applyClaimPeriodPreset('waiting', 'all_time')" title="Atur ulang filter">✖ Atur Ulang</button>
-                        <input type="text" id="search-waiting" class="list-search-box" placeholder="🔍 Pencarian cepat" onkeyup="executeGlobalSearch('waiting')">
+                        <div class="ws-search"><span class="ws-search-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"></circle><path d="M10.6 10.6 14 14"></path></svg></span><input type="text" id="search-waiting" placeholder="Cari No. pengajuan, NIK, nama, tipe..." aria-label="Pencarian cepat" onkeyup="executeGlobalSearch('waiting')"><button type="button" class="ws-search-clear" aria-label="Bersihkan pencarian" onclick="clearWsSearch(this)">✕</button></div>
                     </div>
                 </section>
 
@@ -1585,139 +1610,195 @@
             </div>
 
             <!-- MENU 4: MASTER GL ACCOUNT -->
-            <div id="menu-master-gl" class="content-card">
-                <div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
-                <div class="header-panel">
-                    <h1>⚙️ Data Induk GL Account</h1>
-                    <div><button class="write-action btn btn-danger" id="btn-del-gl" onclick="bulkDeleteGL()">🗑️ Hapus Pilihan</button></div>
-                </div>
-                
-                <p style="font-size:12px; color:#666; margin-bottom:15px;">Tambahkan tipe pengajuan dan nama GL. Tipe pengajuan dapat dimasukkan secara manual apabila belum tersedia dalam daftar.</p>
-                
-                <!-- Search Only Field -->
-                <div style="background: #f8fbff; padding: 15px; border-radius: 6px; border: 1px solid #d0e3f7; margin-bottom: 20px; display:flex; gap:10px; align-items:flex-end; flex-wrap: wrap;">
-                    <div class="form-group" style="flex:1; min-width: 150px;">
-                        <label>Pencarian</label>
-                        <input type="text" id="search-gl-input" placeholder="Cari Tipe / Nama GL..." onkeyup="searchGL()">
+            <div id="menu-master-gl" class="content-card list-page" data-accent="blue">
+                <header class="list-hero">
+                    <div class="list-hero-icon" aria-hidden="true">⚙️</div>
+                    <div class="list-hero-copy">
+                        <span class="list-eyebrow">PENGATURAN</span>
+                        <h3>Data Induk GL Account</h3>
+                        <p>Kelola pasangan tipe pengajuan dan nama GL Account yang dipakai seluruh modul lembar kerja.</p>
                     </div>
-                </div>
+                    <div class="list-hero-mark" aria-hidden="true">🗂️</div>
+                </header>
+                <div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
+
+                <section class="header-panel list-toolbar" aria-label="Pencarian GL Account">
+                    <div class="list-toolbar-title"><span aria-hidden="true">⌕</span><div><strong>Pencarian Data Induk</strong><small>Saring berdasarkan tipe pengajuan atau nama GL</small></div></div>
+                    <div class="list-toolbar-controls">
+                        <div class="ws-search">
+                            <span class="ws-search-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"></circle><path d="M10.6 10.6 14 14"></path></svg></span>
+                            <input type="text" id="search-gl-input" placeholder="Cari Tipe / Nama GL..." aria-label="Cari tipe atau nama GL" onkeyup="searchGL()">
+                            <button type="button" class="ws-search-clear" aria-label="Bersihkan pencarian" onclick="clearWsSearch(this)">✕</button>
+                        </div>
+                    </div>
+                </section>
 
                 <!-- Admin Action Fields -->
-                <div id="gl-admin-actions" style="background: #f8fbff; padding: 15px; border-radius: 6px; border: 1px solid #d0e3f7; margin-bottom: 20px; display:flex; gap:10px; align-items:flex-end; flex-wrap: wrap;">
-                    <div class="form-group" style="flex:1; min-width: 150px;">
-                        <label>Tipe Pengajuan</label>
-                        <input type="text" id="new-gl-tipe" list="dl-tipe-pengajuan" placeholder="Masukkan atau pilih tipe">
-                        <datalist id="dl-tipe-pengajuan"></datalist>
+                <section class="master-panel" id="gl-admin-actions" style="display:none;" aria-label="Tambah GL Account">
+                    <div class="master-panel-head">
+                        <div class="master-panel-title"><span class="master-panel-icon" aria-hidden="true">+</span><div><h4>Tambah GL Account</h4><small>Tipe pengajuan dapat diketik manual apabila belum tersedia dalam daftar</small></div></div>
                     </div>
-                    <div class="form-group" style="flex:2; min-width: 200px;">
-                        <label>Nama GL Account</label>
-                        <input type="text" id="new-gl-nama" placeholder="Contoh: Bensin" oninput="this.value = toTitleCase(this.value)">
+                    <div class="master-form-grid">
+                        <div class="form-group">
+                            <label>Tipe Pengajuan</label>
+                            <input type="text" id="new-gl-tipe" list="dl-tipe-pengajuan" placeholder="Masukkan atau pilih tipe">
+                            <datalist id="dl-tipe-pengajuan"></datalist>
+                        </div>
+                        <div class="form-group span-wide">
+                            <label>Nama GL Account</label>
+                            <input type="text" id="new-gl-nama" placeholder="Contoh: Bensin" oninput="this.value = toTitleCase(this.value)">
+                        </div>
                     </div>
-                    <button class="write-action btn btn-primary" id="btn-save-gl" onclick="saveGLMaster()">+ Tambah</button>
-                    <div class="upload-btn-wrapper"><button class="btn btn-success">📁 Impor Excel</button><input type="file" accept=".xls,.xlsx" onchange="importGLExcel(event)" /></div>
-                </div>
+                    <div class="master-form-footer">
+                        <button class="write-action btn btn-primary" id="btn-save-gl" onclick="saveGLMaster()">+ Tambah</button>
+                        <div class="upload-btn-wrapper"><button class="btn btn-success">📁 Impor Excel</button><input type="file" accept=".xls,.xlsx" onchange="importGLExcel(event)" /></div>
+                        <span class="master-form-hint">Impor Excel menambahkan data baru tanpa menghapus daftar yang sudah ada.</span>
+                    </div>
+                </section>
 
-                <div class="table-responsive" style="border:none;">
-                    <table class="std-table" id="table-master-gl">
-                        <thead><tr>
-                            <th class="admin-col-gl" width="40"><input type="checkbox" onclick="toggleSelectAll(this, 'gl-checkbox')"></th>
-                            <th class="admin-col-gl" width="50">Ubah</th>
-                            <th>Tipe Pengajuan</th>
-                            <th>Nama GL Account</th>
-                        </tr></thead>
-                        <tbody id="tbody-master-gl"></tbody>
-                    </table>
-                </div>
+                <section class="master-panel" aria-label="Daftar GL Account">
+                    <div class="master-panel-head">
+                        <div class="master-panel-title"><span class="master-panel-icon" aria-hidden="true">▤</span><div><h4>Daftar GL Account</h4><small>Klik Ubah untuk menyunting satu baris</small></div></div>
+                        <div class="master-panel-actions"><button class="write-action btn btn-danger" id="btn-del-gl" onclick="bulkDeleteGL()">🗑️ Hapus Pilihan</button></div>
+                    </div>
+                    <div class="table-responsive" style="border:none;">
+                        <table class="std-table" id="table-master-gl">
+                            <thead><tr>
+                                <th class="admin-col-gl" width="40"><input type="checkbox" onclick="toggleSelectAll(this, 'gl-checkbox')"></th>
+                                <th class="admin-col-gl" width="50">Ubah</th>
+                                <th>Tipe Pengajuan</th>
+                                <th>Nama GL Account</th>
+                            </tr></thead>
+                            <tbody id="tbody-master-gl"></tbody>
+                        </table>
+                    </div>
+                </section>
             </div>
 
             <!-- MENU 5: MASTER DATA KARYAWAN -->
-            <div id="menu-master-karyawan" class="content-card">
+            <div id="menu-master-karyawan" class="content-card list-page" data-accent="cyan">
+                <header class="list-hero">
+                    <div class="list-hero-icon" aria-hidden="true">⚙️</div>
+                    <div class="list-hero-copy">
+                        <span class="list-eyebrow">PENGATURAN</span>
+                        <h3>Data Induk Karyawan</h3>
+                        <p>Sumber NIK, nama, entitas, dan cost center yang mengisi otomatis seluruh formulir pengajuan.</p>
+                    </div>
+                    <p class="master-meta-chip"><span aria-hidden="true">🕒</span> Pembaruan Terakhir: <span id="txt-last-kar-upd">-</span></p>
+                </header>
                 <div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
-                <div class="header-panel">
-                    <div>
-                        <h1 style="margin-bottom:5px;">⚙️ Data Induk Karyawan</h1>
-                        <p style="font-size:12px; color:#155724; background:#d4edda; padding:6px 10px; border-radius:4px; border:1px solid #c3e6cb; font-weight:bold; display:inline-block; margin:0;">🕒 Pembaruan Terakhir: <span id="txt-last-kar-upd">-</span></p>
-                    </div>
-                    <div><button class="write-action btn btn-danger" id="btn-del-kar" onclick="bulkDeleteKaryawan()">🗑️ Hapus Pilihan</button></div>
-                </div>
-                
-                <div style="background: #f8fbff; padding: 15px; border-radius: 6px; border: 1px solid #d0e3f7; margin-bottom: 20px; display:flex; gap:10px; align-items:flex-end; flex-wrap: wrap;">
-                    <div class="form-group" style="flex:1;"><label>Pencarian</label><input type="text" id="search-kar-input" placeholder="Cari NIK / Nama..." onkeyup="searchKaryawan()"></div>
-                </div>
 
-                <div id="kar-admin-actions" style="background: #f8fbff; padding: 15px; border-radius: 6px; border: 1px solid #d0e3f7; margin-bottom: 20px; display:flex; gap:10px; align-items:flex-end; flex-wrap: wrap;">
-                    <div class="form-group"><label>NIK</label><input type="text" id="new-kar-nik" placeholder="Masukkan NIK"></div>
-                    <div class="form-group" style="flex:1; min-width: 200px;"><label>Nama Karyawan</label><input type="text" id="new-kar-nama" placeholder="Masukkan nama" oninput="this.value = toTitleCase(this.value)"></div>
-                    <div class="form-group"><label>Entitas</label><select id="new-kar-entitas"><option value="AIO">AIO</option><option value="ODI">ODI</option></select></div>
-                    <div class="form-group"><label>Cost Center</label><input type="text" id="new-kar-cc" placeholder="Masukkan Cost Center"></div>
-                    <div class="form-group"><label>Lokasi Kerja</label><input type="text" id="new-kar-lokasi" placeholder="Masukkan lokasi"></div>
-                    <div class="form-group"><label>Jabatan</label><input type="text" id="new-kar-jabatan" placeholder="Masukkan jabatan"></div>
-                    <div class="form-group"><label>Departemen</label><input type="text" id="new-kar-dept" placeholder="Masukkan departemen"></div>
-                    <button class="write-action btn btn-primary" id="btn-save-kar" onclick="saveKaryawan()">+ Tambah</button>
-                    <div class="upload-btn-wrapper"><button class="btn btn-success">📁 Impor Excel</button><input type="file" accept=".xls,.xlsx" onchange="importKaryawanExcel(event)" /></div>
-                </div>
+                <section class="header-panel list-toolbar" aria-label="Pencarian karyawan">
+                    <div class="list-toolbar-title"><span aria-hidden="true">⌕</span><div><strong>Pencarian Data Induk</strong><small>Saring berdasarkan NIK atau nama karyawan</small></div></div>
+                    <div class="list-toolbar-controls">
+                        <div class="ws-search">
+                            <span class="ws-search-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"></circle><path d="M10.6 10.6 14 14"></path></svg></span>
+                            <input type="text" id="search-kar-input" placeholder="Cari NIK / Nama..." aria-label="Cari NIK atau nama karyawan" onkeyup="searchKaryawan()">
+                            <button type="button" class="ws-search-clear" aria-label="Bersihkan pencarian" onclick="clearWsSearch(this)">✕</button>
+                        </div>
+                    </div>
+                </section>
 
-                <div class="table-responsive" style="border:none;">
-                    <table class="std-table" id="table-master-karyawan">
-                        <thead><tr>
-                            <th class="admin-col-kar" width="40"><input type="checkbox" onclick="toggleSelectAll(this, 'kar-checkbox')"></th>
-                            <th class="admin-col-kar" width="50">Ubah</th>
-                            <th>NIK <span class="th-filter-icon" onclick="openExcelFilter(event, 'nik', 'karyawan')">▼</span></th>
-                            <th>Nama Karyawan <span class="th-filter-icon" onclick="openExcelFilter(event, 'nama', 'karyawan')">▼</span></th>
-                            <th>Entitas <span class="th-filter-icon" onclick="openExcelFilter(event, 'entitas', 'karyawan')">▼</span></th>
-                            <th>Cost Center <span class="th-filter-icon" onclick="openExcelFilter(event, 'cc', 'karyawan')">▼</span></th>
-                            <th>Lokasi Kerja <span class="th-filter-icon" onclick="openExcelFilter(event, 'lokasi', 'karyawan')">▼</span></th>
-                            <th>Jabatan <span class="th-filter-icon" onclick="openExcelFilter(event, 'jabatan', 'karyawan')">▼</span></th>
-                            <th>Departemen <span class="th-filter-icon" onclick="openExcelFilter(event, 'departemen', 'karyawan')">▼</span></th>
-                        </tr></thead>
-                        <tbody id="tbody-master-karyawan"></tbody>
-                    </table>
-                </div>
-<div class="pagination-container" id="kar-pagination-container">
-                    <div>Tampilkan 
-                        <select id="kar-rows-per-page" onchange="karRowsPerPage = parseInt(this.value); karCurrentPage = 1; renderMasterKaryawan();">
-                            <option value="10">10 baris</option><option value="20" selected>20 baris</option><option value="50">50 baris</option><option value="100">100 baris</option><option value="500">500 baris</option>
-                        </select>
+                <section class="master-panel" id="kar-admin-actions" style="display:none;" aria-label="Tambah karyawan">
+                    <div class="master-panel-head">
+                        <div class="master-panel-title"><span class="master-panel-icon" aria-hidden="true">+</span><div><h4>Tambah Karyawan</h4><small>NIK wajib unik; kolom lain melengkapi data pengisian otomatis</small></div></div>
                     </div>
-                    <div class="pagination-controls">
-                        <button class="btn btn-secondary" onclick="if(karCurrentPage > 1) { karCurrentPage--; renderMasterKaryawan(); }">◀ Sebelumnya</button>
-                        <span id="kar-page-info" style="font-weight:bold; font-size:13px; color:#0050A0;">Halaman 1 / 1</span>
-                        <button class="btn btn-secondary" onclick="karCurrentPage++; renderMasterKaryawan();">Berikutnya ▶</button>
+                    <div class="master-form-grid">
+                        <div class="form-group"><label>NIK</label><input type="text" id="new-kar-nik" placeholder="Masukkan NIK"></div>
+                        <div class="form-group span-wide"><label>Nama Karyawan</label><input type="text" id="new-kar-nama" placeholder="Masukkan nama" oninput="this.value = toTitleCase(this.value)"></div>
+                        <div class="form-group"><label>Entitas</label><select id="new-kar-entitas"><option value="AIO">AIO</option><option value="ODI">ODI</option></select></div>
+                        <div class="form-group"><label>Cost Center</label><input type="text" id="new-kar-cc" placeholder="Masukkan Cost Center"></div>
+                        <div class="form-group"><label>Lokasi Kerja</label><input type="text" id="new-kar-lokasi" placeholder="Masukkan lokasi"></div>
+                        <div class="form-group"><label>Jabatan</label><input type="text" id="new-kar-jabatan" placeholder="Masukkan jabatan"></div>
+                        <div class="form-group"><label>Departemen</label><input type="text" id="new-kar-dept" placeholder="Masukkan departemen"></div>
                     </div>
-                </div>
+                    <div class="master-form-footer">
+                        <button class="write-action btn btn-primary" id="btn-save-kar" onclick="saveKaryawan()">+ Tambah</button>
+                        <div class="upload-btn-wrapper"><button class="btn btn-success">📁 Impor Excel</button><input type="file" accept=".xls,.xlsx" onchange="importKaryawanExcel(event)" /></div>
+                        <span class="master-form-hint">Impor Excel memperbarui data dengan NIK yang sama dan menambahkan NIK baru.</span>
+                    </div>
+                </section>
+
+                <section class="master-panel" aria-label="Daftar karyawan">
+                    <div class="master-panel-head">
+                        <div class="master-panel-title"><span class="master-panel-icon" aria-hidden="true">▤</span><div><h4>Daftar Karyawan</h4><small>Gunakan ikon filter pada judul kolom untuk penyaringan lanjutan</small></div></div>
+                        <div class="master-panel-actions"><button class="write-action btn btn-danger" id="btn-del-kar" onclick="bulkDeleteKaryawan()">🗑️ Hapus Pilihan</button></div>
+                    </div>
+                    <div class="table-responsive" style="border:none;">
+                        <table class="std-table" id="table-master-karyawan">
+                            <thead><tr>
+                                <th class="admin-col-kar" width="40"><input type="checkbox" onclick="toggleSelectAll(this, 'kar-checkbox')"></th>
+                                <th class="admin-col-kar" width="50">Ubah</th>
+                                <th>NIK <span class="th-filter-icon" onclick="openExcelFilter(event, 'nik', 'karyawan')">▼</span></th>
+                                <th>Nama Karyawan <span class="th-filter-icon" onclick="openExcelFilter(event, 'nama', 'karyawan')">▼</span></th>
+                                <th>Entitas <span class="th-filter-icon" onclick="openExcelFilter(event, 'entitas', 'karyawan')">▼</span></th>
+                                <th>Cost Center <span class="th-filter-icon" onclick="openExcelFilter(event, 'cc', 'karyawan')">▼</span></th>
+                                <th>Lokasi Kerja <span class="th-filter-icon" onclick="openExcelFilter(event, 'lokasi', 'karyawan')">▼</span></th>
+                                <th>Jabatan <span class="th-filter-icon" onclick="openExcelFilter(event, 'jabatan', 'karyawan')">▼</span></th>
+                                <th>Departemen <span class="th-filter-icon" onclick="openExcelFilter(event, 'departemen', 'karyawan')">▼</span></th>
+                            </tr></thead>
+                            <tbody id="tbody-master-karyawan"></tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-container" id="kar-pagination-container">
+                        <div>Tampilkan
+                            <select id="kar-rows-per-page" onchange="karRowsPerPage = parseInt(this.value); karCurrentPage = 1; renderMasterKaryawan();">
+                                <option value="10">10 baris</option><option value="20" selected>20 baris</option><option value="50">50 baris</option><option value="100">100 baris</option><option value="500">500 baris</option>
+                            </select>
+                        </div>
+                        <div class="pagination-controls">
+                            <button class="btn btn-secondary" onclick="if(karCurrentPage > 1) { karCurrentPage--; renderMasterKaryawan(); }">◀ Sebelumnya</button>
+                            <span id="kar-page-info" style="font-weight:bold; font-size:13px; color:#0050A0;">Halaman 1 / 1</span>
+                            <button class="btn btn-secondary" onclick="karCurrentPage++; renderMasterKaryawan();">Berikutnya ▶</button>
+                        </div>
+                    </div>
+                </section>
             </div>
 
             <!-- MENU 6: SYSTEM BACKUP -->
-            <div id="menu-master-backup" class="content-card">
+            <div id="menu-master-backup" class="content-card list-page" data-accent="green">
+                <header class="list-hero">
+                    <div class="list-hero-icon" aria-hidden="true">🗄️</div>
+                    <div class="list-hero-copy">
+                        <span class="list-eyebrow">PENGATURAN</span>
+                        <h3>Basis Data &amp; Cadangan Sistem</h3>
+                        <p>Cadangan lokal dibuat berkala ketika browser tidak aktif dan menyimpan tujuh tanggal terakhir. Kata sandi dan peran pengguna tidak pernah disertakan.</p>
+                    </div>
+                    <div class="list-hero-mark" aria-hidden="true">💾</div>
+                </header>
                 <div class="read-only-notice" data-read-only-notice style="display:none;"><span aria-hidden="true">🔒</span><div>Akun Anda hanya memiliki akses baca pada layar ini. Perubahan status pembayaran tetap dapat dilakukan melalui tombol Tindakan Finance pada daftar claim.</div></div>
-                <div class="header-panel">
-                    <h1>⚙️ Basis Data & Cadangan Sistem</h1>
-                    <button class="btn btn-primary" onclick="forceBackup()">💾 Buat Cadangan Sekarang</button>
-                </div>
-                <p style="font-size:13px; color:#555; margin-bottom:20px;">Sistem membuat cadangan lokal secara berkala ketika browser tidak aktif dan mempertahankan tujuh tanggal terakhir. Proses pencadangan dan pemulihan hanya tersedia bagi Admin serta tidak mencakup kata sandi atau peran pengguna.</p>
 
-                <div class="unified-form-box" style="background:#f0fff4; border-color:#a7d7b5; margin-bottom:15px; line-height:1.55;">
-                    <h4 style="color:#155724; margin:0 0 6px;">✅ Sumber Data Aktif</h4>
-                    <p style="font-size:12px; color:#355d3d; margin:0;">Aplikasi final menggunakan satu sumber aktif <code>claims/{id}</code>. Setelah cache awal terbentuk, sinkronisasi hanya mengambil data baru, berubah, atau terhapus.</p>
-                </div>
-                
-                <div class="unified-form-box" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap:10px;">
-                    <div><h4 style="color:#0050A0;">Cadangan Manual Skema 2 (Ekspor File)</h4><p style="font-size:12px; color:#666;">Berisi klaim aktif, data induk GL/karyawan, manifes jumlah dan total per valas, serta hash integritas. Kata sandi dan peran pengguna tidak disertakan.</p></div>
-                    <button class="btn btn-success" onclick="downloadJSONBackup()">📥 Unduh Cadangan (.json)</button>
+                <div class="backup-grid">
+                    <article class="backup-card" data-tone="green">
+                        <div class="backup-card-head"><span class="backup-card-icon" aria-hidden="true">✓</span><h4>Sumber Data Aktif</h4></div>
+                        <p>Aplikasi final menggunakan satu sumber aktif <code>claims/{id}</code>. Setelah cache awal terbentuk, sinkronisasi hanya mengambil data baru, berubah, atau terhapus.</p>
+                        <div class="backup-card-foot"><button class="btn btn-primary" onclick="forceBackup()">💾 Buat Cadangan Sekarang</button></div>
+                    </article>
+
+                    <article class="backup-card" data-tone="blue">
+                        <div class="backup-card-head"><span class="backup-card-icon" aria-hidden="true">↓</span><h4>Cadangan Manual Skema 2</h4></div>
+                        <p>Berisi klaim aktif, data induk GL/karyawan, manifes jumlah dan total per valas, serta hash integritas. Kata sandi dan peran pengguna tidak disertakan.</p>
+                        <div class="backup-card-foot"><button class="btn btn-success" onclick="downloadJSONBackup()">📥 Unduh Cadangan (.json)</button></div>
+                    </article>
+
+                    <article class="backup-card" data-tone="amber">
+                        <div class="backup-card-head"><span class="backup-card-icon" aria-hidden="true">↺</span><h4>Pemulihan Aman (Gabung/Upsert)</h4></div>
+                        <p>File akan diperiksa terlebih dahulu. Klaim baru ditambahkan, klaim yang sama dipulihkan, dan transaksi aktif yang tidak terdapat dalam cadangan tetap dipertahankan. Proses pemulihan tidak menghapus data secara otomatis.</p>
+                        <div class="backup-card-foot"><div class="upload-btn-wrapper"><button class="btn btn-warning">📁 Pilih File &amp; Tinjau</button><input type="file" accept=".json,application/json" onchange="restoreJSONBackup(event)" /></div></div>
+                    </article>
                 </div>
 
-                <div class="unified-form-box" style="display:flex; justify-content:space-between; align-items:center; background:#fff3cd; border-color:#ffeeba; flex-wrap: wrap; gap:10px;">
-                    <div><h4 style="color:#856404;">Pemulihan Aman (Gabung/Upsert)</h4><p style="font-size:12px; color:#666;">File akan diperiksa terlebih dahulu. Klaim baru ditambahkan, klaim yang sama dipulihkan, dan transaksi aktif yang tidak terdapat dalam cadangan tetap dipertahankan. Proses pemulihan tidak menghapus data secara otomatis.</p></div>
-                    <div class="upload-btn-wrapper"><button class="btn btn-warning">📁 Pilih File & Tinjau</button><input type="file" accept=".json,application/json" onchange="restoreJSONBackup(event)" /></div>
-                </div>
-
-                <h4 style="margin-top:30px; margin-bottom:10px; color:#555;">Auto-Rotation Log (Max 7 Days)</h4>
-                <div class="table-responsive" style="border:none;">
-                    <table class="std-table" id="table-backup-log">
-                        <thead><tr><th>Tanggal</th><th>Skema</th><th>Jumlah Klaim</th><th>Tindakan Pemulihan Aman</th></tr></thead>
-                        <tbody id="tbody-backup-log"></tbody>
-                    </table>
-                </div>
+                <section class="master-panel" aria-label="Log rotasi cadangan">
+                    <div class="master-panel-head">
+                        <div class="master-panel-title"><span class="master-panel-icon" aria-hidden="true">▤</span><div><h4>Log Rotasi Otomatis</h4><small>Maksimal tujuh tanggal terakhir yang tersimpan</small></div></div>
+                    </div>
+                    <div class="table-responsive" style="border:none;">
+                        <table class="std-table" id="table-backup-log">
+                            <thead><tr><th>Tanggal</th><th>Skema</th><th>Jumlah Klaim</th><th>Tindakan Pemulihan Aman</th></tr></thead>
+                            <tbody id="tbody-backup-log"></tbody>
+                        </table>
+                    </div>
+                </section>
             </div>
 <div id="menu-super-find" class="content-card sf-page">
     <header class="sf-hero">
@@ -1752,10 +1833,9 @@
             <span class="sf-step-index" aria-hidden="true">2</span>
             <div class="sf-step-copy"><strong>Kata Kunci</strong><small>NIK, nama karyawan, atau nomor dokumen</small></div>
             <div class="sf-step-controls">
-                <div class="sf-input-row">
-                    <span class="sf-input-icon" aria-hidden="true">🔍</span>
-                    <input type="text" id="sf-search-input" class="sf-input-field" placeholder="Masukkan NIK, Nama, atau No Excel lalu Enter..." onkeyup="if(event.key === 'Enter') executeSuperFind(true)">
-                </div>
+                <div class="ws-search ws-search--lg ws-search--block"><span class="ws-search-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"></circle><path d="M10.6 10.6 14 14"></path></svg></span>
+                    <input type="text" id="sf-search-input" placeholder="Masukkan NIK, Nama, atau No Excel lalu Enter..." aria-label="Kata kunci pencarian klaim" onkeyup="if(event.key === 'Enter') executeSuperFind(true)">
+                    <button type="button" class="ws-search-clear" aria-label="Bersihkan pencarian" onclick="clearWsSearch(this)">✕</button></div>
                 <button type="button" class="btn btn-primary sf-search-btn" onclick="executeSuperFind(true)">Cari Data</button>
             </div>
         </div>
@@ -1960,10 +2040,9 @@
     <section id="board-rapor-individu" class="stats-panel stats-employee-card">
         <div class="stats-panel-header stats-employee-header">
             <div class="stats-panel-title"><span class="stats-panel-icon" aria-hidden="true">◎</span><div><h4>Rapor Individu Karyawan</h4><small>Masukkan NIK atau nama karyawan. Data mengikuti filter tanggal Statistik & Analitik.</small></div></div>
-            <label class="stats-search-box" aria-label="Cari rapor individu">
-                <span aria-hidden="true">⌕</span>
-                <input type="text" id="input-rapor-individu" placeholder="Masukkan NIK atau nama" onkeyup="renderRaporIndividu()">
-            </label>
+            <div class="ws-search"><span class="ws-search-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"></circle><path d="M10.6 10.6 14 14"></path></svg></span>
+                <input type="text" id="input-rapor-individu" placeholder="Masukkan NIK atau nama" aria-label="Cari rapor individu" onkeyup="renderRaporIndividu()">
+                <button type="button" class="ws-search-clear" aria-label="Bersihkan pencarian" onclick="clearWsSearch(this)">✕</button></div>
         </div>
         <div id="result-rapor-individu" class="stats-employee-result">
             <div class="stats-empty-state"><span aria-hidden="true">⌕</span><strong>Menunggu Pencarian</strong><small>Silakan masukkan NIK atau nama karyawan pada kolom pencarian di atas.</small></div>
@@ -2066,7 +2145,7 @@
                         <div class="content-editor-actions"><button class="btn btn-secondary" onclick="resetUiCopyEditorDraft()">Atur Ulang Draft</button><button class="btn btn-primary" id="btn-save-ui-copy" onclick="saveUiCopyOverrides()">Simpan Perubahan Teks</button></div>
                     </div>
                     <div class="content-editor-toolbar">
-                        <input id="ui-copy-search" type="search" placeholder="Cari teks, misalnya login, rekapitulasi, status..." oninput="resetUiCopyPaging()">
+                        <div class="ws-search ws-search--block"><span class="ws-search-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"></circle><path d="M10.6 10.6 14 14"></path></svg></span><input id="ui-copy-search" type="text" placeholder="Cari teks, misalnya login, rekapitulasi, status..." aria-label="Cari teks antarmuka" oninput="resetUiCopyPaging()"><button type="button" class="ws-search-clear" aria-label="Bersihkan pencarian" onclick="clearWsSearch(this)">✕</button></div>
                         <select id="ui-copy-language" onchange="resetUiCopyPaging()" aria-label="Bahasa yang diedit"><option value="id">Bahasa Indonesia</option><option value="en">English</option><option value="ja">日本語</option></select>
                         <span id="ui-copy-meta">0 teks</span>
                     </div>
@@ -2147,7 +2226,7 @@
                     </div>
                 </div>
                 <div class="activity-log-toolbar">
-                    <input id="activity-log-search" type="text" placeholder="Cari user, aktivitas, No. Ref, atau ID claim..." oninput="resetActivityLogPage(); renderActivityLogs()">
+                    <div class="ws-search ws-search--block"><span class="ws-search-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.6"></circle><path d="M10.6 10.6 14 14"></path></svg></span><input id="activity-log-search" type="text" placeholder="Cari user, aktivitas, No. Ref, atau ID claim..." aria-label="Cari log aktivitas" oninput="resetActivityLogPage(); renderActivityLogs()"><button type="button" class="ws-search-clear" aria-label="Bersihkan pencarian" onclick="clearWsSearch(this)">✕</button></div>
                     <select id="activity-log-role-filter" onchange="resetActivityLogPage(); renderActivityLogs()" aria-label="Filter peran Log Aktivitas">
                         <option value="all">Semua Peran</option><option value="admin">Admin</option><option value="accounting">Accounting</option><option value="finance">Finance</option><option value="viewer">Viewer</option>
                     </select>
